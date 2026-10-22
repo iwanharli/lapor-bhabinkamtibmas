@@ -60,6 +60,7 @@ model Unit {
   users    User[]
   villages Village[]
   reports  Report[]
+  attendances Attendance[]
 
   @@index([parentId])
   @@map("units")
@@ -81,6 +82,7 @@ model Village {
   polsek       Unit?         @relation(fields: [polsekId], references: [id])
   userVillages UserVillage[]
   reports      Report[]
+  attendances  Attendance[]
 
   @@index([polsekId])
   @@index([kecamatanKode])
@@ -110,6 +112,7 @@ model User {
   devices       Device[]
   refreshTokens RefreshToken[]
   exportJobs    ExportJob[]
+  attendances   Attendance[]
   auditLogs     AuditLog[]
   reports       Report[]              @relation("ReportAuthor")
   reviewed      Report[]              @relation("ReportReviewer")
@@ -315,6 +318,7 @@ model Attachment {
   createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz
 
   report Report? @relation(fields: [reportId], references: [id])
+  attendances Attendance[]
 
   @@index([reportId])
   @@map("attachments")
@@ -470,4 +474,45 @@ model ExportJob {
   @@index([userId, createdAt])
   @@index([status, createdAt])
   @@map("export_jobs")
+}
+
+enum AttendanceType {
+  CHECK_IN
+  CHECK_OUT
+}
+
+/// Absensi lapangan Bhabin: maks. satu CHECK_IN & satu CHECK_OUT per hari kerja (tanggal lokal unit).
+model Attendance {
+  id             String                                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientUuid     String                                     @unique @map("client_uuid") @db.Uuid
+  userId         String                                     @map("user_id") @db.Uuid
+  unitId         String                                     @map("unit_id") @db.Uuid
+  type           AttendanceType
+  /// Tanggal lokal (zona unit) dari client_time.
+  workDate       DateTime                                   @map("work_date") @db.Date
+  clientTime     DateTime                                   @map("client_time") @db.Timestamptz(3)
+  serverTime     DateTime                                   @default(now()) @map("server_time") @db.Timestamptz(3)
+  lat            Float
+  lng            Float
+  /// Dihitung database dari lat/lng.
+  location       Unsupported("geography(Point, 4326)")?
+  gpsAccuracyM   Float?                                     @map("gps_accuracy_m") @db.Real
+  isMockLocation Boolean                                    @default(false) @map("is_mock_location")
+  /// Di dalam salah satu desa binaan (toleransi 200 m).
+  insideVillage  Boolean?                                   @map("inside_village")
+  /// Desa binaan terdekat.
+  villageId      String?                                    @map("village_id") @db.Uuid
+  distanceM      Float?                                     @map("distance_m") @db.Real
+  selfieId       String?                                    @map("selfie_id") @db.Uuid
+  /// Dikirim > 15 menit setelah client_time (offline).
+  lateSync       Boolean                                    @default(false) @map("late_sync")
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  unit    Unit        @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  village Village?    @relation(fields: [villageId], references: [id], onDelete: SetNull)
+  selfie  Attachment? @relation(fields: [selfieId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, workDate, type])
+  @@index([unitId, workDate])
+  @@map("attendances")
 }

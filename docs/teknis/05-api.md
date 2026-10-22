@@ -145,11 +145,14 @@ Transisi yang sah dijelaskan di [03-modul-laporan §6](03-modul-laporan.md#6-alu
 
 ## 5. Absensi
 
-### `POST /attendances`
-`multipart/form-data`: `clientUuid`, `type`, `clientTime`, `lat`, `lng`, `gpsAccuracyM`, `isMockLocation`, `selfie` (file).
-Respons berisi `insideVillage`, `villageName`, `lateSync`.
+### `POST /attendances` (Bhabin)
+`multipart/form-data`: `clientUuid`, `type` (`CHECK_IN`/`CHECK_OUT`), `clientTime`, `lat`, `lng`, `gpsAccuracyM`, `isMockLocation`, `selfie` (file, dikompres seperti foto lampiran).
+- Hari kerja = tanggal lokal unit dari `clientTime`; maks. satu `CHECK_IN` & satu `CHECK_OUT` per hari (`409 ALREADY_RECORDED`), `CHECK_OUT` butuh `CHECK_IN` (`409 CHECK_IN_REQUIRED`).
+- `clientTime` > 24 jam lalu ditolak (`400 TOO_LATE`); dikirim > 15 menit setelahnya ditandai `lateSync`. Idempoten per `clientUuid`.
+- Respons: `insideVillage` (≤ 200 m dari poligon desa binaan aktif), `distanceM`, `villageName`, `lateSync`.
 
-### `GET /attendances?userId=&from=&to=` · `GET /attendances/summary?unitId=&month=2026-10`
+### `GET /attendances/me` (Bhabin) · `GET /attendances/daily?date=&unitId=&q=&status=hadir|belum|terlambat|luar&page=&limit=` · `GET /attendances/:id/selfie?thumb=1`
+Riwayat 31 hari; rekap harian per Bhabin aktif dalam cakupan (check-in/out, desa, terlambat setelah `ATTENDANCE_LATE_AFTER` = 08:00 setempat) dengan `summary` (`bhabin, hadir, terlambat, luar, palsu, pulang`); swafoto untuk pemilik atau pengguna dengan cakupan unitnya.
 
 ## 6. Analitik (web)
 

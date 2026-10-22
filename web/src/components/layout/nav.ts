@@ -1,12 +1,17 @@
 import type { NavSection } from './sidebar';
+import { CATEGORY_LABEL } from '@/lib/format';
 
 const ADMIN_ROLES = ['SUPERADMIN', 'ADMIN_UNIT'];
 const AUDIT_ROLES = ['SUPERADMIN', 'ADMIN_UNIT', 'AUDITOR'];
+const REPORT_CATEGORIES = Object.entries(CATEGORY_LABEL).map(([category, label]) => ({
+  href: `/laporan?category=${category}`,
+  label,
+}));
 
 /** Menu per peran. Menu hanya disembunyikan; keputusan akses tetap di backend. */
 export function navFor(role: string): NavSection[] {
   if (role === 'BHABIN') {
-    return [{ title: 'Menu', items: [{ href: '/laporan', label: 'Laporan saya', icon: 'reports' }] }];
+    return [{ title: 'Menu', items: [{ href: '/laporan', label: 'Laporan saya', icon: 'reports', children: REPORT_CATEGORIES }] }];
   }
   const sections: NavSection[] = [
     {
@@ -15,12 +20,13 @@ export function navFor(role: string): NavSection[] {
         { href: '/', label: 'Ringkasan', icon: 'dashboard' },
         { href: '/peta', label: 'Peta Sebaran', icon: 'map' },
         { href: '/kinerja', label: 'Kinerja Bhabin', icon: 'performance' },
+        { href: '/absensi', label: 'Absensi', icon: 'users' },
       ],
     },
     {
       title: 'Operasional',
       items: [
-        { href: '/laporan', label: 'Laporan', icon: 'reports' },
+        { href: '/laporan', label: 'Laporan', icon: 'reports', children: REPORT_CATEGORIES },
         { href: '/harga-pangan', label: 'Harga Pangan', icon: 'prices' },
       ],
     },

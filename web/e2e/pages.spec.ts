@@ -6,6 +6,7 @@ const PAGES: { path: string; heading: string; expect: RegExp }[] = [
   { path: '/', heading: 'Ringkasan', expect: /Total laporan/ },
   { path: '/peta', heading: 'Peta Sebaran', expect: /titik laporan/ },
   { path: '/kinerja', heading: 'Kinerja Bhabinkamtibmas', expect: /Rekap per Bhabin/ },
+  { path: '/absensi', heading: 'Absensi Lapangan', expect: /Belum hadir/ },
   { path: '/harga-pangan', heading: 'Pemantauan Harga Pangan', expect: /Pilih komoditas/i },
   { path: '/admin/pengguna', heading: 'Pengguna', expect: /NRP/ },
   { path: '/admin/unit', heading: 'Unit', expect: /Struktur unit/ },

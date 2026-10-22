@@ -9,6 +9,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { CryptoModule } from './common/crypto/crypto.module';
 import { StorageModule } from './common/storage/storage.module';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
+import { AttendancesModule } from './modules/attendances/attendances.module';
 import { ExportsModule } from './modules/exports/exports.module';
 import { AggregatesModule } from './modules/aggregates/aggregates.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
@@ -42,6 +43,7 @@ import { RegionsModule } from './modules/regions/regions.module';
     ReportsModule,
     AnalyticsModule,
     AttachmentsModule,
+    AttendancesModule,
     AggregatesModule,
     ExportsModule,
     HealthModule,

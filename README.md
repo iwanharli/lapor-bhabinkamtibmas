@@ -36,6 +36,7 @@ npm run seed:wilayah           # batas provinsi, kab/kota, kecamatan se-Indonesi
 npm run seed:wilayah -- --desa=32,34   # + desa/kelurahan provinsi tertentu (--desa=all untuk semua, --timpa untuk menimpa geometri)
 npm run storage:compress       # kompres ulang foto lampiran lama (--cek untuk perkiraan saja)
 npm run seed:demo-nasional    # contoh laporan di setiap kabupaten/kota (perlu seed:wilayah; --hapus untuk membersihkan)
+npm run seed:demo-absensi     # contoh absensi 14 hari untuk semua Bhabin aktif (--hapus untuk membersihkan)
 npm run start:dev
 
 # 3. Web → http://localhost:3001

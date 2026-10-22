@@ -83,6 +83,17 @@
       }
     },
     {
+      "key": "status_domisili",
+      "label": "Status domisili keluarga",
+      "type": "select",
+      "required": true,
+      "options": [
+        "Penduduk tetap",
+        "Pendatang/perantau",
+        "Kos/kontrak sementara"
+      ]
+    },
+    {
       "key": "status_kepemilikan",
       "label": "Status kepemilikan rumah",
       "type": "select",
@@ -150,10 +161,45 @@
       ]
     },
     {
+      "key": "kk_tempat_lahir",
+      "label": "Tempat lahir",
+      "type": "text",
+      "required": false,
+      "maxLength": 80
+    },
+    {
       "key": "kk_tanggal_lahir",
       "label": "Tanggal lahir",
       "type": "date",
       "required": false
+    },
+    {
+      "key": "kk_agama",
+      "label": "Agama",
+      "type": "select",
+      "required": true,
+      "options": [
+        "Islam",
+        "Kristen",
+        "Katolik",
+        "Hindu",
+        "Buddha",
+        "Konghucu",
+        "Kepercayaan terhadap Tuhan YME"
+      ]
+    },
+    {
+      "key": "kk_status_perkawinan",
+      "label": "Status perkawinan",
+      "type": "select",
+      "required": true,
+      "options": [
+        "Belum Kawin",
+        "Kawin Tercatat",
+        "Kawin Belum Tercatat",
+        "Cerai Hidup",
+        "Cerai Mati"
+      ]
     },
     {
       "key": "kk_pendidikan",
@@ -268,6 +314,37 @@
       }
     },
     {
+      "key": "kk_kebutuhan_khusus",
+      "label": "Kebutuhan khusus",
+      "type": "select",
+      "required": false,
+      "options": [
+        "Tidak ada",
+        "Disabilitas",
+        "Lansia sakit menahun",
+        "Lainnya"
+      ]
+    },
+    {
+      "key": "kk_kebutuhan_khusus_ket",
+      "label": "Keterangan kebutuhan khusus",
+      "type": "text",
+      "maxLength": 150,
+      "requiredIf": {
+        "field": "kk_kebutuhan_khusus",
+        "in": [
+          "Disabilitas",
+          "Lansia sakit menahun",
+          "Lainnya"
+        ]
+      },
+      "placeholders": {
+        "Disabilitas": "Jenis disabilitas, mis. tunanetra, pengguna kursi roda",
+        "Lansia sakit menahun": "Kondisi, mis. stroke, tidak bisa berjalan",
+        "Lainnya": "Sebutkan"
+      }
+    },
+    {
       "key": "kk_no_hp",
       "label": "No. HP",
       "type": "text",
@@ -324,10 +401,45 @@
           ]
         },
         {
+          "key": "tempat_lahir",
+          "label": "Tempat lahir",
+          "type": "text",
+          "required": false,
+          "maxLength": 80
+        },
+        {
           "key": "tanggal_lahir",
           "label": "Tanggal lahir",
           "type": "date",
           "required": false
+        },
+        {
+          "key": "agama",
+          "label": "Agama",
+          "type": "select",
+          "required": true,
+          "options": [
+            "Islam",
+            "Kristen",
+            "Katolik",
+            "Hindu",
+            "Buddha",
+            "Konghucu",
+            "Kepercayaan terhadap Tuhan YME"
+          ]
+        },
+        {
+          "key": "status_perkawinan",
+          "label": "Status perkawinan",
+          "type": "select",
+          "required": true,
+          "options": [
+            "Belum Kawin",
+            "Kawin Tercatat",
+            "Kawin Belum Tercatat",
+            "Cerai Hidup",
+            "Cerai Mati"
+          ]
         },
         {
           "key": "pendidikan",
@@ -440,6 +552,37 @@
             "Kepala Desa/Perangkat Desa": "Jabatan & desa, mis. Kaur Keuangan Desa Sukamaju",
             "Anggota Legislatif": "Lembaga, mis. DPRD Kab. Bogor"
           }
+        },
+        {
+          "key": "kebutuhan_khusus",
+          "label": "Kebutuhan khusus",
+          "type": "select",
+          "required": false,
+          "options": [
+            "Tidak ada",
+            "Disabilitas",
+            "Lansia sakit menahun",
+            "Lainnya"
+          ]
+        },
+        {
+          "key": "kebutuhan_khusus_ket",
+          "label": "Keterangan kebutuhan khusus",
+          "type": "text",
+          "maxLength": 150,
+          "requiredIf": {
+            "field": "kebutuhan_khusus",
+            "in": [
+              "Disabilitas",
+              "Lansia sakit menahun",
+              "Lainnya"
+            ]
+          },
+          "placeholders": {
+            "Disabilitas": "Jenis disabilitas, mis. tunanetra, pengguna kursi roda",
+            "Lansia sakit menahun": "Kondisi, mis. stroke, tidak bisa berjalan",
+            "Lainnya": "Sebutkan"
+          }
         }
       ]
     },
@@ -461,7 +604,8 @@
         "satuan_wilayah",
         "rt",
         "rw",
-        "nama_lingkungan"
+        "nama_lingkungan",
+        "status_domisili"
       ]
     },
     {
@@ -481,10 +625,15 @@
         "kk_nama",
         "kk_nik",
         "kk_jenis_kelamin",
+        "kk_tempat_lahir",
         "kk_tanggal_lahir",
+        "kk_agama",
+        "kk_status_perkawinan",
         "kk_pendidikan",
         "kk_pekerjaan",
         "kk_pekerjaan_ket",
+        "kk_kebutuhan_khusus",
+        "kk_kebutuhan_khusus_ket",
         "kk_no_hp"
       ]
     },

@@ -165,8 +165,9 @@ export function ReportMap({ filters }: { filters: MapFilters }) {
         layer.addTo(m);
         if (first && data.total) {
           first = false;
-          // Fit memicu moveend → dimuat & dikelompokkan ulang pada zoom akhir.
-          m.fitBounds(layer.getBounds().pad(0.15), { maxZoom: 15 });
+          // Sesuaikan ke sebaran titik asli (bukan gugus); fit memicu moveend → dikelompokkan ulang pada zoom akhir.
+          const coords = (data.mode === 'points' ? data.points : data.clusters).map((p) => [p.lat, p.lng] as [number, number]);
+          m.fitBounds(L.latLngBounds(coords).pad(0.15), { maxZoom: 15 });
         }
         first = false;
       } catch (e) {

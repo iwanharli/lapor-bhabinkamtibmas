@@ -65,6 +65,10 @@ export function displayValue(v: unknown): string {
   return String(v);
 }
 
+/** Jarak meter → "350 m" / "33,8 km". */
+export const jarak = (m: number | null | undefined) =>
+  m == null ? '' : m >= 1000 ? `${(m / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} km` : `${Math.round(m)} m`;
+
 export const personName = (p: { pangkat?: string | null; nama: string }) => [p.pangkat, p.nama].filter(Boolean).join(' ');
 
 /** Waktu relatif singkat: "baru saja", "5 menit lalu", "3 hari lalu"; lebih dari 30 hari → tanggal. */

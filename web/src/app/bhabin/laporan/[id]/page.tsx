@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarClock, CheckCircle2, Clock, FilePen, Hash, MapPin, PencilLine, Send } from 'lucide-react';
+import { ArrowLeft, CalendarClock, CheckCircle2, Clock, FilePen, Hash, MapPin, PencilLine, Send, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ButtonLink, cn } from '@/components/ui';
@@ -8,7 +8,7 @@ import { AttachmentGallery } from '@/features/reports/attachment-gallery';
 import { CategoryIcon } from '@/features/reports/category-icon';
 import { LocationBadge } from '@/features/reports/status-badge';
 import { apiGetOrNotFound } from '@/lib/api/server';
-import { CATEGORY_LABEL, tanggalJam } from '@/lib/format';
+import { CATEGORY_LABEL, jarak, tanggalJam } from '@/lib/format';
 import type { ReportDetail } from '@/lib/types';
 
 /** Pesan setelah aksi (kirim/ralat/draft) dari parameter URL. */
@@ -63,8 +63,19 @@ export default async function DetailLaporanSayaPage({ params, searchParams }: { 
           <div className="flex items-center gap-3 px-4 py-2.5">
             <MapPin size={16} className="shrink-0 text-muted" />
             <dd className="min-w-0 flex-1 truncate">{r.village.nama}, {r.village.kecamatan}</dd>
-            {!draft && <LocationBadge insideVillage={r.insideVillage} isMockLocation={r.isMockLocation} />}
+            {!draft && <LocationBadge insideVillage={r.insideVillage} isMockLocation={r.isMockLocation} distanceM={r.distanceM} />}
           </div>
+          {!draft && (r.insideVillage === false || r.isMockLocation) && (
+            <div className="flex gap-3 bg-warn-soft/50 px-4 py-2.5 text-xs leading-relaxed">
+              <TriangleAlert size={16} className="mt-0.5 shrink-0 text-warn" />
+              <dd className="text-ink/80">
+                {r.isMockLocation
+                  ? 'Perangkat terdeteksi memakai lokasi palsu.'
+                  : `Titik GPS laporan berada ±${jarak(r.distanceM)} dari batas desa ${r.village.nama} (toleransi 200 m).`}{' '}
+                Laporan tetap tercatat; pimpinan diberi tahu untuk mengecek lokasinya.
+              </dd>
+            </div>
+          )}
           <div className="flex items-center gap-3 px-4 py-2.5"><CalendarClock size={16} className="shrink-0 text-muted" /><dd>Kegiatan {tanggalJam(r.occurredAt, tz)}</dd></div>
           {r.submittedAt && <div className="flex items-center gap-3 px-4 py-2.5"><Send size={16} className="shrink-0 text-muted" /><dd>Dikirim {tanggalJam(r.submittedAt, tz)}</dd></div>}
         </dl>

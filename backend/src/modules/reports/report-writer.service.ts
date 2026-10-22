@@ -190,12 +190,16 @@ export class ReportWriterService {
         skipDuplicates: true,
       });
     }
-    const [{ inside }] = await tx.$queryRaw<{ inside: boolean | null }[]>`
-      SELECT CASE WHEN bool_and(v.geom IS NULL) THEN NULL
-                  ELSE bool_or(ST_DWithin(v.geom::geography, r.location, ${VILLAGE_TOLERANCE_M})) END AS inside
-      FROM reports r JOIN user_villages uv ON uv.user_id = r.user_id AND uv.until IS NULL JOIN villages v ON v.id = uv.village_id
-      WHERE r.id = ${r.id}::uuid`;
-    await tx.report.update({ where: { id: r.id }, data: { priority: isPriority(schema, data), insideVillage: inside } });
+    // Jarak ke batas desa laporan (desa binaan pelapor); di dalam desa bila ≤ toleransi.
+    const [loc] = await tx.$queryRaw<{ distance: number | null }[]>`
+      SELECT round(ST_Distance(v.geom::geography, r.location))::float AS distance
+      FROM reports r JOIN villages v ON v.id = r.village_id
+      WHERE r.id = ${r.id}::uuid AND v.geom IS NOT NULL AND r.location IS NOT NULL`;
+    const distance = loc?.distance ?? null;
+    await tx.report.update({
+      where: { id: r.id },
+      data: { priority: isPriority(schema, data), distanceM: distance, insideVillage: distance == null ? null : distance <= VILLAGE_TOLERANCE_M },
+    });
   }
 
   /** Kirim laporan: validasi penuh lalu langsung final (`SUBMITTED`); tidak ada tahap verifikasi. */

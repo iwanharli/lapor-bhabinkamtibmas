@@ -262,6 +262,8 @@ model Report {
   lng            Float
   gpsAccuracyM   Float?                                 @map("gps_accuracy_m") @db.Real
   isMockLocation Boolean                                @default(false) @map("is_mock_location")
+  /// Jarak (m) ke batas desa binaan terdekat saat dikirim; 0 = di dalam desa.
+  distanceM      Float?                                 @map("distance_m") @db.Real
   insideVillage  Boolean?                               @map("inside_village")
   submittedAt    DateTime?                              @map("submitted_at") @db.Timestamptz
   receivedAt     DateTime                               @default(now()) @map("received_at") @db.Timestamptz

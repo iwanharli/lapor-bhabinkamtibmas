@@ -20,6 +20,8 @@ export interface ReportListItem {
   priority: boolean;
   occurredAt: string;
   insideVillage: boolean | null;
+  /** Jarak (m) titik laporan ke batas desa binaan; 0 = di dalam desa. */
+  distanceM?: number | null;
   isMockLocation: boolean;
   user: PersonRef & { id: string; nrp: string };
   village: { id: string; nama: string; kecamatan: string };

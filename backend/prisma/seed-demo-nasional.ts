@@ -219,6 +219,11 @@ async function main() {
     FROM jsonb_to_recordset($1::jsonb) AS x(client_uuid uuid, commodity_id int, harga int, satuan text, stok text)
     JOIN reports r ON r.client_uuid = x.client_uuid`, 'Item harga');
 
+  // Jarak titik ke batas desa (label "Di luar desa" bila > 200 m).
+  await prisma.$executeRawUnsafe(`UPDATE reports r SET distance_m = round(ST_Distance(v.geom::geography, r.location))::real,
+       inside_village = ST_Distance(v.geom::geography, r.location) <= 200
+FROM villages v WHERE v.id = r.village_id AND v.geom IS NOT NULL AND r.location IS NOT NULL AND r.distance_m IS NULL`);
+
   await prisma.$executeRawUnsafe(`
     INSERT INTO report_status_history (report_id, from_status, to_status, actor_id, at)
     SELECT r.id, 'DRAFT', 'SUBMITTED', r.user_id, r.submitted_at FROM reports r JOIN units u ON u.id = r.unit_id WHERE u.kode LIKE 'DEMO-%'`);

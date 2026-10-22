@@ -121,6 +121,11 @@ async function main() {
     }
   }
 
+  // Jarak titik ke batas desa (label "Di luar desa" bila > 200 m).
+  await prisma.$executeRawUnsafe(`UPDATE reports r SET distance_m = round(ST_Distance(v.geom::geography, r.location))::real,
+       inside_village = ST_Distance(v.geom::geography, r.location) <= 200
+FROM villages v WHERE v.id = r.village_id AND v.geom IS NOT NULL AND r.location IS NOT NULL AND r.distance_m IS NULL`);
+
   for (const [key, lastNo] of counters) {
     const [category, period] = key.split('-') as [C, string];
     await prisma.reportCounter.upsert({

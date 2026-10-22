@@ -67,7 +67,7 @@ export function ReportTable({ rows }: { rows: ReportListItem[] }) {
                 <span className="block">{dateOnly(r.occurredAt, r.unit.timezone)}</span>
                 <span className="block text-xs text-muted">{timeOnly(r.occurredAt, r.unit.timezone)}</span>
               </Td>
-              <Td><LocationBadge insideVillage={r.insideVillage} isMockLocation={r.isMockLocation} /></Td>
+              <Td><LocationBadge insideVillage={r.insideVillage} isMockLocation={r.isMockLocation} distanceM={r.distanceM} /></Td>
               <Td align="right" className="pr-5">
                 <span className="inline-flex items-center gap-2 text-muted">
                   {r._count.attachments > 0 && <span title={`${r._count.attachments} lampiran`}><Paperclip size={15} /></span>}
@@ -98,7 +98,7 @@ function ReportCards({ rows }: { rows: ReportListItem[] }) {
                   {CATEGORY_LABEL[r.category]}
                   {r.priority && <PriorityBadge />}
                 </p>
-                <LocationBadge insideVillage={r.insideVillage} isMockLocation={r.isMockLocation} />
+                <LocationBadge insideVillage={r.insideVillage} isMockLocation={r.isMockLocation} distanceM={r.distanceM} />
               </div>
               <p className="truncate font-mono text-xs text-muted">{r.nomor}</p>
               <p className="mt-1.5 truncate text-sm">{personName(r.user)} · {r.village.nama}</p>

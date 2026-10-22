@@ -1,6 +1,6 @@
 import { CircleAlert, CircleCheck, Crosshair, ExternalLink, MapPin, ServerCog } from 'lucide-react';
 import { cn } from '@/components/ui';
-import { tanggalJam } from '@/lib/format';
+import { tanggalJam, jarak } from '@/lib/format';
 import type { ReportDetail } from '@/lib/types';
 
 function Check({ ok, icon, label, value }: { ok?: boolean; icon: React.ReactNode; label: string; value: React.ReactNode }) {
@@ -39,7 +39,7 @@ export function LocationInfo({ report: r }: { report: ReportDetail }) {
           ok={r.insideVillage ?? undefined}
           icon={r.insideVillage === false ? <CircleAlert size={16} /> : <CircleCheck size={16} />}
           label="Desa binaan"
-          value={r.insideVillage == null ? '—' : r.insideVillage ? <span className="text-success">Di dalam</span> : <span className="text-warn">Di luar</span>}
+          value={r.insideVillage == null ? '—' : r.insideVillage ? <span className="text-success">Di dalam</span> : <span className="text-warn">Di luar{r.distanceM != null ? ` · ±${jarak(r.distanceM)} dari batas` : ''}</span>}
         />
         <Check
           ok={!r.isMockLocation}

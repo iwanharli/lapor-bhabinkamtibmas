@@ -14,7 +14,7 @@ const SENSITIVE_READERS: UserRole[] = [UserRole.PIMPINAN, UserRole.AUDITOR];
 
 const LIST_SELECT = {
   id: true, nomor: true, category: true, status: true, priority: true, occurredAt: true,
-  insideVillage: true, isMockLocation: true, submittedAt: true,
+  insideVillage: true, distanceM: true, isMockLocation: true, submittedAt: true,
   user: { select: { id: true, nrp: true, nama: true, pangkat: true } },
   village: { select: { id: true, nama: true, kecamatan: true } },
   unit: { select: { id: true, nama: true, timezone: true } },

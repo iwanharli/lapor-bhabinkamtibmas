@@ -74,7 +74,7 @@ export function attachBoundaries(L: Leaflet, map: LeafletMap): () => void {
       const trail = chain.map((r) => esc(r.nama)).join(' <span style="color:#94a3b8">›</span> ');
       box.innerHTML = `<div style="font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:#64748b">Batas ${LEVEL_LABEL[level]}${
         data.truncated ? ' · perbesar untuk melihat semua' : ''
-      }${level === 4 && !data.features.length ? ' · data desa belum diimpor di area ini' : ''}</div>${trail || '<span style="color:#64748b">Di luar wilayah administrasi</span>'}`;
+      }${level === 4 && !data.features.length ? ' · data desa belum diimpor di area ini' : ''}</div>${trail || (level === 1 ? `Indonesia · ${data.features.length} provinsi` : '<span style="color:#64748b">Di luar wilayah administrasi</span>')}`;
     } catch (e) {
       if ((e as Error).name !== 'AbortError') box.textContent = 'Batas wilayah tidak dapat dimuat';
     }

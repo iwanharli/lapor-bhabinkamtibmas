@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
+import '../auth/auth_controller.dart';
 
 /// Syarat "wajib & tampil bila field lain bernilai …" (sama dengan validator server).
 class RequiredIf {
@@ -123,7 +124,9 @@ class FormSchema {
   SchemaField? field(String key) => fields.where((f) => f.key == key).firstOrNull;
 }
 
+/// Dimuat ulang saat pengguna berganti (login/logout) — galat sesi lama tidak tersangkut.
 final _schemasProvider = FutureProvider<List<FormSchema>>((ref) async {
+  ref.watch(authControllerProvider.select((s) => s.valueOrNull?.nrp));
   final Response res = await ref.read(dioProvider).get('/form-schemas');
   return (res.data as List).map((r) => FormSchema.fromJson(Map<String, dynamic>.from(r))).toList();
 });
@@ -145,6 +148,7 @@ final schemaVersionProvider = FutureProvider.family<FormSchema?, (String, int?)>
 });
 
 final commoditiesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  ref.watch(authControllerProvider.select((s) => s.valueOrNull?.nrp));
   final res = await ref.read(dioProvider).get('/commodities');
   return (res.data as List).map((c) => Map<String, dynamic>.from(c)).where((c) => c['active'] != false).toList();
 });

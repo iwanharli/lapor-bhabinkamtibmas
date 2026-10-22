@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/api/api_client.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/forms/form_schema.dart';
 import '../../core/ui/format.dart';
@@ -30,6 +31,7 @@ class HomePage extends ConsumerWidget {
         ref.invalidate(myAttendanceProvider);
         ref.invalidate(reportsProvider);
         ref.invalidate(unreadNotificationsProvider);
+        ref.invalidate(formSchemasProvider);
         await ref.read(myAttendanceProvider.future);
       },
       child: ListView(padding: EdgeInsets.zero, children: [
@@ -99,7 +101,7 @@ class HomePage extends ConsumerWidget {
             const SizedBox(height: 10),
             schemas.when(
               loading: () => const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
-              error: (e, _) => Text('Gagal memuat formulir: $e', style: const TextStyle(color: danger)),
+              error: (e, _) => _Retry(message: 'Formulir belum bisa dimuat. ${apiErrorMessage(e)}', onRetry: () => ref.invalidate(formSchemasProvider)),
               data: (list) => GridView.count(
                 crossAxisCount: 3, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 0.95,
@@ -129,7 +131,7 @@ class HomePage extends ConsumerWidget {
             ]),
             recent.when(
               loading: () => const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
-              error: (e, _) => Text('Gagal memuat laporan', style: const TextStyle(color: danger)),
+              error: (e, _) => _Retry(message: 'Laporan belum bisa dimuat. ${apiErrorMessage(e)}', onRetry: () => ref.invalidate(reportsProvider)),
               data: (list) => list.isEmpty
                   ? const Padding(padding: EdgeInsets.all(16), child: Text('Belum ada laporan.', style: TextStyle(color: muted)))
                   : Column(children: [for (final r in list.take(5)) Padding(padding: const EdgeInsets.only(bottom: 8), child: ReportTile(r))]),
@@ -140,4 +142,24 @@ class HomePage extends ConsumerWidget {
       ]),
     );
   }
+}
+
+/// Pesan galat yang ramah + tombol coba lagi (tanpa detail teknis).
+class _Retry extends StatelessWidget {
+  const _Retry({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(children: [
+            const Icon(Icons.cloud_off_outlined, color: muted),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message, style: const TextStyle(fontSize: 13))),
+            TextButton(onPressed: onRetry, child: const Text('Coba lagi')),
+          ]),
+        ),
+      );
 }

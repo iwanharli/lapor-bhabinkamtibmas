@@ -1,6 +1,5 @@
-import 'dart:io';
-
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -43,7 +42,7 @@ class AuthController extends AsyncNotifier<Me?> {
       'password': password,
       'device': {
         'deviceId': await storage.deviceId(),
-        'platform': Platform.isIOS ? 'ios' : 'android',
+        'platform': defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android',
         'model': await _deviceModel(),
         'appVersion': info.version,
       },
@@ -83,7 +82,8 @@ class AuthController extends AsyncNotifier<Me?> {
 
   Future<String> _deviceModel() async {
     final d = DeviceInfoPlugin();
-    if (Platform.isIOS) return (await d.iosInfo).utsname.machine;
+    if (kIsWeb) return (await d.webBrowserInfo).browserName.name;
+    if (defaultTargetPlatform == TargetPlatform.iOS) return (await d.iosInfo).utsname.machine;
     final a = await d.androidInfo;
     return '${a.manufacturer} ${a.model}';
   }

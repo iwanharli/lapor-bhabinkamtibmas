@@ -102,7 +102,7 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
       });
       if (!_ralat) _locate();
     } catch (e) {
-      setState(() => _loadError = apiErrorMessage(e) == 'Terjadi kesalahan' ? e.toString() : apiErrorMessage(e));
+      setState(() => _loadError = apiErrorMessage(e));
     }
   }
 
@@ -336,7 +336,13 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
               Expanded(child: OutlinedButton(onPressed: _busy ? null : () => setState(() => _step--), child: const Text('Kembali'))),
               const SizedBox(width: 10),
             ] else if (!_ralat) ...[
-              Expanded(child: OutlinedButton(onPressed: _busy ? null : () => _save(send: false), child: const Text('Simpan draft'))),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _busy ? null : () => _save(send: false),
+                  icon: const Icon(Icons.save_outlined, size: 18),
+                  label: const Text('Draft', maxLines: 1),
+                ),
+              ),
               const SizedBox(width: 10),
             ],
             Expanded(

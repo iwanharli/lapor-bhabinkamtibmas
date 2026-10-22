@@ -90,7 +90,7 @@ class ProfilePage extends ConsumerWidget {
               child: Column(children: [
                 ListTile(leading: const Icon(Icons.badge_outlined), title: const Text('Jabatan'), subtitle: Text((p['jabatan'] ?? '') == '' ? 'Belum diisi' : p['jabatan'])),
                 ListTile(leading: const Icon(Icons.phone_outlined), title: const Text('No. HP'), subtitle: Text((p['phone'] ?? '') == '' ? 'Belum diisi' : p['phone'])),
-                if (desa != null) ListTile(leading: const Icon(Icons.place_outlined), title: Text('Desa ${desa['nama']}'), subtitle: Text('Kec. ${desa['kecamatan']}, ${desa['kabupaten']}')),
+                if (desa != null) ListTile(leading: const Icon(Icons.place_outlined), title: Text('Desa ${desa['nama']}'), subtitle: Text('${RegExp(r'^kec', caseSensitive: false).hasMatch(desa['kecamatan'] ?? '') ? desa['kecamatan'] : 'Kec. ${desa['kecamatan']}'}, ${desa['kabupaten']}')),
                 ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Ubah data pribadi'), trailing: const Icon(Icons.chevron_right), onTap: () => _edit(context, ref, p)),
               ]),
             ),

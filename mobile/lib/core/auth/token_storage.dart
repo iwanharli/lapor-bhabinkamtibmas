@@ -24,12 +24,16 @@ class TokenStorage {
     await _s.delete(key: _refresh);
   }
 
+  Future<String>? _deviceIdFuture;
+
   /// ID instalasi yang stabil; dipakai server untuk mencabut perangkat.
-  Future<String> deviceId() async {
-    final existing = await _s.read(key: _deviceId);
-    if (existing != null) return existing;
-    final id = const Uuid().v4();
-    await _s.write(key: _deviceId, value: id);
-    return id;
-  }
+  /// Disimpan sekali sebagai Future agar permintaan serentak saat aplikasi dibuka tidak membuat ID berbeda-beda
+  /// (server menolak token bila ID perangkat tidak cocok dengan saat login).
+  Future<String> deviceId() => _deviceIdFuture ??= () async {
+        final existing = await _s.read(key: _deviceId);
+        if (existing != null) return existing;
+        final id = const Uuid().v4();
+        await _s.write(key: _deviceId, value: id);
+        return id;
+      }();
 }

@@ -598,7 +598,9 @@
       "label": "Catatan lapangan",
       "type": "textarea",
       "required": false,
-      "maxLength": 1000
+      "maxLength": 1000,
+      "hint": "Kosongkan jika tidak ada.",
+      "placeholder": "mis. kondisi rumah, kebutuhan bantuan, atau hal yang perlu diketahui pimpinan"
     }
   ],
   "steps": [

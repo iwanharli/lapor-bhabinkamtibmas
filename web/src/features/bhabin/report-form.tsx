@@ -15,6 +15,9 @@ export interface FormField {
   required?: boolean;
   /** Tampil & wajib hanya bila field acuan bernilai equals / salah satu `in` (di repeater: field di baris yang sama). */
   requiredIf?: { field: string; equals?: unknown; in?: unknown[] };
+  /** Teks bantuan di bawah isian & contoh isi di dalam kotak. */
+  hint?: string;
+  placeholder?: string;
   /** Petunjuk isian per nilai field acuan. */
   placeholders?: Record<string, string>;
   options?: string[];
@@ -512,8 +515,8 @@ function FieldInput({
 
   if (f.type === 'textarea') {
     return (
-      <Labeled label={f.label} required={req} hint={f.maxLength ? `${str.length}/${f.maxLength} karakter` : undefined}>
-        <Textarea rows={4} value={str} maxLength={f.maxLength} onChange={(e) => set(f.key, e.target.value)} />
+      <Labeled label={f.label} required={req} hint={[f.hint, f.maxLength ? `${str.length}/${f.maxLength} karakter` : ''].filter(Boolean).join(' · ') || undefined}>
+        <Textarea rows={4} value={str} maxLength={f.maxLength} placeholder={f.placeholder} onChange={(e) => set(f.key, e.target.value)} />
       </Labeled>
     );
   }

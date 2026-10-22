@@ -1,6 +1,6 @@
 'use client';
 
-import { Camera, Check, ChevronLeft, ChevronRight, Crosshair, ImagePlus, Loader2, MapPin, Plus, Save, Send, Trash2, UserRound, X } from 'lucide-react';
+import { Camera, Check, Clock, Lock, ChevronLeft, ChevronRight, Crosshair, ImagePlus, Loader2, MapPin, Plus, Save, Send, Trash2, UserRound, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, cn, Input, Select, Textarea } from '@/components/ui';
@@ -36,8 +36,6 @@ type Values = Record<string, unknown>;
 type Row = Record<string, string>;
 const MEDIA = ['photo', 'file'];
 const STOK_LABEL: Record<string, string> = { AMAN: 'Aman', MENIPIS: 'Menipis', KOSONG: 'Kosong' };
-/** Batas mundur waktu kegiatan (selaras server: 3×24 jam). */
-const MAX_BACKDATE_MS = 3 * 86_400_000;
 
 /** Field bersyarat aktif (ditampilkan) untuk konteks nilai ini? */
 const active = (f: FormField, v: Values) => {
@@ -47,8 +45,6 @@ const active = (f: FormField, v: Values) => {
 };
 const isRequired = (f: FormField, v: Values) => !!f.required || (!!f.requiredIf && active(f, v));
 const empty = (v: unknown) => v == null || v === '' || (Array.isArray(v) && v.length === 0);
-/** "YYYY-MM-DDTHH:mm" waktu lokal perangkat untuk <input type="datetime-local">. */
-const toLocalInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 
 /** Siapkan isian untuk API: angka sebagai number, kosong dibuang, NIK kosong tidak dikirim (nilai lama tetap dipakai saat ralat). */
 function cleanData(schema: FormSchema, values: Values) {
@@ -78,7 +74,14 @@ export function ReportForm({
   const geo = useGeolocation();
   const [clientUuid] = useState(() => newUuid());
   const [villageId, setVillageId] = useState(report?.village.id ?? (villages.length === 1 ? villages[0].id : ''));
-  const [occurredAt, setOccurredAt] = useState(() => toLocalInput(report ? new Date(report.occurredAt) : new Date()));
+  // Waktu kegiatan dikunci: laporan baru = waktu saat disimpan/dikirim; draft & ralat mempertahankan waktu awalnya.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    if (report) return;
+    const t = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(t);
+  }, [report]);
+  const occurredAt = report ? new Date(report.occurredAt) : now;
   const [values, setValues] = useState<Values>(() => {
     const init: Values = {};
     for (const f of schema.fields) {
@@ -111,8 +114,6 @@ export function ReportForm({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (key: string, v: unknown) => setValues((p) => ({ ...p, [key]: v }));
-  const minTime = toLocalInput(new Date(Date.now() - MAX_BACKDATE_MS));
-  const maxTime = toLocalInput(new Date());
 
   /** `only`: validasi sebagian field (satu langkah); `withPlace`: ikut periksa desa/waktu/lokasi. */
   function validate(send: boolean, only?: Set<string>, withPlace = true) {
@@ -154,9 +155,6 @@ export function ReportForm({
   function checkPlace(errs: string[]) {
     if (!villageId) errs.push('Pilih desa binaan.');
     if (!geo.fix && !report) errs.push('Lokasi GPS belum didapat. Tekan "Ambil lokasi".');
-    const t = new Date(occurredAt).getTime();
-    if (Number.isNaN(t) || t > Date.now() + 10 * 60_000) errs.push('Waktu kegiatan tidak boleh di masa depan.');
-    else if (Date.now() - t > MAX_BACKDATE_MS) errs.push('Waktu kegiatan paling lambat 3×24 jam yang lalu.');
   }
 
   function next() {
@@ -174,7 +172,7 @@ export function ReportForm({
     try {
       const data = cleanData(schema, values);
       const location = geo.fix ? { location: { lat: geo.fix.lat, lng: geo.fix.lng }, gpsAccuracyM: geo.fix.accuracy } : {};
-      const body = { villageId, occurredAt: new Date(occurredAt).toISOString(), data, ...location };
+      const body = { villageId, ...(report ? {} : { occurredAt: new Date().toISOString() }), data, ...location };
       setProgress('Menyimpan isian…');
       const saved = report
         ? await callApi<{ id: string }>(`/reports/${report.id}`, { method: 'PATCH', body })
@@ -228,9 +226,15 @@ export function ReportForm({
             {villages.map((v) => <option key={v.id} value={v.id}>{v.nama} · {v.kecamatan}</option>)}
           </Select>
         </Labeled>
-        <Labeled label="Waktu kegiatan" required hint="Paling lambat 3×24 jam yang lalu">
-          <Input type="datetime-local" value={occurredAt} min={minTime} max={maxTime} onChange={(e) => setOccurredAt(e.target.value)} className="h-11" />
-        </Labeled>
+        <div>
+          <span className="mb-1.5 block text-sm font-medium">Waktu kegiatan</span>
+          <div className="flex h-11 items-center gap-2 rounded-lg border border-line bg-bg px-3 text-sm">
+            <Clock size={16} className="shrink-0 text-muted" />
+            <span className="flex-1 tabular-nums">{occurredAt.toLocaleString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+            <Lock size={14} className="shrink-0 text-muted" aria-label="Terkunci" />
+          </div>
+          <span className="mt-1 block text-xs text-muted">{report ? 'Waktu saat laporan pertama dibuat.' : 'Terisi otomatis dengan waktu saat laporan disimpan atau dikirim.'}</span>
+        </div>
         <div className={cn('flex items-center gap-3 rounded-xl border p-3', geo.fix ? 'border-success/30 bg-success-soft/50' : geo.error ? 'border-danger/30 bg-danger-soft/50' : 'border-line bg-bg')}>
           <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-full', geo.fix ? 'bg-success/15 text-success' : 'bg-primary/10 text-primary')}>
             {geo.busy ? <Loader2 size={18} className="animate-spin" /> : <MapPin size={18} />}

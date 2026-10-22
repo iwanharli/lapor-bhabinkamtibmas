@@ -6,6 +6,9 @@ import { ALL_ROLES, AuthUser, CurrentUser, Roles } from '../../common/decorators
 import { AuditService } from '../audit/audit.service';
 import { ExportJobsService } from './export-jobs.service';
 import { EXPORT_KINDS, ExportKind, ExportsService } from './exports.service';
+import { monthlyPdf } from './monthly-pdf';
+import { MonthlyReportService } from './monthly-report.service';
+import { monthlyXlsx } from './monthly-xlsx';
 
 class CreateExportJobDto {
   @IsIn(Object.keys(EXPORT_KINDS)) kind: ExportKind;
@@ -23,6 +26,7 @@ export class ExportsController {
     private exports: ExportsService,
     private jobs: ExportJobsService,
     private audit: AuditService,
+    private monthlyReports: MonthlyReportService,
   ) {}
 
   @Post('jobs')
@@ -52,6 +56,29 @@ export class ExportsController {
     res.setHeader('Cache-Control', 'no-store');
     if (f.size) res.setHeader('Content-Length', String(f.size));
     return new StreamableFile(f.stream);
+  }
+
+  /** Laporan bulanan satu satuan (Excel/PDF; json untuk pratinjau). Tidak memuat NIK maupun data kesehatan per orang. */
+  @Get('bulanan')
+  @Roles(...MonthlyReportService.ROLES)
+  async monthly(
+    @CurrentUser() me: AuthUser, @Query() q: { bulan?: string; unitId?: string; format?: string }, @Res({ passthrough: true }) res: Response,
+  ) {
+    const format = q.format === 'xlsx' || q.format === 'pdf' ? q.format : 'json';
+    const report = await this.monthlyReports.build(me, q.bulan ?? '', q.unitId || undefined);
+    if (format === 'json') {
+      // Pratinjau di web: tanpa daftar Bhabin per orang (bisa puluhan ribu baris), cukup jumlah yang perlu perhatian.
+      const { bhabin, ...rest } = report;
+      const perhatian = bhabin.filter((b) => b.laporan === 0 || (report.hariKerja && b.hadir / report.hariKerja < 0.5)).length;
+      return { ...rest, bhabin: [], bhabinPerhatian: perhatian, perSatuan: report.perSatuan.slice(0, 15), prioritas: report.prioritas.slice(0, 5) };
+    }
+    await this.audit.log({ actorId: me.id, action: 'EXPORT_CREATE', entity: 'unit', entityId: report.unit.id, meta: { kind: 'bulanan', bulan: report.bulan, format } });
+    const data = format === 'xlsx' ? await monthlyXlsx(report) : await monthlyPdf(report);
+    const name = `laporan-bulanan-${report.unit.nama.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${report.bulan}.${format}`;
+    res.setHeader('Content-Type', format === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    return new StreamableFile(data);
   }
 
   @Get(':kind.csv')

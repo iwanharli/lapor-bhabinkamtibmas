@@ -19,6 +19,7 @@ export function navFor(role: string): NavSection[] {
       items: [
         { href: '/', label: 'Ringkasan', icon: 'dashboard' },
         { href: '/notifikasi', label: 'Notifikasi', icon: 'notifications' },
+        { href: '/laporan-bulanan', label: 'Laporan Bulanan', icon: 'monthly' },
       ],
     },
     {

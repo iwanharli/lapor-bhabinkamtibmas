@@ -2,6 +2,7 @@
 
 import {
   CalendarCheck,
+  CalendarRange,
   HeartPulse,
   Bell,
   Building2,
@@ -37,6 +38,7 @@ const ICONS = {
   villages: MapPinned,
   attendance: CalendarCheck,
   family: HeartPulse,
+  monthly: CalendarRange,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;
@@ -53,7 +55,8 @@ export interface NavSection {
   items: NavItem[];
 }
 
-export const isActive = (pathname: string, href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
+/** Aktif bila path sama atau di bawahnya per segmen: /laporan cocok untuk /laporan/123, tidak untuk /laporan-bulanan. */
+export const isActive = (pathname: string, href: string) => (href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`));
 
 export function Brand({ collapsed }: { collapsed?: boolean }) {
   return (

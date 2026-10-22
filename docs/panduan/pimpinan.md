@@ -12,6 +12,7 @@ Masuk dengan NRP dan kata sandi, lalu ganti kata sandi awal. Dashboard hanya bis
 | Menu | Kegunaan |
 |---|---|
 | **Ringkasan** | Jumlah laporan, laporan prioritas, dan tren periode terpilih |
+| **Laporan Bulanan** | Pilih bulan & satuan, lalu **Unduh PDF** (siap cetak/dilaporkan) atau **Unduh Excel** (data lengkap per Bhabin) |
 | **Notifikasi** | Laporan **prioritas** (Deteksi Dini urgensi tinggi, stunting belum ditangani) dan **lokasi perlu dicek** |
 | **Laporan** | Semua laporan: cari (nomor, nama Bhabin, desa, kepala keluarga), saring kategori/periode/prioritas, **Ekspor CSV** |
 | **Peta Sebaran** | Titik/gugus laporan; saring wilayah, kategori, prioritas; strip laporan prioritas di bawah peta |

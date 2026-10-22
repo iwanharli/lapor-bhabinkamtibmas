@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/api_client.dart';
 import '../../core/ui/format.dart';
 import '../../core/ui/theme.dart';
+import '../../core/ui/skeleton.dart';
 import '../reports/report_api.dart';
 
 final _notificationsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
@@ -53,7 +54,7 @@ class NotificationsPage extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () => ref.refresh(_notificationsProvider.future),
         child: list.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const SkeletonList(count: 6),
           error: (e, _) => ListView(children: [Padding(padding: const EdgeInsets.all(24), child: Text(apiErrorMessage(e)))]),
           data: (items) => items.isEmpty
               ? ListView(children: const [Padding(padding: EdgeInsets.all(40), child: Center(child: Text('Belum ada notifikasi.', style: TextStyle(color: muted))))])

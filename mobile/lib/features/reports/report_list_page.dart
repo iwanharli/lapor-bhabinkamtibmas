@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../core/api/api_client.dart';
 import '../../core/ui/format.dart';
 import '../../core/ui/theme.dart';
+import '../../core/ui/skeleton.dart';
 import 'report_api.dart';
 import 'report_tile.dart';
 
@@ -92,7 +93,7 @@ class _ReportListPageState extends ConsumerState<ReportListPage> {
           selected: on,
           showCheckmark: false,
           selectedColor: color ?? brand,
-          labelStyle: TextStyle(color: on ? Colors.white : ink, fontSize: 12),
+          labelStyle: TextStyle(color: on ? Colors.white : context.pal.ink, fontSize: 12),
           onSelected: (_) => onTap(),
         ),
       );
@@ -157,6 +158,7 @@ class _ReportListPageState extends ConsumerState<ReportListPage> {
               ]),
             ),
           ),
+          if (_items.isEmpty && _loading) const SliverToBoxAdapter(child: SkeletonList(count: 6)),
           if (_items.isEmpty && !_loading)
             SliverFillRemaining(
               hasScrollBody: false,
@@ -186,8 +188,10 @@ class _ReportListPageState extends ConsumerState<ReportListPage> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
               child: Center(
-                child: _loading
-                    ? const CircularProgressIndicator()
+                child: _loading && _items.isNotEmpty
+                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5))
+                    : _loading
+                    ? const SizedBox.shrink()
                     : _error != null && _items.isNotEmpty
                         ? TextButton(onPressed: _more, child: const Text('Gagal memuat. Coba lagi'))
                         : _items.length > _pageSize && _items.length >= _total

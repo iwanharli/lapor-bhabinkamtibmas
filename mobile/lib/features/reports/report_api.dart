@@ -111,7 +111,8 @@ class AuthImage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final headers = ref.watch(authHeaderProvider).valueOrNull;
-    if (headers == null) return const ColoredBox(color: line);
-    return Image.network(url, headers: headers, fit: fit, errorBuilder: (_, __, ___) => const ColoredBox(color: line, child: Icon(Icons.broken_image_outlined, color: muted)));
+    final placeholder = context.pal.line;
+    if (headers == null) return ColoredBox(color: placeholder);
+    return Image.network(url, headers: headers, fit: fit, errorBuilder: (_, __, ___) => ColoredBox(color: placeholder, child: const Icon(Icons.broken_image_outlined, color: muted)));
   }
 }

@@ -6,6 +6,7 @@ import '../../app/config.dart';
 import '../../core/api/api_client.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/ui/theme.dart';
+import '../../core/ui/skeleton.dart';
 import '../auth/change_password_page.dart';
 
 final _profileProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
@@ -54,7 +55,7 @@ class ProfilePage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Profil saya')),
       body: profile.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonDetail(),
         error: (e, _) => Center(child: Text(apiErrorMessage(e))),
         data: (p) {
           final desa = ((p['villages'] as List?) ?? []).cast<Map>().where((v) => v['until'] == null).firstOrNull?['village'] as Map?;

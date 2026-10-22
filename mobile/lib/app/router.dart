@@ -13,21 +13,25 @@ import '../features/reports/report_detail_page.dart';
 import '../features/reports/report_form_page.dart';
 import '../features/reports/report_list_page.dart';
 import '../features/shell/app_shell.dart';
+import '../features/splash/splash_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authControllerProvider);
   return GoRouter(
     initialLocation: '/',
     redirect: (_, state) {
-      if (auth.isLoading) return null;
-      final me = auth.valueOrNull;
       final loc = state.matchedLocation;
+      // Sesi sedang dicek (aplikasi baru dibuka): tampilkan layar pembuka.
+      if (auth.isLoading && auth.valueOrNull == null) return loc == '/splash' ? null : '/splash';
+      final me = auth.valueOrNull;
       if (me == null) return loc == '/login' ? null : '/login';
+      if (loc == '/splash') return '/';
       if (me.mustChangePassword) return loc == '/ganti-sandi' ? null : '/ganti-sandi';
-      if (loc == '/login') return '/';
+      if (loc == '/login' || loc == '/splash') return '/';
       return null;
     },
     routes: [
+      GoRoute(path: '/splash', builder: (_, __) => const SplashPage()),
       GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
       GoRoute(path: '/ganti-sandi', builder: (_, __) => const ChangePasswordPage()),
       ShellRoute(

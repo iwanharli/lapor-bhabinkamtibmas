@@ -7,6 +7,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/forms/form_schema.dart';
 import '../../core/ui/format.dart';
 import '../../core/ui/theme.dart';
+import '../../core/ui/skeleton.dart';
 import '../reports/report_api.dart';
 import '../reports/report_tile.dart';
 
@@ -100,7 +101,10 @@ class HomePage extends ConsumerWidget {
             const Text('Buat laporan', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             const SizedBox(height: 10),
             schemas.when(
-              loading: () => const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
+              loading: () => GridView.count(
+                crossAxisCount: 3, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 0.95,
+                children: List.generate(6, (_) => const SkeletonBox(radius: 16, height: double.infinity)),
+              ),
               error: (e, _) => _Retry(message: 'Formulir belum bisa dimuat. ${apiErrorMessage(e)}', onRetry: () => ref.invalidate(formSchemasProvider)),
               data: (list) => GridView.count(
                 crossAxisCount: 3, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
@@ -130,7 +134,7 @@ class HomePage extends ConsumerWidget {
               TextButton(onPressed: () => context.go('/laporan'), child: const Text('Semua')),
             ]),
             recent.when(
-              loading: () => const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
+              loading: () => const SkeletonList(count: 3, padding: EdgeInsets.zero),
               error: (e, _) => _Retry(message: 'Laporan belum bisa dimuat. ${apiErrorMessage(e)}', onRetry: () => ref.invalidate(reportsProvider)),
               data: (list) => list.isEmpty
                   ? const Padding(padding: EdgeInsets.all(16), child: Text('Belum ada laporan.', style: TextStyle(color: muted)))

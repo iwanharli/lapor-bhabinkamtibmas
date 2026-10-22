@@ -15,7 +15,7 @@ const categories = <Category>[
   Category('DETEKSI_DINI', 'Deteksi Dini', Icons.radar_rounded, Color(0xFFDC2626)),
   Category('PROBLEM_SOLVING', 'Problem Solving', Icons.handshake_rounded, Color(0xFFD97706)),
   Category('HARGA_PANGAN', 'Harga Pangan', Icons.shopping_basket_rounded, Color(0xFF0891B2)),
-  Category('MAPPING_KK', 'Mapping Data Keluarga', Icons.home_rounded, Color(0xFF475569)),
+  Category('MAPPING_KK', 'Mapping Data Keluarga', Icons.home_rounded, Color(0xFF64748B)),
   Category('KETAHANAN_PANGAN', 'Ketahanan Pangan', Icons.eco_rounded, Color(0xFF16A34A)),
   Category('PENYULUHAN', 'Penyuluhan', Icons.campaign_rounded, Color(0xFF7C3AED)),
 ];

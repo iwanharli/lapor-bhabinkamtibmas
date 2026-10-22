@@ -29,7 +29,7 @@ class AppShell extends StatelessWidget {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),
-        notchMargin: 6, height: 68, color: surface, padding: EdgeInsets.zero,
+        notchMargin: 6, height: 68, padding: EdgeInsets.zero,
         child: Row(children: [
           for (var i = 0; i < _tabs.length; i++) ...[
             if (i == 2) const SizedBox(width: 64),

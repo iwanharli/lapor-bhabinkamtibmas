@@ -19,7 +19,9 @@ class LaporApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'Lapor Bhabinkamtibmas',
       debugShowCheckedModeBanner: false,
-      theme: appTheme(),
+      theme: appTheme(Brightness.light),
+      darkTheme: appTheme(Brightness.dark),
+      themeMode: ThemeMode.system,
       routerConfig: ref.watch(routerProvider),
     );
   }

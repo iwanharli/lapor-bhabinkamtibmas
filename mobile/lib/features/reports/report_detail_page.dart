@@ -6,6 +6,7 @@ import '../../core/api/api_client.dart';
 import '../../core/forms/form_schema.dart';
 import '../../core/ui/format.dart';
 import '../../core/ui/theme.dart';
+import '../../core/ui/skeleton.dart';
 import 'report_api.dart';
 
 class ReportDetailPage extends ConsumerWidget {
@@ -18,7 +19,7 @@ class ReportDetailPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Detail laporan')),
       body: detail.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonDetail(),
         error: (e, _) => Center(child: Text(apiErrorMessage(e))),
         data: (r) => _Body(r: r),
       ),
@@ -121,7 +122,7 @@ class _Body extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Column(children: [
             for (final f in (schema?.fields ?? const <SchemaField>[]).where((f) => !f.isMedia && f.active(data)))
-              ..._fieldRows(f, data, secret),
+              ..._fieldRows(context, f, data, secret),
           ]),
         ),
       ),
@@ -207,7 +208,7 @@ class _Body extends ConsumerWidget {
                 for (final row in (e.value as List).cast<Map>())
                   Container(
                     margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+                    decoration: BoxDecoration(color: context.pal.subtle, borderRadius: BorderRadius.circular(10)),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(((data[e.key] as List?)?.cast<Map>().where((p) => p['_id'] == row['_id']).firstOrNull?['nama'] ?? 'Baris').toString(), style: const TextStyle(fontWeight: FontWeight.w600)),
                       for (final kv in row.entries.where((kv) => kv.key != '_id'))
@@ -238,7 +239,7 @@ class _Body extends ConsumerWidget {
     );
   }
 
-  List<Widget> _fieldRows(SchemaField f, Map<String, dynamic> data, List<String> secret) {
+  List<Widget> _fieldRows(BuildContext context, SchemaField f, Map<String, dynamic> data, List<String> secret) {
     final v = data[f.key];
     if (f.type == 'repeater') {
       final rows = (v as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? [];
@@ -248,7 +249,7 @@ class _Body extends ConsumerWidget {
           Container(
             margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(border: Border.all(color: line), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(border: Border.all(color: context.pal.line), borderRadius: BorderRadius.circular(12)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               for (final s in (f.fields ?? const <SchemaField>[]).where((s) => !s.sensitive && s.active(row) && row[s.key] != null && row[s.key] != ''))
                 Padding(
@@ -269,7 +270,7 @@ class _Body extends ConsumerWidget {
       ListTile(
         dense: true,
         title: Text(f.label, style: const TextStyle(color: muted, fontSize: 12)),
-        subtitle: Text(hidden ? '🔒 Terenkripsi' : displayValue(v), style: TextStyle(fontSize: 14, color: hidden ? const Color(0xFF7C3AED) : ink, fontWeight: FontWeight.w500)),
+        subtitle: Text(hidden ? '🔒 Terenkripsi' : displayValue(v), style: TextStyle(fontSize: 14, color: hidden ? const Color(0xFF7C3AED) : context.pal.ink, fontWeight: FontWeight.w500)),
       ),
     ];
   }

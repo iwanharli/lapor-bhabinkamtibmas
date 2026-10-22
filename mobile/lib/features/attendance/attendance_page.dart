@@ -8,6 +8,7 @@ import '../../core/api/api_client.dart';
 import '../../core/location/location_service.dart';
 import '../../core/ui/format.dart';
 import '../../core/ui/theme.dart';
+import '../../core/ui/skeleton.dart';
 import '../reports/report_api.dart';
 
 /// Absen masuk/pulang: swafoto kamera depan + GPS; riwayat 14 hari.
@@ -65,7 +66,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Absensi')),
       body: list.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonDetail(),
         error: (e, _) => Center(child: Text(apiErrorMessage(e))),
         data: (rows) {
           final todays = rows.where((a) => a['workDate'] == today).toList();

@@ -15,6 +15,7 @@ import '../../core/forms/form_schema.dart';
 import '../../core/location/location_service.dart';
 import '../../core/ui/format.dart';
 import '../../core/ui/theme.dart';
+import '../../core/ui/skeleton.dart';
 import 'report_api.dart';
 
 typedef FormRow = Map<String, dynamic>;
@@ -278,7 +279,7 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
   Widget build(BuildContext context) {
     final cat = categoryOf(widget.category);
     if (_loadError != null) return Scaffold(appBar: AppBar(title: Text(cat.label)), body: Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_loadError!))));
-    if (_schema == null) return Scaffold(appBar: AppBar(title: Text(cat.label)), body: const Center(child: CircularProgressIndicator()));
+    if (_schema == null) return Scaffold(appBar: AppBar(title: Text(cat.label)), body: const SkeletonDetail());
     final steps = _steps;
     final last = _step == steps.length - 1;
     final me = ref.watch(authControllerProvider).valueOrNull;
@@ -292,7 +293,7 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
       child: Scaffold(
         appBar: AppBar(title: Text(_ralat ? 'Ralat · ${cat.label}' : cat.label)),
         body: ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 120), children: [
-          if (steps.length > 1) _Stepper(steps: steps, current: _step),
+          if (steps.length > 1) _Stepper(steps: steps, current: _step, onTap: (i) => setState(() => _step = i)),
           if (_step == 0) ...[
             Card(
               child: Column(children: [
@@ -329,7 +330,7 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
           for (final f in _stepFields(_step).where((f) => f.active(_values))) Padding(padding: const EdgeInsets.only(bottom: 14), child: _field(f)),
         ]),
         bottomSheet: Container(
-          color: surface,
+          color: context.pal.surface,
           padding: EdgeInsets.fromLTRB(16, 10, 16, 10 + MediaQuery.of(context).padding.bottom),
           child: Row(children: [
             if (_step > 0) ...[
@@ -384,24 +385,55 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
   }
 }
 
-/// Penanda langkah formulir bertahap.
+/// Penanda langkah bernomor (selaras web): lingkaran bernomor, centang untuk langkah selesai, garis penghubung,
+/// judul singkat di bawah; langkah yang sudah lewat bisa diketuk untuk kembali.
 class _Stepper extends StatelessWidget {
-  const _Stepper({required this.steps, required this.current});
+  const _Stepper({required this.steps, required this.current, required this.onTap});
   final List<FormStep> steps;
   final int current;
+  final ValueChanged<int> onTap;
 
   @override
   Widget build(BuildContext context) {
+    final p = context.pal;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           for (var i = 0; i < steps.length; i++)
-            Expanded(child: Container(height: 5, margin: const EdgeInsets.symmetric(horizontal: 2), decoration: BoxDecoration(color: i <= current ? brand : line, borderRadius: BorderRadius.circular(9)))),
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: i < current ? () => onTap(i) : null,
+                child: Column(children: [
+                  Row(children: [
+                    Expanded(child: Container(height: 2, color: i == 0 ? Colors.transparent : (i <= current ? brand : p.line))),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      width: 30, height: 30,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: i < current ? brand : i == current ? p.surface : p.subtle,
+                        border: Border.all(color: i <= current ? brand : p.line, width: i == current ? 2.5 : 1.5),
+                        boxShadow: i == current ? [BoxShadow(color: brand.withValues(alpha: 0.25), blurRadius: 8)] : null,
+                      ),
+                      alignment: Alignment.center,
+                      child: i < current
+                          ? const Icon(Icons.check_rounded, size: 17, color: Colors.white)
+                          : Text('${i + 1}', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: i == current ? brand : muted)),
+                    ),
+                    Expanded(child: Container(height: 2, color: i == steps.length - 1 ? Colors.transparent : (i < current ? brand : p.line))),
+                  ]),
+                  const SizedBox(height: 6),
+                  Text(steps[i].title, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 10, height: 1.2, fontWeight: i == current ? FontWeight.w700 : FontWeight.w500, color: i == current ? p.ink : muted)),
+                ]),
+              ),
+            ),
         ]),
-        const SizedBox(height: 8),
+        const SizedBox(height: 14),
         Text('Langkah ${current + 1} dari ${steps.length}', style: const TextStyle(color: muted, fontSize: 12)),
-        Text(steps[current].title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
+        Text(steps[current].title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
       ]),
     );
   }
@@ -506,7 +538,7 @@ class _RepeaterField extends StatelessWidget {
       const SizedBox(height: 8),
       if (rows.isEmpty) Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(border: Border.all(color: line), borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(border: Border.all(color: context.pal.line), borderRadius: BorderRadius.circular(12)),
         child: Text('Belum ada $noun.', textAlign: TextAlign.center, style: const TextStyle(color: muted)),
       ),
       for (var i = 0; i < rows.length; i++)

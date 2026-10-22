@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/forms/form_schema.dart';
 import '../../core/ui/format.dart';
 import '../../core/ui/theme.dart';
+import '../../core/ui/skeleton.dart';
 
 class CategoryPickerPage extends ConsumerWidget {
   const CategoryPickerPage({super.key});
@@ -15,7 +16,7 @@ class CategoryPickerPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Buat laporan')),
       body: schemas.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonList(count: 6),
         error: (e, _) => Center(child: Text('Gagal memuat formulir: $e')),
         data: (list) => ListView(padding: const EdgeInsets.all(16), children: [
           const Text('Pilih jenis kegiatan', style: TextStyle(color: muted)),

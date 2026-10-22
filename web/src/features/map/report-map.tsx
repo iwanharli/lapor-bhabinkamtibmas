@@ -31,7 +31,7 @@ export function ReportMap({ points }: { points: MapPoint[] }) {
       const layer = L.featureGroup();
       // Prioritas digambar terakhir agar berada di atas.
       for (const p of [...points].sort((a, b) => Number(a.priority) - Number(b.priority))) {
-        const color = CATEGORY_COLOR[p.category] ?? '#6b4423';
+        const color = CATEGORY_COLOR[p.category] ?? '#1d4ed8';
         L.circleMarker([p.lat, p.lng], {
           radius: p.priority ? 9 : 6,
           color: p.priority ? '#c81e3a' : '#ffffff',
@@ -44,8 +44,8 @@ export function ReportMap({ points }: { points: MapPoint[] }) {
               <div style="font-size:11px;color:${color};font-weight:600">${esc(CATEGORY_LABEL[p.category] ?? p.category)}${p.priority ? ' · <span style="color:#c81e3a">PRIORITAS</span>' : ''}</div>
               <div style="font-family:monospace;font-size:12px;margin:2px 0 6px">${esc(p.nomor)}</div>
               <div style="font-size:12px">${esc(p.bhabin)} · ${esc(p.desa)}</div>
-              <div style="font-size:11px;color:#7a6858">${esc(tanggalJam(p.occurred_at))} · ${esc(STATUS_LABEL[p.status] ?? p.status)}${p.flagged ? ' · ⚠ lokasi perlu dicek' : ''}</div>
-              <a href="/laporan/${p.id}" style="display:inline-block;margin-top:8px;font-size:12px;font-weight:600;color:#6b4423">Buka laporan →</a>
+              <div style="font-size:11px;color:#64748b">${esc(tanggalJam(p.occurred_at))} · ${esc(STATUS_LABEL[p.status] ?? p.status)}${p.flagged ? ' · ⚠ lokasi perlu dicek' : ''}</div>
+              <a href="/laporan/${p.id}" style="display:inline-block;margin-top:8px;font-size:12px;font-weight:600;color:#1d4ed8">Buka laporan →</a>
             </div>`,
           )
           .addTo(layer);

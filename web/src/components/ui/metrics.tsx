@@ -16,7 +16,8 @@ export function SectionLabel({ title, hint, className }: { title: string; hint?:
 
 /**
  * Perubahan dibanding periode sebelumnya: pil persentase + label.
- * Bila periode sebelumnya kosong, hanya teks "belum ada pembanding". `inverse` bila kenaikan itu buruk.
+ * Bila nilai pembanding kosong atau terlalu kecil (< `minBase`), persentase tidak ditampilkan karena menyesatkan
+ * (mis. 2 → 70 = +3.400%). `inverse` bila kenaikan itu buruk.
  */
 export function Delta({
   now,
@@ -24,6 +25,7 @@ export function Delta({
   inverse,
   onDark,
   label = 'vs periode sebelumnya',
+  minBase = 5,
   className,
 }: {
   now: number;
@@ -31,10 +33,13 @@ export function Delta({
   inverse?: boolean;
   onDark?: boolean;
   label?: string;
+  minBase?: number;
   className?: string;
 }) {
   const text = onDark ? 'text-white/75' : 'text-muted';
   if (!prev) return <span className={cn('text-sm', text, className)}>Belum ada data pembanding</span>;
+  // Pembanding harus cukup besar (absolut & relatif) agar persentase bermakna.
+  if (prev < Math.max(minBase, Math.abs(now) * 0.1)) return <span className={cn('text-sm', text, className)}>Data pembanding belum cukup</span>;
   const pct = Math.round(((now - prev) / prev) * 1000) / 10;
   const up = pct >= 0;
   const good = inverse ? !up : up;

@@ -32,10 +32,10 @@ function LoginForm() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[radial-gradient(80%_60%_at_50%_0%,rgb(201_162_39/0.30),transparent_70%),linear-gradient(180deg,var(--navy),var(--navy-2))] px-4">
+    <main className="grid min-h-screen place-items-center bg-[radial-gradient(80%_60%_at_50%_0%,rgb(59_130_246/0.40),transparent_70%),linear-gradient(180deg,var(--navy),var(--navy-2))] px-4">
       <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 rounded-2xl border border-line bg-surface p-8 shadow-xl">
         <div className="mb-2">
-          <div className="mb-4 grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-accent to-[#a8801a] text-navy shadow-lg shadow-accent/20">
+          <div className="mb-4 grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-primary-2 to-primary text-white shadow-lg shadow-primary/30">
             <ShieldCheck size={26} />
           </div>
           <h1 className="text-xl font-bold">Lapor Bhabinkamtibmas</h1>

@@ -47,7 +47,7 @@ export const isActive = (pathname: string, href: string) => (href === '/' ? path
 export function Brand({ collapsed }: { collapsed?: boolean }) {
   return (
     <Link href="/" className="flex items-center gap-3">
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-accent to-[#a8801a] text-navy shadow-lg shadow-accent/20">
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary-2 to-primary text-white shadow-lg shadow-primary/30">
         <ShieldCheck size={22} />
       </span>
       {!collapsed && (
@@ -86,7 +86,7 @@ function NavLinks({ sections, collapsed, onNavigate }: { sections: NavSection[];
                       'group relative flex items-center gap-3.5 rounded-xl border p-2 text-[15px] transition',
                       collapsed && 'justify-center',
                       active
-                        ? 'border-accent/30 bg-accent/10 font-semibold text-white shadow-inner'
+                        ? 'border-white/15 bg-white/10 font-semibold text-white shadow-inner'
                         : 'border-transparent text-white/70 hover:bg-white/5 hover:text-white',
                     )}
                   >
@@ -95,7 +95,7 @@ function NavLinks({ sections, collapsed, onNavigate }: { sections: NavSection[];
                       className={cn(
                         'grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition',
                         active
-                          ? 'border-transparent bg-gradient-to-br from-accent to-[#a8801a] text-navy shadow-md shadow-accent/20'
+                          ? 'border-transparent bg-gradient-to-br from-primary-2 to-primary text-white shadow-md shadow-primary/30'
                           : 'border-white/10 bg-white/5 text-white/70 group-hover:text-white',
                       )}
                     >
@@ -113,7 +113,7 @@ function NavLinks({ sections, collapsed, onNavigate }: { sections: NavSection[];
   );
 }
 
-const panelBg = 'bg-[radial-gradient(120%_60%_at_0%_100%,rgb(201_162_39/0.22),transparent_60%),linear-gradient(180deg,var(--navy),var(--navy-2))]';
+const panelBg = 'bg-[radial-gradient(120%_60%_at_0%_100%,rgb(59_130_246/0.28),transparent_60%),linear-gradient(180deg,var(--navy),var(--navy-2))]';
 
 /** Sidebar tetap di layar lebar. */
 export function Sidebar({ sections, collapsed }: { sections: NavSection[]; collapsed: boolean }) {

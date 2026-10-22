@@ -15,7 +15,7 @@ export function TotalReportsHero({ ov }: { ov: Overview }) {
     <section className="relative flex h-full min-h-[240px] flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-navy-2 via-primary to-primary-2 p-6 text-white shadow-xl shadow-primary/30 ring-1 ring-accent/30">
       <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-accent/25 blur-3xl" />
       {/* Sparkline sebagai latar di separuh kanan, tidak mendesak teks. */}
-      <Sparkline values={daily} className="pointer-events-none absolute bottom-20 right-0 hidden h-24 w-[46%] text-white opacity-90 sm:block" />
+      <Sparkline values={daily} className="pointer-events-none absolute bottom-16 right-0 hidden h-16 w-[38%] text-white opacity-70 lg:block" />
 
       <div className="relative">
         <p className="flex items-center gap-2 font-semibold"><Layers size={18} /> Total laporan</p>

@@ -1,51 +1,51 @@
 @import "tailwindcss";
 
-/* Token warna: identitas Polri — coklat tua (seragam) & kuning emas (Tribrata); latar krem hangat. */
+/* Token warna: biru — navy gelap untuk sidebar, biru sebagai warna utama, biru langit sebagai aksen. */
 :root {
-  --bg: #f7f3ec;
+  --bg: #f4f7fc;
   --surface: #ffffff;
-  --ink: #2a1d14;
-  --muted: #7a6858;
-  --line: #ebe3d6;
-  --navy: #1f140d;
-  --navy-2: #3a2416;
-  --primary: #6b4423;
-  --primary-2: #9a6534;
-  --primary-soft: #f6eee4;
-  --accent: #c9a227;
-  --accent-ink: #8a6a0e;
+  --ink: #0f1b2d;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --navy: #0a1730;
+  --navy-2: #13294f;
+  --primary: #1d4ed8;
+  --primary-2: #3b82f6;
+  --primary-soft: #eaf1ff;
+  --accent: #0ea5e9;
+  --accent-ink: #0369a1;
   --success: #15803d;
   --success-soft: #e7f5ec;
   --danger: #c81e3a;
   --danger-soft: #fcebee;
   --warn: #c2650a;
   --warn-soft: #fdf1e3;
-  --info: #0f6f9e;
-  --info-soft: #e4f1f8;
-  --shadow-tint: 107 68 35;
+  --info: #0e7490;
+  --info-soft: #e3f4f8;
+  --shadow-tint: 29 78 216;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #15100c;
-    --surface: #211912;
-    --ink: #f1e9df;
-    --muted: #b3a291;
-    --line: #3a2d22;
-    --navy: #0f0a06;
-    --navy-2: #2a1a0f;
-    --primary: #d9a66b;
-    --primary-2: #e8bf86;
-    --primary-soft: #3a2a1c;
-    --accent: #e6c04f;
-    --accent-ink: #e6c04f;
+    --bg: #0b1220;
+    --surface: #121b2e;
+    --ink: #e6edf7;
+    --muted: #94a3b8;
+    --line: #23314a;
+    --navy: #060d1c;
+    --navy-2: #0e1f3d;
+    --primary: #60a5fa;
+    --primary-2: #93c5fd;
+    --primary-soft: #172a4d;
+    --accent: #38bdf8;
+    --accent-ink: #7dd3fc;
     --success: #4ade80;
     --success-soft: #14301f;
     --danger: #fb7185;
     --danger-soft: #3a1620;
     --warn: #fbbf24;
     --warn-soft: #3a2a10;
-    --info: #38bdf8;
+    --info: #22d3ee;
     --info-soft: #0f2a3a;
     --shadow-tint: 0 0 0;
   }
@@ -90,7 +90,7 @@ dialog.modal[open] {
   animation: modal-in 160ms ease-out;
 }
 dialog.modal::backdrop {
-  background: rgb(31 20 13 / 0.55);
+  background: rgb(6 13 28 / 0.55);
   backdrop-filter: blur(2px);
   animation: fade-in 160ms ease-out;
 }

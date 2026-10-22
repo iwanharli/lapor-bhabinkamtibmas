@@ -5,7 +5,7 @@ import type { EChartsOption } from 'echarts';
 import { useEffect, useState } from 'react';
 
 /** Palet kategori yang terbaca di tema terang maupun gelap. */
-export const SERIES_COLORS = ['#6b4423', '#c9a227', '#0f6f9e', '#c2650a', '#8e3b46', '#15803d', '#a8998a'];
+export const SERIES_COLORS = ['#1d4ed8', '#0ea5e9', '#7c3aed', '#f59e0b', '#e11d48', '#16a34a', '#94a3b8'];
 
 function useDark() {
   const [dark, setDark] = useState(false);
@@ -21,13 +21,13 @@ function useDark() {
 
 export function EChart({ option, height = 280 }: { option: EChartsOption; height?: number }) {
   const dark = useDark();
-  const text = dark ? '#b3a291' : '#7a6858';
-  const line = dark ? '#3a2d22' : '#ebe3d6';
+  const text = dark ? '#94a3b8' : '#64748b';
+  const line = dark ? '#23314a' : '#e2e8f0';
   const themed: EChartsOption = {
     color: SERIES_COLORS,
     textStyle: { fontFamily: 'inherit', color: text },
     grid: { left: 8, right: 16, top: 36, bottom: 8, containLabel: true },
-    tooltip: { trigger: 'axis', backgroundColor: dark ? '#211912' : '#fff', borderColor: line, textStyle: { color: dark ? '#f1e9df' : '#2a1d14' } },
+    tooltip: { trigger: 'axis', backgroundColor: dark ? '#121b2e' : '#fff', borderColor: line, textStyle: { color: dark ? '#e6edf7' : '#0f1b2d' } },
     legend: { top: 0, type: 'scroll', textStyle: { color: text } },
     ...option,
   };

@@ -34,12 +34,13 @@ export default async function PetaPage({ searchParams }: { searchParams: Promise
           />
         }
       />
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <Card className="flex flex-col" bodyClassName="flex-1 h-[calc(100vh-15rem)] min-h-[480px]">
+      <Stack>
+        {/* Proporsi melebar mengikuti bentang Indonesia (±46° bujur × 17° lintang). */}
+        <Card className="flex flex-col" bodyClassName="aspect-[12/5] max-h-[78vh] min-h-[360px]">
           <ReportMap filters={{ from, category: sp.category, priority: sp.priority }} />
         </Card>
 
-        <Stack>
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-2">
           <Card title="Kategori" subtitle="Klik untuk menyaring titik">
             <ul className="p-2">
               <li>
@@ -84,8 +85,8 @@ export default async function PetaPage({ searchParams }: { searchParams: Promise
               </ul>
             )}
           </Card>
-        </Stack>
-      </div>
+        </div>
+      </Stack>
     </>
   );
 }

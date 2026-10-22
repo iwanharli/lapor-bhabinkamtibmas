@@ -15,6 +15,11 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 type Leaflet = typeof import('leaflet');
 export interface MapFilters { from: string; category?: string; priority?: string }
 
+/** Wilayah daratan & laut Indonesia (Sabang–Merauke, Miangas–Rote) untuk tampilan awal. */
+const INDONESIA: [[number, number], [number, number]] = [[-11.2, 94.7], [6.2, 141.1]];
+/** Batas geser peta: Indonesia plus sedikit ruang di sekelilingnya. */
+const PAN_LIMIT: [[number, number], [number, number]] = [[-14.5, 91], [9.5, 144.5]];
+
 /** Radius pengelompokan titik yang berdekatan di layar (px). */
 const CLUSTER_RADIUS = 44;
 /** Mulai zoom ini titik tidak lagi dikelompokkan. */
@@ -141,7 +146,6 @@ export function ReportMap({ filters }: { filters: MapFilters }) {
     let cancelled = false;
     let layer: FeatureGroup | null = null;
     let abort: AbortController | null = null;
-    let first = true;
     let m: LeafletMap | null = null;
     let cleanupMove: (() => void) | null = null;
 
@@ -150,7 +154,7 @@ export function ReportMap({ filters }: { filters: MapFilters }) {
       abort?.abort();
       abort = new AbortController();
       const b = m.getBounds().pad(0.2);
-      const view = first ? {} : { bbox: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map((n) => n.toFixed(4)).join(','), zoom: String(m.getZoom()) };
+      const view = { bbox: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map((n) => n.toFixed(4)).join(','), zoom: String(Math.round(m.getZoom())) };
       try {
         const res = await fetch(`/api/proxy${withParams('/analytics/map', { ...filters, ...view })}`, { signal: abort.signal });
         if (!res.ok || cancelled) return;
@@ -163,13 +167,6 @@ export function ReportMap({ filters }: { filters: MapFilters }) {
           for (const c of data.clusters) serverCluster(L, m, c).addTo(layer);
         }
         layer.addTo(m);
-        if (first && data.total) {
-          first = false;
-          // Sesuaikan ke sebaran titik asli (bukan gugus); fit memicu moveend → dikelompokkan ulang pada zoom akhir.
-          const coords = (data.mode === 'points' ? data.points : data.clusters).map((p) => [p.lat, p.lng] as [number, number]);
-          m.fitBounds(L.latLngBounds(coords).pad(0.15), { maxZoom: 15 });
-        }
-        first = false;
       } catch (e) {
         if ((e as Error).name !== 'AbortError') console.error(e);
       }
@@ -179,13 +176,18 @@ export function ReportMap({ filters }: { filters: MapFilters }) {
       const L = (await import('leaflet')).default;
       if (cancelled || !el.current) return;
       if (!map.current) {
-        map.current = L.map(el.current, {
+        // Tampilan awal seluruh Indonesia; zoom keluar & geser dibatasi di sekitar Indonesia.
+        const mm = (map.current = L.map(el.current, {
           zoomControl: true,
           attributionControl: true,
-          minZoom: 4,
-          maxBounds: [[-16, 88], [12, 148]], // sekitar wilayah Indonesia
-          maxBoundsViscosity: 0.8,
-        }).setView([-2.5, 118], 5);
+          zoomSnap: 0.25,
+          maxBounds: PAN_LIMIT,
+          maxBoundsViscosity: 1,
+        }));
+        const fitIndonesia = () => mm.setMinZoom(mm.getBoundsZoom(INDONESIA));
+        mm.fitBounds(INDONESIA);
+        fitIndonesia();
+        mm.on('resize', fitIndonesia);
         L.tileLayer(TILE_URL, { maxZoom: 19, attribution: '&copy; OpenStreetMap · Batas: Kemendagri 2025' }).addTo(map.current);
         detach.current = attachBoundaries(L, map.current);
       }
@@ -211,5 +213,5 @@ export function ReportMap({ filters }: { filters: MapFilters }) {
     map.current = null;
   }, []);
 
-  return <div ref={el} className="h-full min-h-[480px] w-full rounded-b-2xl bg-bg" aria-label="Peta sebaran laporan" />;
+  return <div ref={el} className="h-full min-h-[360px] w-full rounded-b-2xl bg-bg" aria-label="Peta sebaran laporan" />;
 }

@@ -68,13 +68,11 @@ export interface ReportDetail extends ReportListItem {
   gpsAccuracyM: number | null;
   data: Record<string, unknown>;
   schema: { title: string; fields: SchemaField[] } | null;
-  reviewNote: string | null;
-  reviewedAt: string | null;
-  reviewedBy: PersonRef | null;
   items: ReportPriceItem[];
   attachments: ReportAttachment[];
   history: StatusHistoryEntry[];
-  canReview: boolean;
+  /** Batas pelapor boleh meralat laporan terkirim (null bila draft). */
+  editableUntil: string | null;
   /** Field sensitif yang terisi (isinya hanya lewat reveal-sensitive). */
   sensitiveFilled: string[];
   canRevealSensitive: boolean;
@@ -86,17 +84,14 @@ export interface Overview {
   range: { from: string; to: string; days: number };
   totals: {
     total: number;
-    disetujui: number;
-    menunggu: number;
-    prioritas_terbuka: number;
+    prioritas: number;
     lokasi_janggal: number;
     bhabinAktif: number;
     totalBhabin: number;
     tidakAktif7: number;
   };
-  previous: { total: number; disetujui: number; bhabinAktif: number };
+  previous: { total: number; bhabinAktif: number };
   byCategory: { category: string; jumlah: number }[];
-  byStatus: { status: string; jumlah: number }[];
   daily: { hari: string; category: string; jumlah: number }[];
   priority: {
     id: string;

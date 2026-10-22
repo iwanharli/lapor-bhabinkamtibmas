@@ -33,7 +33,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader title="Audit log" subtitle="Jejak aktivitas pengguna: login, keputusan verifikasi, perubahan data, dan ekspor. Catatan tidak dapat diubah atau dihapus." />
+      <PageHeader title="Audit log" subtitle="Jejak aktivitas pengguna: login, laporan & ralat, perubahan data, dan ekspor. Catatan tidak dapat diubah atau dihapus." />
       <Stack>
         <Card>
           <div className="flex flex-col gap-3 border-b border-line p-4 lg:flex-row lg:items-center">

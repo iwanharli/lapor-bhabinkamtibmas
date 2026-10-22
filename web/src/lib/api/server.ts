@@ -48,9 +48,14 @@ function sessionExpired(): never {
   redirect('/login?expired=1');
 }
 
+function accessDenied(): never {
+  redirect('/akses-ditolak');
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
   const res = await apiFetch(path);
   if (res.status === 401) sessionExpired();
+  if (res.status === 403) accessDenied();
   if (!res.ok) throw new Error(`API ${path} gagal: ${res.status}`);
   return res.json() as Promise<T>;
 }
@@ -59,6 +64,7 @@ export async function apiGet<T>(path: string): Promise<T> {
 export async function apiGetOrNotFound<T>(path: string): Promise<T | null> {
   const res = await apiFetch(path);
   if (res.status === 401) sessionExpired();
+  if (res.status === 403) accessDenied();
   if (res.status === 404 || res.status === 400) return null;
   if (!res.ok) throw new Error(`API ${path} gagal: ${res.status}`);
   return res.json() as Promise<T>;

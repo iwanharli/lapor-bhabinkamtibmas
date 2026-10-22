@@ -19,14 +19,11 @@ const CATEGORY: Record<string, string> = {
   SAMBANG: 'Sambang / DDS', DETEKSI_DINI: 'Deteksi Dini', PROBLEM_SOLVING: 'Problem Solving', PENYULUHAN: 'Penyuluhan',
   HARGA_PANGAN: 'Harga Pangan', MAPPING_KK: 'Mapping KK', KETAHANAN_PANGAN: 'Ketahanan Pangan',
 };
-const STATUS: Record<string, string> = {
-  DRAFT: 'Draft', SUBMITTED: 'Terkirim', IN_REVIEW: 'Ditinjau', NEEDS_REVISION: 'Perlu Revisi', APPROVED: 'Disetujui', REJECTED: 'Ditolak',
-};
 const ROLE: Record<string, string> = {
   BHABIN: 'Bhabinkamtibmas', VERIFIKATOR: 'Verifikator', PIMPINAN: 'Pimpinan', ADMIN_UNIT: 'Admin Unit', SUPERADMIN: 'Superadmin', AUDITOR: 'Auditor', INTEGRASI: 'Integrasi',
 };
 
-const VIEWERS: UserRole[] = [UserRole.VERIFIKATOR, UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR];
+const VIEWERS: UserRole[] = [UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR];
 /** Jenis ekspor beserta peran yang boleh membuatnya. */
 export const EXPORT_KINDS = {
   reports: VIEWERS,
@@ -80,7 +77,6 @@ export class ExportsService {
           user: { select: { nama: true, pangkat: true, nrp: true } },
           unit: { select: { nama: true, timezone: true } },
           village: { select: { nama: true, kecamatan: true, kabupaten: true } },
-          reviewedBy: { select: { nama: true, pangkat: true } },
           items: { include: { commodity: { select: { nama: true } } } },
           _count: { select: { attachments: true } },
         },
@@ -101,12 +97,12 @@ export class ExportsService {
     const person = (p?: { nama: string; pangkat: string | null } | null) => (p ? [p.pangkat, p.nama].filter(Boolean).join(' ') : '');
 
     const csv = toCsv(
-      ['Nomor', 'Kategori', 'Status', 'Prioritas', 'Waktu kegiatan (setempat)', 'Bhabin', 'NRP', 'Unit', 'Desa', 'Kecamatan', 'Kabupaten',
-        'Lintang', 'Bujur', 'Akurasi GPS (m)', 'Di dalam desa binaan', 'Lokasi palsu', 'Lampiran', 'Diverifikasi oleh', 'Waktu verifikasi (setempat)', 'Catatan verifikator', 'Isian'],
+      ['Nomor', 'Kategori', 'Prioritas', 'Waktu kegiatan (setempat)', 'Waktu kirim (setempat)', 'Bhabin', 'NRP', 'Unit', 'Desa', 'Kecamatan', 'Kabupaten',
+        'Lintang', 'Bujur', 'Akurasi GPS (m)', 'Di dalam desa binaan', 'Lokasi palsu', 'Lampiran', 'Isian'],
       rows.map((r) => [
-        r.nomor, CATEGORY[r.category], STATUS[r.status], r.priority, waktu(r.occurredAt, r.unit.timezone), person(r.user), r.user.nrp, r.unit.nama,
+        r.nomor, CATEGORY[r.category], r.priority, waktu(r.occurredAt, r.unit.timezone), waktu(r.submittedAt, r.unit.timezone), person(r.user), r.user.nrp, r.unit.nama,
         r.village.nama, r.village.kecamatan, r.village.kabupaten, r.lat.toFixed(6), r.lng.toFixed(6), r.gpsAccuracyM != null ? Math.round(r.gpsAccuracyM) : '',
-        r.insideVillage, r.isMockLocation, r._count.attachments, person(r.reviewedBy), waktu(r.reviewedAt, r.unit.timezone), r.reviewNote, isian(r),
+        r.insideVillage, r.isMockLocation, r._count.attachments, isian(r),
       ]),
     );
     return { name: exportName('laporan', await this.units.timezoneOf(me.unitId)), csv, rows: rows.length };
@@ -133,10 +129,10 @@ export class ExportsService {
     const day = (d: Date) => Date.parse(localDate(d, tz));
     const days = Math.round((day(r.to) - day(r.from)) / 86_400_000) + 1;
     const csv = toCsv(
-      ['NRP', 'Nama', 'Pangkat', 'Unit', 'Desa binaan', 'Total laporan', 'Hari aktif', `Hari aktif (%) dari ${days} hari`, 'Disetujui', 'Menunggu', 'Revisi', 'Ditolak', 'Lokasi perlu dicek',
+      ['NRP', 'Nama', 'Pangkat', 'Unit', 'Desa binaan', 'Total laporan', 'Hari aktif', `Hari aktif (%) dari ${days} hari`, 'Lokasi perlu dicek',
         'Sambang', 'Deteksi Dini', 'Problem Solving', 'Penyuluhan', 'Harga Pangan', 'Mapping KK', 'Ketahanan Pangan', 'Laporan terakhir (setempat)'],
       rows.map((b) => [
-        b.nrp, b.nama, b.pangkat, b.unit, b.desa, b.total, b.hari_aktif, Math.min(Math.round((b.hari_aktif / days) * 100), 100), b.disetujui, b.menunggu, b.revisi, b.ditolak, b.lokasi_janggal,
+        b.nrp, b.nama, b.pangkat, b.unit, b.desa, b.total, b.hari_aktif, Math.min(Math.round((b.hari_aktif / days) * 100), 100), b.lokasi_janggal,
         b.sambang, b.deteksi_dini, b.problem_solving, b.penyuluhan, b.harga_pangan, b.mapping_kk, b.ketahanan_pangan, waktu(b.terakhir_sepanjang, b.timezone),
       ]),
     );

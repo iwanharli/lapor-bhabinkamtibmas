@@ -27,16 +27,57 @@ async function get<T>(path: string, signal: AbortSignal): Promise<T> {
  */
 export function attachBoundaries(L: Leaflet, map: LeafletMap): () => void {
   if (!map.getPane('batas')) map.createPane('batas').style.zIndex = '350';
+  if (!map.getPane('focusMask')) map.createPane('focusMask').style.zIndex = '300';
 
   let layer: GeoJSONLayer | null = null;
+  let focusMask: ReturnType<typeof L.polygon> | null = null;
   let abort: AbortController | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const provinces: { data?: Boundaries } = {};
 
+  const addFocusMask = (data: Boundaries) => {
+    const holes: [number, number][][] = [];
+    const addGeometry = (geometry: GeoJSON.Geometry) => {
+      if (geometry.type === 'Polygon') {
+        const ring = geometry.coordinates[0];
+        if (ring?.length) holes.push(ring.map(([lng, lat]) => [lat, lng] as [number, number]));
+      } else if (geometry.type === 'MultiPolygon') {
+        for (const polygon of geometry.coordinates) {
+          const ring = polygon[0];
+          if (ring?.length) holes.push(ring.map(([lng, lat]) => [lat, lng] as [number, number]));
+        }
+      } else if (geometry.type === 'GeometryCollection') {
+        for (const child of geometry.geometries) addGeometry(child);
+      }
+    };
+    for (const feature of data.features) addGeometry(feature.geometry);
+
+    focusMask?.remove();
+    if (!holes.length) return;
+    const world: [number, number][] = [[-85, -180], [-85, 180], [85, 180], [85, -180]];
+    focusMask = L.polygon([world, ...holes], {
+      pane: 'focusMask',
+      stroke: false,
+      fillColor: '#0b1728',
+      fillOpacity: 0.34,
+      interactive: false,
+      fillRule: 'evenodd',
+    }).addTo(map);
+  };
+
+  const maskAbort = new AbortController();
+  get<Boundaries>('/regions/boundaries?level=1', maskAbort.signal)
+    .then((data) => {
+      provinces.data = data;
+      addFocusMask(data);
+    })
+    .catch(() => undefined);
+
+  // Tab samar di kiri bawah, menempel di atas strip prioritas (posisi bawah mengikuti --strip-h, lihat globals.css).
   const panel = new L.Control({ position: 'bottomleft' });
   const box = L.DomUtil.create('div');
   box.style.cssText =
-    'background:rgba(255,255,255,.94);border-radius:10px;padding:6px 10px;font:12px/1.4 inherit;color:#0f172a;box-shadow:0 1px 4px rgba(15,23,42,.18);max-width:min(520px,70vw)';
+    'margin:0 0 0 16px;background:color-mix(in srgb,var(--surface) 55%,transparent);backdrop-filter:blur(10px);border:1px solid color-mix(in srgb,var(--line) 70%,transparent);border-bottom:0;border-radius:10px 10px 0 0;padding:5px 12px 6px;font:11.5px/1.4 inherit;color:color-mix(in srgb,var(--ink) 80%,transparent);max-width:min(520px,70vw)';
   panel.onAdd = () => box;
   panel.addTo(map);
 
@@ -44,10 +85,10 @@ export function attachBoundaries(L: Leaflet, map: LeafletMap): () => void {
     layer?.remove();
     layer = L.geoJSON(data, {
       pane: 'batas',
-      style: { color: '#1d4ed8', weight: WEIGHT[level], opacity: 0.75, fillColor: '#3b82f6', fillOpacity: 0.04 },
+      style: { color: '#244f91', weight: WEIGHT[level], opacity: 0.75, fillColor: '#3569ad', fillOpacity: 0.04 },
       onEachFeature: (f, l) => {
         const p = f.properties as RegionProps;
-        l.bindTooltip(`<b>${esc(p.nama)}</b>${p.chain ? `<br><span style="color:#64748b">${esc(p.chain)}</span>` : ''}`, { sticky: true, direction: 'top' });
+        l.bindTooltip(`<b>${esc(p.nama)}</b>${p.chain ? `<br><span style="color:var(--muted)">${esc(p.chain)}</span>` : ''}`, { sticky: true, direction: 'top' });
         l.on('mouseover', () => (l as L.Path).setStyle({ fillOpacity: 0.14, weight: WEIGHT[level] + 1 }));
         l.on('mouseout', () => layer?.resetStyle(l as L.Path));
       },
@@ -71,10 +112,10 @@ export function attachBoundaries(L: Leaflet, map: LeafletMap): () => void {
       ]);
       if (level === 1) provinces.data = data;
       draw(data, level);
-      const trail = chain.map((r) => esc(r.nama)).join(' <span style="color:#94a3b8">›</span> ');
-      box.innerHTML = `<div style="font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:#64748b">Batas ${LEVEL_LABEL[level]}${
+      const trail = chain.map((r) => esc(r.nama)).join(' <span style="color:var(--muted)">›</span> ');
+      box.innerHTML = `<div style="font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">Batas ${LEVEL_LABEL[level]}${
         data.truncated ? ' · perbesar untuk melihat semua' : ''
-      }${level === 4 && !data.features.length ? ' · data desa belum diimpor di area ini' : ''}</div>${trail || (level === 1 ? `Indonesia · ${data.features.length} provinsi` : '<span style="color:#64748b">Di luar wilayah administrasi</span>')}`;
+      }${level === 4 && !data.features.length ? ' · data desa belum diimpor di area ini' : ''}</div>${trail || (level === 1 ? `Indonesia · ${data.features.length} provinsi` : '<span style="color:var(--muted)">Di luar wilayah administrasi</span>')}`;
     } catch (e) {
       if ((e as Error).name !== 'AbortError') box.textContent = 'Batas wilayah tidak dapat dimuat';
     }
@@ -90,8 +131,10 @@ export function attachBoundaries(L: Leaflet, map: LeafletMap): () => void {
   return () => {
     clearTimeout(timer);
     abort?.abort();
+    maskAbort.abort();
     map.off('moveend', schedule);
     layer?.remove();
+    focusMask?.remove();
     panel.remove();
   };
 }

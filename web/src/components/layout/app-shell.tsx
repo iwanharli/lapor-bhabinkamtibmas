@@ -10,6 +10,7 @@ const COLLAPSE_KEY = 'lapor.sidebar.collapsed';
 /** Kerangka dashboard: sidebar (bisa dilipat) + topbar + konten. */
 export function AppShell({ sections, user, children }: { sections: NavSection[]; user: ShellUser; children: React.ReactNode }) {
   const pathname = usePathname();
+  const mapPage = pathname === '/peta';
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -40,8 +41,8 @@ export function AppShell({ sections, user, children }: { sections: NavSection[];
       <MobileNav sections={sections} open={mobileOpen} onClose={() => setMobileOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar sections={sections} user={user} onToggleSidebar={toggle} onOpenMobile={() => setMobileOpen(true)} />
-        <main className="flex-1 px-4 py-6 md:px-8 md:py-8">
-          <div className="mx-auto max-w-[1440px]">{children}</div>
+        <main className={mapPage ? 'flex min-h-0 flex-1 p-0' : 'flex-1 px-4 py-6 md:px-8 md:py-8'}>
+          <div className={mapPage ? 'min-h-0 w-full' : 'mx-auto w-full max-w-[1440px]'}>{children}</div>
         </main>
       </div>
     </div>

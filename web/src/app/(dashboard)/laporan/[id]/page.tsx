@@ -5,8 +5,6 @@ import { LocationInfo } from '@/features/reports/location-info';
 import { PriceItemsTable } from '@/features/reports/price-items-table';
 import { ReportFields } from '@/features/reports/report-fields';
 import { ReportHeader } from '@/features/reports/report-header';
-import { ReviewNote } from '@/features/reports/review-note';
-import { StatusStepper } from '@/features/reports/status-stepper';
 import { StatusTimeline } from '@/features/reports/status-timeline';
 import { apiGet, apiGetOrNotFound } from '@/lib/api/server';
 import type { LatestPrice, ReportDetail } from '@/lib/types';
@@ -16,7 +14,6 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
   const r = await apiGetOrNotFound<ReportDetail>(`/reports/${id}`);
   if (!r) notFound();
 
-  const decidable = r.canReview && (r.status === 'SUBMITTED' || r.status === 'IN_REVIEW');
   // Pembanding harga wilayah hanya untuk laporan harga pangan.
   const averages = r.items.length ? await apiGet<LatestPrice[]>('/analytics/prices/latest').catch(() => undefined) : undefined;
 
@@ -24,8 +21,7 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
     <>
       <BackLink href="/laporan" />
       <Stack>
-        <ReportHeader report={r} decidable={decidable} />
-        <ReviewNote report={r} />
+        <ReportHeader report={r} />
 
         <SplitLayout
           asideSticky
@@ -40,9 +36,6 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
             </>
           }
         >
-          <Card title="Alur verifikasi">
-            <StatusStepper report={r} />
-          </Card>
           <Card title="Isian laporan" subtitle={r.schema?.title}>
             <ReportFields report={r} />
           </Card>

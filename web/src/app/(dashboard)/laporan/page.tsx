@@ -1,9 +1,8 @@
 import { Card, ExportButton, PageHeader, Pagination, Stack } from '@/components/ui';
 import { ReportFilters } from '@/features/reports/report-filters';
 import { ReportSearch, resolveRange, toApiQuery } from '@/features/reports/report-search';
-import { localDayToIso, tanggal } from '@/lib/format';
+import { CATEGORY_LABEL, localDayToIso, tanggal } from '@/lib/format';
 import { ReportTable } from '@/features/reports/report-table';
-import { StatusTabs } from '@/features/reports/status-tabs';
 import { apiGet, getSessionUser } from '@/lib/api/server';
 import type { Paged, ReportListItem } from '@/lib/types';
 import { withParams } from '@/lib/url';
@@ -32,21 +31,25 @@ export default async function LaporanPage({ searchParams }: { searchParams: Prom
     return q.toString();
   })();
 
-  const [{ data, meta }, counts] = await Promise.all([
-    apiGet<Paged<ReportListItem>>(`/reports?${query}`),
-    apiGet<{ total: number; counts: Record<string, number> }>(`/reports/status-counts?${query}`),
-  ]);
+  const { data, meta } = await apiGet<Paged<ReportListItem>>(`/reports?${query}`);
+  const firstRow = meta.total ? (page - 1) * limit + 1 : 0;
+  const lastRow = Math.min(page * limit, meta.total);
+  const categoryTitle = sp.category ? CATEGORY_LABEL[sp.category] : undefined;
 
   return (
     <>
       <PageHeader
-        title="Laporan"
-        subtitle={`Laporan kegiatan Bhabinkamtibmas dalam cakupan unit Anda · ${rangeLabel(sp, tz)}`}
+        eyebrow={categoryTitle ? 'Kategori laporan' : 'Pemantauan'}
+        title={categoryTitle ?? 'Laporan kegiatan'}
+        subtitle={`${categoryTitle ? `Laporan kategori ${categoryTitle.toLowerCase()}` : 'Pantau kegiatan Bhabinkamtibmas di unit Anda'} · ${rangeLabel(sp, tz)}`}
         actions={<ExportButton path={`/exports/reports.csv?${exportQuery}`} />}
       />
       <Stack>
-        <StatusTabs sp={sp} total={counts.total} counts={counts.counts} />
-        <Card>
+        <Card
+          title="Daftar laporan"
+          subtitle={`${meta.total.toLocaleString('id-ID')} laporan ditemukan`}
+          actions={<span className="whitespace-nowrap rounded-full bg-bg px-2.5 py-1 text-xs font-medium tabular-nums text-muted">{firstRow}–{lastRow} / {meta.total.toLocaleString('id-ID')}</span>}
+        >
           <ReportFilters value={sp} tz={tz} />
           <ReportTable rows={data} />
           <Pagination

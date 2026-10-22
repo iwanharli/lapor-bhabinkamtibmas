@@ -1,11 +1,12 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { AttachmentSource, ReportStatus, UserRole } from '@prisma/client';
+import { AttachmentSource, UserRole } from '@prisma/client';
 import { createHash, randomUUID } from 'crypto';
 import { AuthUser } from '../../common/decorators/auth.decorators';
 import { compressPhoto, thumbnail } from '../../common/storage/image';
 import { StorageService } from '../../common/storage/storage.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { canEdit } from '../reports/report-writer.service';
 import { ReportsService } from '../reports/reports.service';
 
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
@@ -50,8 +51,8 @@ export class AttachmentsService {
     if (!file) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'File wajib diunggah' });
     const report = await this.prisma.report.findUnique({ where: { id: reportId } });
     if (!report || report.userId !== me.id) throw new NotFoundException({ code: 'NOT_FOUND' });
-    if (!([ReportStatus.DRAFT, ReportStatus.NEEDS_REVISION, ReportStatus.SUBMITTED] as ReportStatus[]).includes(report.status)) {
-      throw new ForbiddenException({ code: 'INVALID_TRANSITION', message: 'Lampiran tidak dapat ditambahkan pada laporan yang sudah diputuskan' });
+    if (!canEdit(report)) {
+      throw new ForbiddenException({ code: 'RALAT_CLOSED', message: 'Lampiran tidak dapat ditambahkan setelah batas ralat 3×24 jam' });
     }
 
     const mime = sniff(file.buffer);

@@ -10,7 +10,7 @@ import type { Paged, UserListItem } from '@/lib/types';
 import { withParams } from '@/lib/url';
 
 const SIZES = [10, 20, 50];
-const ROLES = ['BHABIN', 'VERIFIKATOR', 'PIMPINAN', 'ADMIN_UNIT', 'AUDITOR', 'SUPERADMIN'];
+const ROLES = ['BHABIN', 'PIMPINAN', 'ADMIN_UNIT', 'AUDITOR', 'SUPERADMIN'];
 
 type Search = { q?: string; role?: string; active?: string; unitId?: string; page?: string; limit?: string };
 

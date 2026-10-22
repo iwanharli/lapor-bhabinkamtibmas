@@ -1,13 +1,17 @@
 import { UserRole } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { ArrayUnique, IsArray, IsBoolean, IsEnum, IsOptional, IsString, IsUUID, Length, ValidateNested } from 'class-validator';
+import { ArrayUnique, IsArray, IsBoolean, IsIn, IsOptional, IsString, IsUUID, Length, ValidateNested } from 'class-validator';
+
+/** Peran yang bisa diberikan. Verifikator tidak dipakai lagi (laporan langsung final, tanpa verifikasi). */
+export const ASSIGNABLE_ROLES = Object.values(UserRole).filter((r) => r !== UserRole.VERIFIKATOR);
+const ROLE_MESSAGE = { message: 'Peran tidak valid (peran Verifikator sudah tidak dipakai)' };
 
 export class CreateUserDto {
   @IsString() @Length(4, 20) nrp: string;
   @IsString() @Length(2, 150) nama: string;
   @IsOptional() @IsString() pangkat?: string;
   @IsOptional() @IsString() jabatan?: string;
-  @IsEnum(UserRole) role: UserRole;
+  @IsIn(ASSIGNABLE_ROLES, ROLE_MESSAGE) role: UserRole;
   @IsUUID() unitId: string;
   @IsOptional() @IsString() phone?: string;
 }
@@ -16,7 +20,7 @@ export class UpdateUserDto {
   @IsOptional() @IsString() @Length(2, 150) nama?: string;
   @IsOptional() @IsString() pangkat?: string;
   @IsOptional() @IsString() jabatan?: string;
-  @IsOptional() @IsEnum(UserRole) role?: UserRole;
+  @IsOptional() @IsIn(ASSIGNABLE_ROLES, ROLE_MESSAGE) role?: UserRole;
   @IsOptional() @IsUUID() unitId?: string;
   @IsOptional() @IsString() phone?: string;
   @IsOptional() @IsBoolean() active?: boolean;

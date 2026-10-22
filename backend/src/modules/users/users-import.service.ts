@@ -13,7 +13,8 @@ export const MAX_IMPORT_ROWS = 1000;
 /** Peran boleh ditulis sebagai kode (BHABIN) atau label (Bhabinkamtibmas). */
 const ROLE_ALIASES: Record<string, UserRole> = {
   bhabin: UserRole.BHABIN, bhabinkamtibmas: UserRole.BHABIN,
-  verifikator: UserRole.VERIFIKATOR,
+  // Peran Verifikator dihapus; templat lama dipetakan ke Pimpinan (pemantau).
+  verifikator: UserRole.PIMPINAN,
   pimpinan: UserRole.PIMPINAN,
   admin_unit: UserRole.ADMIN_UNIT, 'admin unit': UserRole.ADMIN_UNIT, admin: UserRole.ADMIN_UNIT,
   auditor: UserRole.AUDITOR,

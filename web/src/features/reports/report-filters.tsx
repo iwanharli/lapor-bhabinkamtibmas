@@ -3,8 +3,7 @@
 import { CalendarRange, Flame, Search, X } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
-import { cn, Input, Select } from '@/components/ui';
-import { CATEGORY_LABEL } from '@/lib/format';
+import { cn, Input } from '@/components/ui';
 import { withParams } from '@/lib/url';
 import { RangePreset, ReportSearch, resolveRange } from './report-search';
 
@@ -54,11 +53,6 @@ export function ReportFilters({ value, tz }: { value: ReportSearch; tz?: string 
       </label>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={value.category ?? ''} onChange={(e) => apply({ category: e.target.value || undefined })} className="w-auto min-w-44" aria-label="Kategori">
-          <option value="">Semua kategori</option>
-          {Object.entries(CATEGORY_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </Select>
-
         <div className="flex items-center rounded-lg border border-line bg-surface">
           <div className="flex items-center gap-1.5 px-2.5">
             <CalendarRange size={16} className="text-muted" />

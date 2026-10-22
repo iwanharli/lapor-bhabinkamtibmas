@@ -56,14 +56,18 @@ async function put(key: string, data: Buffer) {
 async function main() {
   if (process.env.NODE_ENV === 'production') throw new Error('Seed demo tidak boleh dijalankan di produksi');
   if (process.argv.includes('--reset')) {
-    await prisma.attachment.deleteMany();
+    await prisma.attachment.deleteMany({ where: { reportId: { not: null } } });
     await rm(join(ROOT, 'demo'), { recursive: true, force: true });
   } else if (await prisma.attachment.count()) {
     console.log('Lampiran sudah ada, dilewati (gunakan --reset).');
     return;
   }
 
-  const reports = await prisma.report.findMany({ select: { id: true, nomor: true, category: true, occurredAt: true, lat: true, lng: true } });
+  // Hanya laporan Polres Contoh; laporan contoh nasional (unit DEMO-*) terlalu banyak untuk dibuatkan foto.
+  const reports = await prisma.report.findMany({
+    where: { unit: { kode: { not: { startsWith: 'DEMO-' } } } },
+    select: { id: true, nomor: true, category: true, occurredAt: true, lat: true, lng: true },
+  });
   let total = 0;
   for (const r of reports) {
     if (rnd() < 0.15) continue; // sebagian laporan tanpa lampiran

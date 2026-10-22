@@ -58,7 +58,7 @@ export default async function HargaPanganPage({ searchParams }: { searchParams: 
     <>
       <PageHeader
         title="Pemantauan Harga Pangan"
-        subtitle="Dari laporan Bhabinkamtibmas di pasar & kios · laporan yang ditolak tidak dihitung"
+        subtitle="Dari laporan Bhabinkamtibmas di pasar & kios"
         actions={
           <SegmentedLinks
             active={String(days)}

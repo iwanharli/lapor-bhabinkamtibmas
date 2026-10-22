@@ -58,7 +58,7 @@ Notasi tipe: `text`, `textarea(n)` (maks. n karakter), `number`, `currency` (Rup
 | `tindakan_awal` | Tindakan awal yang dilakukan | textarea(500) | ✖ |
 | `foto_lapangan` | Foto kondisi lapangan | photo (1–5) | ✔ |
 
-Aturan: `urgensi = Tinggi` → notifikasi prioritas ke verifikator & pimpinan Polsek/Polres, dan sinkron didahulukan di perangkat.
+Aturan: `urgensi = Tinggi` → notifikasi prioritas ke pimpinan Polsek/Polres, dan sinkron didahulukan di perangkat.
 
 ### 3.3 PROBLEM_SOLVING — Mediasi
 
@@ -204,32 +204,24 @@ Aturan: maks. satu `CHECK_IN` & satu `CHECK_OUT` per hari. Absensi offline diter
 
 ## 6. Alur status laporan
 
+**Tanpa verifikasi** (keputusan 22 Oktober 2026): laporan yang dikirim langsung final. Pengaman kualitas data adalah validasi skema & lampiran saat kirim, cek lokasi otomatis (desa binaan ±200 m, deteksi lokasi palsu), dan audit log.
+
 ```
-           (perangkat)
-   ┌──────────► DRAFT ───────kirim──────► SUBMITTED
-   │                                         │
-   │                               verifikator membuka
-   │                                         ▼
-   │                                     IN_REVIEW
-   │                         ┌───────────────┼───────────────┐
-   │                         ▼               ▼               ▼
-   └─── perbaiki ──── NEEDS_REVISION     APPROVED         REJECTED
-         & kirim ulang                    (final)          (final)
+   (perangkat)
+      DRAFT ───────kirim──────► SUBMITTED (final)
+                                   │  ▲
+                                   └──┘ ralat oleh pelapor ≤ 3×24 jam sejak dikirim
 ```
 
 | Dari | Ke | Oleh | Syarat |
 |---|---|---|---|
 | — | DRAFT | Bhabin | — |
 | DRAFT | SUBMITTED | Bhabin | Validasi skema lolos, lampiran wajib terunggah |
-| SUBMITTED | IN_REVIEW | Verifikator | Otomatis saat dibuka pertama kali |
-| IN_REVIEW | APPROVED | Verifikator | — |
-| IN_REVIEW | NEEDS_REVISION | Verifikator | Catatan wajib |
-| IN_REVIEW | REJECTED | Verifikator | Catatan wajib |
-| NEEDS_REVISION | SUBMITTED | Bhabin | Validasi ulang |
+| SUBMITTED | SUBMITTED (ralat) | Bhabin pelapor | ≤ `REPORT_RALAT_HOURS` (72 jam) sejak dikirim; isian tetap harus lengkap |
 
-- Laporan `SUBMITTED` tidak dapat diubah Bhabin.
-- Setiap transisi dicatat di `report_status_history` dan `audit_logs`.
-- Konfigurasi per kategori: `auto_approve` (mis. Harga Pangan dapat langsung `APPROVED` agar data harga cepat tampil, dengan opsi koreksi oleh verifikator).
+- Ralat menghitung ulang prioritas, item harga, dan cek lokasi; tercatat di `audit_logs` (`REPORT_UPDATE`, `ralat: true`). Lampiran boleh ditambah selama jendela ralat.
+- Setelah jendela ralat, laporan tidak dapat diubah (`409 RALAT_CLOSED`).
+- Status lama (`IN_REVIEW`, `APPROVED`, `NEEDS_REVISION`, `REJECTED`) tidak dipakai lagi; data lama dimigrasikan menjadi `SUBMITTED` (riwayat status tetap tersimpan). Peran Verifikator diubah menjadi Pimpinan.
 
 ## 7. Penomoran laporan
 

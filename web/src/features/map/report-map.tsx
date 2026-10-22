@@ -2,7 +2,7 @@
 
 import 'leaflet/dist/leaflet.css';
 import type { FeatureGroup, Map as LeafletMap } from 'leaflet';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CATEGORY_LABEL, STATUS_LABEL, tanggalJam } from '@/lib/format';
 import { withParams } from '@/lib/url';
 import { attachBoundaries } from './boundary-layer';
@@ -13,12 +13,12 @@ const TILE_URL = process.env.NEXT_PUBLIC_TILE_URL ?? 'https://{s}.tile.openstree
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 type Leaflet = typeof import('leaflet');
-export interface MapFilters { from: string; category?: string; priority?: string }
+export interface MapFilters { from: string; category?: string; priority?: string; unitId?: string; regionCode?: string; regionLevel?: number }
 
 /** Wilayah daratan & laut Indonesia (Sabang–Merauke, Miangas–Rote) untuk tampilan awal. */
 const INDONESIA: [[number, number], [number, number]] = [[-11.2, 94.7], [6.2, 141.1]];
-/** Batas geser peta: Indonesia plus sedikit ruang di sekelilingnya. */
-const PAN_LIMIT: [[number, number], [number, number]] = [[-14.5, 91], [9.5, 144.5]];
+/** Area geser dibuat lega agar pengguna dapat menggeser peta melewati overlay tanpa cepat tertahan. */
+const PAN_LIMIT: [[number, number], [number, number]] = [[-28, 72], [24, 174]];
 
 /** Radius pengelompokan titik yang berdekatan di layar (px). */
 const CLUSTER_RADIUS = 44;
@@ -50,13 +50,18 @@ function pointMarker(L: Leaflet, p: MapPoint) {
 }
 
 /** Gugus berangka; berdenyut bila berisi laporan prioritas. */
+/**
+ * Ikon gugus. Cincin merah bila berisi laporan prioritas; denyut hanya untuk gugus kecil (≤ 20) atau yang
+ * ≥ 20% prioritas — di zoom nasional hampir semua gugus berisi prioritas sehingga denyut di semua gugus jadi bising.
+ */
 function clusterIcon(L: Leaflet, jumlah: number, prioritas: number, category: string) {
-  const size = Math.round(Math.min(28 + Math.log10(jumlah) * 14, 64));
+  const size = Math.round(Math.min(26 + Math.log10(jumlah) * 9, 50));
+  const pulse = prioritas > 0 && (jumlah <= 20 || prioritas / jumlah >= 0.2);
   const label = jumlah >= 1000 ? `${(jumlah / 1000).toFixed(jumlah >= 10_000 ? 0 : 1)}rb` : String(jumlah);
   return L.divIcon({
     className: '',
     iconSize: [size, size],
-    html: `<div class="map-cluster${prioritas ? ' map-priority' : ''}" title="${jumlah} laporan${prioritas ? ` · ${prioritas} prioritas` : ''}" style="width:${size}px;height:${size}px;background:${CATEGORY_COLOR[category] ?? '#1d4ed8'}">${label}</div>`,
+    html: `<div class="map-cluster${pulse ? ' map-priority' : ''}" title="${jumlah} laporan${prioritas ? ` · ${prioritas} prioritas` : ''}" style="width:${size}px;height:${size}px;background:${CATEGORY_COLOR[category] ?? '#1d4ed8'}${prioritas && !pulse ? ';border-color:#c81e3a' : ''}">${label}</div>`,
   });
 }
 
@@ -133,6 +138,37 @@ function pointCluster(L: Leaflet, map: LeafletMap, group: MapPoint[]) {
   return marker;
 }
 
+const MAP_LOADING_EVENT = 'lapor:map-loading';
+const MAP_INDONESIA_EVENT = 'lapor:map-focus-indonesia';
+
+/** Arahkan peta kembali ke tampilan seluruh Indonesia (mis. saat filter wilayah dikosongkan). */
+export function focusIndonesia() {
+  window.dispatchEvent(new Event(MAP_INDONESIA_EVENT));
+}
+
+/** Panggil saat filter peta diubah (sebelum navigasi) agar peta menampilkan overlay loading sampai data baru siap. */
+export function signalMapLoading() {
+  window.dispatchEvent(new Event(MAP_LOADING_EVENT));
+}
+
+/** Overlay loading tembus pandang di atas peta (di bawah panel melayang). */
+function MapLoading({ show }: { show: boolean }) {
+  return (
+    <div
+      aria-hidden={!show}
+      className={`pointer-events-none absolute inset-0 z-[450] grid place-items-center bg-bg/30 backdrop-blur-[3px] transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
+    >
+      <div role="status" className="flex items-center gap-3 rounded-full border border-line/80 bg-surface/85 px-5 py-2.5 shadow-[0_12px_32px_-16px_rgba(15,35,65,.5)] backdrop-blur-xl">
+        <span className="relative grid h-5 w-5 place-items-center">
+          <span className="absolute inset-0 animate-ping rounded-full bg-primary/30" />
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
+        </span>
+        <span className="text-sm font-medium text-ink">Memuat data peta…</span>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Peta laporan di atas batas wilayah Kemendagri. Isi diambil per area tampilan:
  * titik bila sedikit, gugus berangka bila banyak (docs/teknis/12 §4.2). Dimuat hanya di browser.
@@ -141,6 +177,22 @@ export function ReportMap({ filters }: { filters: MapFilters }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<LeafletMap | null>(null);
   const detach = useRef<(() => void) | null>(null);
+  // Overlay loading: dari filter diklik (sinyal) / filter berubah sampai titik filter baru selesai digambar.
+  const [busy, setBusy] = useState(true);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const start = () => {
+      setBusy(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => setBusy(false), 10_000); // pengaman bila navigasi batal
+    };
+    window.addEventListener(MAP_LOADING_EVENT, start);
+    return () => {
+      window.removeEventListener(MAP_LOADING_EVENT, start);
+      clearTimeout(timer);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -148,6 +200,9 @@ export function ReportMap({ filters }: { filters: MapFilters }) {
     let abort: AbortController | null = null;
     let m: LeafletMap | null = null;
     let cleanupMove: (() => void) | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let filterLoad = true;
+    setBusy(true);
 
     const load = async (L: Leaflet) => {
       if (!m) return;
@@ -156,7 +211,11 @@ export function ReportMap({ filters }: { filters: MapFilters }) {
       const b = m.getBounds().pad(0.2);
       const view = { bbox: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map((n) => n.toFixed(4)).join(','), zoom: String(Math.round(m.getZoom())) };
       try {
-        const res = await fetch(`/api/proxy${withParams('/analytics/map', { ...filters, ...view })}`, { signal: abort.signal });
+        const res = await fetch(`/api/proxy${withParams('/analytics/map', {
+          ...filters,
+          regionLevel: filters.regionLevel == null ? undefined : String(filters.regionLevel),
+          ...view,
+        })}`, { signal: abort.signal });
         if (!res.ok || cancelled) return;
         const data: MapView = await res.json();
         layer?.remove();
@@ -167,8 +226,15 @@ export function ReportMap({ filters }: { filters: MapFilters }) {
           for (const c of data.clusters) serverCluster(L, m, c).addTo(layer);
         }
         layer.addTo(m);
+        if (filterLoad) {
+          filterLoad = false;
+          setBusy(false);
+        }
       } catch (e) {
-        if ((e as Error).name !== 'AbortError') console.error(e);
+        if ((e as Error).name !== 'AbortError') {
+          console.error(e);
+          setBusy(false);
+        }
       }
     };
 
@@ -178,20 +244,47 @@ export function ReportMap({ filters }: { filters: MapFilters }) {
       if (!map.current) {
         // Tampilan awal seluruh Indonesia; zoom keluar & geser dibatasi di sekitar Indonesia.
         const mm = (map.current = L.map(el.current, {
-          zoomControl: true,
-          attributionControl: true,
+          zoomControl: false,
+          // Atribusi minimalis di kanan bawah, menempel di atas strip prioritas (lihat globals.css).
+          attributionControl: false,
           zoomSnap: 0.25,
           maxBounds: PAN_LIMIT,
-          maxBoundsViscosity: 1,
+          maxBoundsViscosity: 0.65,
         }));
-        const fitIndonesia = () => mm.setMinZoom(mm.getBoundsZoom(INDONESIA));
-        mm.fitBounds(INDONESIA);
+        L.control.zoom({ position: 'topleft' }).addTo(mm);
+        L.control.attribution({ position: 'bottomright', prefix: false }).addTo(mm);
+        const mapInsets = () => {
+          const wide = mm.getSize().x >= 900;
+          return wide
+            ? { topLeft: L.point(70, 70), bottomRight: L.point(360, 190) }
+            : { topLeft: L.point(12, 70), bottomRight: L.point(12, 190) };
+        };
+        const fitIndonesia = () => {
+          const { topLeft, bottomRight } = mapInsets();
+          const symmetricPadding = L.point(Math.max(topLeft.x, bottomRight.x), Math.max(topLeft.y, bottomRight.y));
+          mm.setMinZoom(Math.max(2, mm.getBoundsZoom(INDONESIA, false, symmetricPadding) - 0.5));
+        };
+        const initialInsets = mapInsets();
+        mm.fitBounds(INDONESIA, { paddingTopLeft: initialInsets.topLeft, paddingBottomRight: initialInsets.bottomRight });
         fitIndonesia();
         mm.on('resize', fitIndonesia);
-        L.tileLayer(TILE_URL, { maxZoom: 19, attribution: '&copy; OpenStreetMap · Batas: Kemendagri 2025' }).addTo(map.current);
-        detach.current = attachBoundaries(L, map.current);
+        L.tileLayer(TILE_URL, { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · Kemendagri 2025' }).addTo(map.current);
+        const detachBoundaries = attachBoundaries(L, map.current);
+        const showIndonesia = () => {
+          const { topLeft, bottomRight } = mapInsets();
+          mm.flyToBounds(INDONESIA, { paddingTopLeft: topLeft, paddingBottomRight: bottomRight, duration: 0.9 });
+        };
+        window.addEventListener(MAP_INDONESIA_EVENT, showIndonesia);
+        detach.current = () => {
+          window.removeEventListener(MAP_INDONESIA_EVENT, showIndonesia);
+          detachBoundaries();
+        };
       }
       m = map.current;
+      if (el.current && typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(() => m?.invalidateSize({ pan: false, debounceMoveend: true }));
+        resizeObserver.observe(el.current);
+      }
       const onMove = () => load(L);
       m.on('moveend', onMove);
       await load(L);
@@ -203,9 +296,10 @@ export function ReportMap({ filters }: { filters: MapFilters }) {
       cancelled = true;
       abort?.abort();
       cleanupMove?.();
+      resizeObserver?.disconnect();
       layer?.remove();
     };
-  }, [filters.from, filters.category, filters.priority]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filters.from, filters.category, filters.priority, filters.unitId, filters.regionCode, filters.regionLevel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => () => {
     detach.current?.();
@@ -213,5 +307,20 @@ export function ReportMap({ filters }: { filters: MapFilters }) {
     map.current = null;
   }, []);
 
-  return <div ref={el} className="h-full min-h-[360px] w-full rounded-b-2xl bg-bg" aria-label="Peta sebaran laporan" />;
+  useEffect(() => {
+    const focusRegion = (event: Event) => {
+      const detail = (event as CustomEvent<{ lat: number; lng: number; zoom: number }>).detail;
+      if (!map.current || !detail || !Number.isFinite(detail.lat) || !Number.isFinite(detail.lng)) return;
+      map.current.flyTo([detail.lat, detail.lng], Math.max(map.current.getMinZoom(), detail.zoom), { duration: 0.9 });
+    };
+    window.addEventListener('lapor:map-focus-region', focusRegion);
+    return () => window.removeEventListener('lapor:map-focus-region', focusRegion);
+  }, []);
+
+  return (
+    <div className="relative h-full min-h-0 w-full">
+      <div ref={el} className="map-under-bar h-full min-h-0 w-full bg-bg" aria-label="Peta sebaran laporan" aria-busy={busy} />
+      <MapLoading show={busy} />
+    </div>
+  );
 }

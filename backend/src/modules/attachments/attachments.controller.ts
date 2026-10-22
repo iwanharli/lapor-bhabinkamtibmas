@@ -17,7 +17,7 @@ class UploadDto {
   @IsOptional() @Matches(/^[a-f0-9]{64}$/) sha256?: string;
 }
 
-const VIEWERS = [UserRole.BHABIN, UserRole.VERIFIKATOR, UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR];
+const VIEWERS = [UserRole.BHABIN, UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR];
 
 @Controller()
 export class AttachmentsController {

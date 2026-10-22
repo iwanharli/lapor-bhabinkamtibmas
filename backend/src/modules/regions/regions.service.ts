@@ -54,8 +54,10 @@ export class RegionsService {
 
   /** Daftar wilayah (tanpa geometri) untuk pemilih bertingkat: tanpa induk = provinsi. */
   async list(parent?: string) {
-    return this.prisma.$queryRaw<{ kode: string; nama: string; level: number; desa: number }[]>`
+    return this.prisma.$queryRaw<{ kode: string; nama: string; level: number; desa: number; lat: number | null; lng: number | null }[]>`
       SELECT r.kode, r.nama, r.level,
+             coalesce(r.lat, ST_Y(ST_PointOnSurface(r.geom)))::float AS lat,
+             coalesce(r.lng, ST_X(ST_PointOnSurface(r.geom)))::float AS lng,
              CASE WHEN r.level = 3 THEN (SELECT count(*) FROM villages v WHERE v.kecamatan_kode = r.kode)::int ELSE 0 END AS desa
       FROM regions r
       WHERE ${parent ? Prisma.sql`r.parent_kode = ${parent}` : Prisma.sql`r.level = 1`}

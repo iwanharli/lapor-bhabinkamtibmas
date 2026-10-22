@@ -1,11 +1,11 @@
 import { Body, Controller, Get, HttpCode, Param, Patch, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { AuthUser, CurrentUser, Roles } from '../../common/decorators/auth.decorators';
-import { ListReportsQuery, RevealDto, TransitionDto, UpdateReportDto, UpsertReportDto } from './reports.dto';
+import { ListReportsQuery, RevealDto, UpdateReportDto, UpsertReportDto } from './reports.dto';
 import { ReportWriterService } from './report-writer.service';
 import { ReportsService } from './reports.service';
 
-const READERS = [UserRole.BHABIN, UserRole.VERIFIKATOR, UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR];
+const READERS = [UserRole.BHABIN, UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR];
 
 @Controller('reports')
 export class ReportsController {
@@ -25,11 +25,6 @@ export class ReportsController {
   }
 
   // Didefinisikan sebelum ':id' agar tidak tertangkap sebagai id.
-  @Get('status-counts')
-  @Roles(...READERS)
-  statusCounts(@CurrentUser() me: AuthUser, @Query() q: ListReportsQuery) {
-    return this.reports.statusCounts(me, q);
-  }
 
   @Get(':id')
   @Roles(...READERS)
@@ -52,15 +47,9 @@ export class ReportsController {
 
   @Post(':id/reveal-sensitive')
   @HttpCode(200)
-  @Roles(UserRole.BHABIN, UserRole.VERIFIKATOR, UserRole.AUDITOR)
+  @Roles(UserRole.BHABIN, UserRole.PIMPINAN, UserRole.AUDITOR)
   reveal(@CurrentUser() me: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: RevealDto) {
     return this.reports.revealSensitive(me, id, dto.reason);
   }
 
-  @Post(':id/transition')
-  @HttpCode(200)
-  @Roles(UserRole.VERIFIKATOR)
-  transition(@CurrentUser() me: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: TransitionDto) {
-    return this.reports.transition(me, id, dto);
-  }
 }

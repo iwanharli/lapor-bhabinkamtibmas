@@ -7,7 +7,7 @@
 import { PrismaClient, ReportCategory as C, ReportStatus as S, StockStatus, UnitLevel, UserRole } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
-import { dataFor, int, pick, PREFIX, price, rnd, statusFor } from './demo/report-data';
+import { dataFor, int, pick, PREFIX, price, rnd } from './demo/report-data';
 
 const prisma = new PrismaClient();
 
@@ -38,7 +38,7 @@ async function ensureStructure() {
   };
   await prisma.user.upsert({
     where: { nrp: '90000006' }, update: {},
-    create: { nrp: '90000006', nama: 'Verifikator Utara', pangkat: 'Aiptu', role: UserRole.VERIFIKATOR, unitId: polsek2.id, passwordHash: hash, mustChangePassword: false },
+    create: { nrp: '90000006', nama: 'Pimpinan Polsek Utara', pangkat: 'AKP', role: UserRole.PIMPINAN, unitId: polsek2.id, passwordHash: hash, mustChangePassword: false },
   });
 
   return {
@@ -49,7 +49,6 @@ async function ensureStructure() {
       await bhabin('90000012', 'Rina Wulandari', polsek2.id, [villages2[0]]),
       await bhabin('90000013', 'Agus Salim', polsek2.id, [villages2[1]]),
     ],
-    verifiers: await prisma.user.findMany({ where: { role: UserRole.VERIFIKATOR } }),
   };
 }
 
@@ -66,13 +65,13 @@ async function main() {
     return;
   }
 
-  const { polresId, bhabins, verifiers } = await ensureStructure();
+  const { polresId, bhabins } = await ensureStructure();
   const commodities = await prisma.commodity.findMany({ where: { active: true } });
   const schemas = await prisma.formSchema.findMany({ where: { status: 'ACTIVE' } });
   const version = Object.fromEntries(schemas.map((s) => [s.category, s.version]));
   const counters = new Map<string, number>();
   const centers = [[-6.5951, 106.8162], [-6.6013, 106.8051], [-6.5702, 106.8311], [-6.5604, 106.8455]];
-  const weights: C[] = [C.SAMBANG, C.SAMBANG, C.SAMBANG, C.HARGA_PANGAN, C.HARGA_PANGAN, C.DETEKSI_DINI, C.MAPPING_KK, C.KETAHANAN_PANGAN, C.PROBLEM_SOLVING, C.PENYULUHAN];
+  const weights: C[] = [C.SAMBANG, C.SAMBANG, C.SAMBANG, C.HARGA_PANGAN, C.HARGA_PANGAN, C.DETEKSI_DINI, C.MAPPING_KK, C.KETAHANAN_PANGAN, C.PROBLEM_SOLVING];
 
   let total = 0;
   for (let daysAgo = 30; daysAgo >= 0; daysAgo--) {
@@ -89,24 +88,18 @@ async function main() {
         const no = (counters.get(key) ?? 0) + 1;
         counters.set(key, no);
 
-        const status = statusFor(daysAgo);
         const { data, priority = false } = dataFor(cat, daysAgo);
         const [clat, clng] = centers[bi];
         const mock = rnd() < 0.02;
-        const verifier = verifiers.find((v) => v.unitId === b.unitId) ?? verifiers[0];
-        const decided = status === S.APPROVED || status === S.NEEDS_REVISION || status === S.REJECTED;
-        const note = status === S.NEEDS_REVISION ? 'Foto kurang jelas, mohon diulang.' : status === S.REJECTED ? 'Laporan duplikat dengan laporan sebelumnya.' : null;
         const submittedAt = new Date(occurredAt.getTime() + int(5, 90) * 60_000);
-        const reviewedAt = new Date(submittedAt.getTime() + int(1, 20) * 3_600_000);
 
         await prisma.report.create({
           data: {
             clientUuid: randomUUID(), nomor: `${PREFIX[cat]}-POLRES-CONTOH-${period}-${String(no).padStart(5, '0')}`,
             category: cat, schemaVersion: version[cat] ?? 1, userId: b.user.id, unitId: b.unitId, villageId: pick(b.villages).id,
-            status, priority, data, occurredAt, lat: clat + (rnd() - 0.5) * 0.02, lng: clng + (rnd() - 0.5) * 0.02,
+            status: S.SUBMITTED, priority, data, occurredAt, lat: clat + (rnd() - 0.5) * 0.02, lng: clng + (rnd() - 0.5) * 0.02,
             gpsAccuracyM: Math.round(4 + rnd() * 30), isMockLocation: mock, insideVillage: mock ? false : rnd() > 0.04,
             submittedAt, receivedAt: submittedAt,
-            ...(decided && { reviewedById: verifier.id, reviewedAt, reviewNote: note }),
             ...(cat === C.HARGA_PANGAN && {
               items: {
                 create: commodities.filter(() => rnd() > 0.25).map((c) => {
@@ -119,8 +112,6 @@ async function main() {
             history: {
               create: [
                 { fromStatus: S.DRAFT, toStatus: S.SUBMITTED, actorId: b.user.id, at: submittedAt },
-                ...(status !== S.SUBMITTED ? [{ fromStatus: S.SUBMITTED, toStatus: S.IN_REVIEW, actorId: verifier.id, at: new Date(reviewedAt.getTime() - 600_000) }] : []),
-                ...(decided ? [{ fromStatus: S.IN_REVIEW, toStatus: status, actorId: verifier.id, note, at: reviewedAt }] : []),
               ],
             },
           },

@@ -13,6 +13,7 @@ export function devLoginEnabled() {
 /** Superadmin hanya muncul bila NRP & sandinya diisi di web/.env.local (DEV_SUPERADMIN_NRP / DEV_SUPERADMIN_PASSWORD). */
 export function devAccounts(): (DevAccount & { password: string })[] {
   const list = [
+    { key: 'mabes', nrp: '90000007', label: 'Pimpinan Mabes', hint: 'Seluruh Indonesia' },
     { key: 'admin', nrp: '90000004', label: 'Admin Unit', hint: 'Admin Polres Contoh' },
     { key: 'pimpinan', nrp: '90000003', label: 'Pimpinan Polres', hint: 'Contoh Pimpinan' },
     { key: 'pimpinan-polsek', nrp: '90000002', label: 'Pimpinan Polsek', hint: 'Contoh Pimpinan Polsek' },

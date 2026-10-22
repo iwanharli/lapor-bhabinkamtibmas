@@ -2,27 +2,28 @@
 
 /* Token warna: biru — navy gelap untuk sidebar, biru sebagai warna utama, biru langit sebagai aksen. */
 :root {
-  --bg: #f4f7fc;
+  --bg: #f4f6fb;
   --surface: #ffffff;
   --ink: #0f1b2d;
   --muted: #64748b;
   --line: #e2e8f0;
-  --navy: #0a1730;
-  --navy-2: #13294f;
-  --primary: #1d4ed8;
-  --primary-2: #3b82f6;
-  --primary-soft: #eaf1ff;
-  --accent: #0ea5e9;
-  --accent-ink: #0369a1;
+  /* Palet terinspirasi lambang Binmas: biru perisai, merah tegas, kuning sebagai aksen. */
+  --navy: #102b58;
+  --navy-2: #1d437e;
+  --primary: #244f91;
+  --primary-2: #3569ad;
+  --primary-soft: #eaf0fa;
+  --accent: #e8b923;
+  --accent-ink: #805d00;
   --success: #15803d;
   --success-soft: #e7f5ec;
-  --danger: #c81e3a;
-  --danger-soft: #fcebee;
-  --warn: #c2650a;
-  --warn-soft: #fdf1e3;
-  --info: #0e7490;
-  --info-soft: #e3f4f8;
-  --shadow-tint: 29 78 216;
+  --danger: #d92332;
+  --danger-soft: #fff0f0;
+  --warn: #9a7000;
+  --warn-soft: #fff7d6;
+  --info: #087f9b;
+  --info-soft: #e6f5f8;
+  --shadow-tint: 36 79 145;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -32,21 +33,21 @@
     --ink: #e6edf7;
     --muted: #94a3b8;
     --line: #23314a;
-    --navy: #060d1c;
-    --navy-2: #0e1f3d;
-    --primary: #60a5fa;
-    --primary-2: #93c5fd;
-    --primary-soft: #172a4d;
-    --accent: #38bdf8;
-    --accent-ink: #7dd3fc;
+    --navy: #09172d;
+    --navy-2: #12294b;
+    --primary: #7eaae8;
+    --primary-2: #a6c5f1;
+    --primary-soft: #1b2d4a;
+    --accent: #f0c63e;
+    --accent-ink: #f5d975;
     --success: #4ade80;
     --success-soft: #14301f;
-    --danger: #fb7185;
-    --danger-soft: #3a1620;
+    --danger: #ff727d;
+    --danger-soft: #3a1920;
     --warn: #fbbf24;
     --warn-soft: #3a2a10;
-    --info: #22d3ee;
-    --info-soft: #0f2a3a;
+    --info: #51c8df;
+    --info-soft: #12313b;
     --shadow-tint: 0 0 0;
   }
 }
@@ -77,13 +78,26 @@
 
 body {
   color: var(--ink);
-  /* Latar lembut: rona ungu di atas + pola titik halus, seperti dashboard modern. */
+  /* Latar netral menjaga kartu dan visualisasi menjadi fokus utama. */
   background:
-    radial-gradient(1200px 380px at 30% -120px, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
-    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--muted) 18%, transparent) 1px, transparent 0) 0 0 / 22px 22px,
-    var(--bg);
-  background-attachment: fixed;
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 42%, var(--bg)), var(--bg) 360px);
+  min-height: 100vh;
 }
+
+.sidebar-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.22) transparent;
+  scrollbar-gutter: stable;
+}
+.sidebar-scrollbar::-webkit-scrollbar { width: 7px; }
+.sidebar-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.22);
+  background-clip: padding-box;
+}
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover { background: rgb(255 255 255 / 0.42); }
 
 /* Modal (<dialog>): animasi masuk & backdrop */
 dialog.modal[open] {
@@ -145,3 +159,23 @@ dialog.modal::backdrop {
 @media (prefers-reduced-motion: reduce) {
   .map-priority::before, .map-priority::after { animation: none; transform: scale(1.5); opacity: 0.35; }
 }
+
+/* Halaman peta: kontrol Leaflet di bawah bilah filter yang menempel di atas peta. */
+.map-under-bar .leaflet-top { top: 3.5rem; }
+.map-under-bar .leaflet-bottom { bottom: var(--strip-h, 0px); }
+.map-under-bar .leaflet-bottom .leaflet-control { margin-bottom: 0; }
+/* Atribusi: tab samar di kanan bawah, menempel di atas strip prioritas. */
+.map-under-bar.leaflet-container .leaflet-control-attribution {
+  margin-right: 16px;
+  padding: 3px 10px 4px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: color-mix(in srgb, var(--surface) 50%, transparent);
+  backdrop-filter: blur(10px);
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+.map-under-bar.leaflet-container .leaflet-control-attribution a { color: inherit; text-decoration: none; }
+.map-under-bar.leaflet-container .leaflet-control-attribution a:hover { color: var(--ink); text-decoration: underline; }

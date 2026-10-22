@@ -3,10 +3,10 @@ import { CATEGORY_LABEL } from '@/lib/format';
 
 const ADMIN_ROLES = ['SUPERADMIN', 'ADMIN_UNIT'];
 const AUDIT_ROLES = ['SUPERADMIN', 'ADMIN_UNIT', 'AUDITOR'];
-const REPORT_CATEGORIES = Object.entries(CATEGORY_LABEL).map(([category, label]) => ({
-  href: `/laporan?category=${category}`,
-  label,
-}));
+const REPORT_CATEGORIES = [
+  { href: '/laporan', label: 'Semua laporan' },
+  ...Object.entries(CATEGORY_LABEL).map(([category, label]) => ({ href: `/laporan?category=${category}`, label })),
+];
 
 /** Menu per peran. Menu hanya disembunyikan; keputusan akses tetap di backend. */
 export function navFor(role: string): NavSection[] {

@@ -5,7 +5,7 @@ import { CATEGORY_COLOR } from '@/features/map/categories';
 import { CATEGORY_LABEL, personName, relatif, tanggalJam } from '@/lib/format';
 import { attendance, CATEGORY_KEYS, type BhabinPerformance } from './types';
 
-export type SortKey = 'total' | 'hari' | 'setuju' | 'nama';
+export type SortKey = 'total' | 'hari' | 'nama';
 
 function SortHeader({ k, active, hrefFor, children, align }: { k: SortKey; active: SortKey; hrefFor: (k: SortKey) => string; children: React.ReactNode; align?: 'right' }) {
   return (
@@ -37,16 +37,13 @@ export function PerformanceTable({ rows, days, sort, hrefFor }: { rows: BhabinPe
         <SortHeader k="total" active={sort} hrefFor={hrefFor} align="right">Laporan</SortHeader>
         <SortHeader k="hari" active={sort} hrefFor={hrefFor}>Hari aktif melapor</SortHeader>
         <Th>Komposisi kategori</Th>
-        <SortHeader k="setuju" active={sort} hrefFor={hrefFor} align="right">Disetujui</SortHeader>
-        <Th align="right">Revisi / ditolak</Th>
+        <Th align="right">Lokasi perlu dicek</Th>
         <Th className="pr-5">Terakhir melapor</Th>
       </THead>
       <tbody>
         {rows.map((b) => {
           const pct = Math.min(Math.round((b.hari_aktif / days) * 100), 100);
           const att = attendance(pct);
-          const decided = b.disetujui + b.revisi + b.ditolak;
-          const approval = decided ? Math.round((b.disetujui / decided) * 100) : null;
           return (
             <Tr key={b.id} className="group relative">
               <Td className="min-w-[260px] pl-5">
@@ -68,12 +65,10 @@ export function PerformanceTable({ rows, days, sort, hrefFor }: { rows: BhabinPe
               </Td>
               <Td><CategoryMix b={b} /></Td>
               <Td align="right" numeric>
-                {approval == null ? <span className="text-muted">—</span> : <span className={cn(approval < 60 && 'text-danger', approval >= 85 && 'text-success')}>{approval}%</span>}
-              </Td>
-              <Td align="right" numeric className="text-muted">
-                {b.revisi} / {b.ditolak}
-                {b.lokasi_janggal > 0 && (
-                  <span className="ml-2 inline-flex items-center gap-0.5 text-warn" title={`${b.lokasi_janggal} laporan dengan lokasi perlu dicek`}><MapPinOff size={13} />{b.lokasi_janggal}</span>
+                {b.lokasi_janggal > 0 ? (
+                  <span className="inline-flex items-center gap-1 text-warn" title={`${b.lokasi_janggal} laporan di luar desa binaan atau lokasi palsu`}><MapPinOff size={13} />{b.lokasi_janggal}</span>
+                ) : (
+                  <span className="text-muted">—</span>
                 )}
               </Td>
               <Td nowrap className="pr-5">

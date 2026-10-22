@@ -4,7 +4,7 @@ import { ACCOUNTS, login } from './helpers';
 /** Setiap halaman utama terbuka tanpa galat dan menampilkan isinya. */
 const PAGES: { path: string; heading: string; expect: RegExp }[] = [
   { path: '/', heading: 'Ringkasan', expect: /Total laporan/ },
-  { path: '/peta', heading: 'Peta Sebaran', expect: /titik laporan/ },
+  { path: '/peta', heading: 'Peta sebaran', expect: /titik/ },
   { path: '/kinerja', heading: 'Kinerja Bhabinkamtibmas', expect: /Rekap per Bhabin/ },
   { path: '/absensi', heading: 'Absensi Lapangan', expect: /Belum hadir/ },
   { path: '/harga-pangan', heading: 'Pemantauan Harga Pangan', expect: /Pilih komoditas/i },
@@ -26,7 +26,7 @@ test('halaman utama admin terbuka tanpa galat', async ({ page }) => {
     await page.waitForLoadState('networkidle');
     expect(res?.status(), p.path).toBeLessThan(400);
     await expect(page.getByRole('heading', { name: p.heading, exact: true }), p.path).toBeVisible();
-    await expect(page.locator('main'), p.path).toContainText(p.expect);
+    await expect(page.locator('main').first(), p.path).toContainText(p.expect);
   }
   // WebGL tidak tersedia di browser headless (peta iframe); selain itu tidak boleh ada galat.
   expect(errors.filter((e) => !e.includes('WebGL'))).toEqual([]);

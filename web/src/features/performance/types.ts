@@ -7,10 +7,6 @@ export interface BhabinPerformance {
   timezone: string;
   desa: number;
   total: number;
-  disetujui: number;
-  menunggu: number;
-  revisi: number;
-  ditolak: number;
   lokasi_janggal: number;
   hari_aktif: number;
   terakhir: string | null;

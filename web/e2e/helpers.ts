@@ -7,7 +7,7 @@ export const PASSWORD = 'Demo#12345';
 /** Akun dari seed dev (backend/prisma/seed.ts & seed-demo-reports.ts). */
 export const ACCOUNTS = {
   bhabin: '90000001',
-  verifikator: '90000002',
+  pimpinanPolsek: '90000002',
   pimpinan: '90000003',
   admin: '90000004',
 };
@@ -69,11 +69,11 @@ export async function createSubmittedReport(note = 'E2E') {
   const up = await fetch(`${API}/reports/${report.id}/attachments`, { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: form });
   expect(up.ok, await up.text()).toBeTruthy();
   await api(`/reports/${report.id}/submit`, { method: 'POST', token });
-  return report;
+  return { ...report, token };
 }
 
 /** Buat pengguna baru lewat API admin; mengembalikan NRP & sandi sementara. */
-export async function createUser(role = 'VERIFIKATOR') {
+export async function createUser(role = 'PIMPINAN') {
   const token = await apiLogin(ACCOUNTS.admin);
   const units = await api<{ id: string; kode: string }[]>('/units', { token });
   const unit = units.find((u) => u.kode === 'POLSEK-CONTOH')!;

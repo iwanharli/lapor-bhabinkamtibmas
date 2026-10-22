@@ -1,30 +1,32 @@
 import { expect, test } from '@playwright/test';
-import { ACCOUNTS, createSubmittedReport, login } from './helpers';
+import { ACCOUNTS, API, createSubmittedReport, login } from './helpers';
 
-test('laporan dari Bhabin bisa diverifikasi di web', async ({ page }) => {
-  const report = await createSubmittedReport('verifikasi');
-  await login(page, ACCOUNTS.verifikator);
-  await page.goto('/laporan?status=MENUNGGU');
+test('laporan terkirim langsung final dan dapat diralat pelapor', async ({ page }) => {
+  const report = await createSubmittedReport('final');
+  await login(page, ACCOUNTS.pimpinan);
+  await page.goto('/laporan?rentang=semua');
   await page.getByPlaceholder(/Cari nomor laporan/).fill(report.nomor);
   await page.locator('tbody').getByText(report.nomor).click();
 
   await expect(page.getByRole('heading', { name: report.nomor })).toBeVisible();
-  await expect(page.getByText('Ditinjau').first()).toBeVisible();
+  await expect(page.getByText('Terkirim').first()).toBeVisible();
+  await expect(page.getByText(/masih dapat meralat/)).toBeVisible();
   await expect(page.locator('img[src*="thumb=1"]')).toHaveCount(1);
+  // Tidak ada lagi aksi verifikasi.
+  await expect(page.getByRole('button', { name: /Setujui|Minta revisi|Tolak/ })).toHaveCount(0);
 
-  // Minta revisi wajib catatan.
-  await page.getByRole('button', { name: 'Minta revisi' }).click();
-  await page.getByRole('button', { name: 'Kirim permintaan revisi' }).click();
-  await expect(page.getByText(/minimal 5 karakter/)).toBeVisible();
-  await page.getByRole('dialog').getByRole('button', { name: 'Batal' }).click();
-
-  await page.getByRole('button', { name: 'Setujui', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Setujui' }).click();
-  await expect(page.getByText('Disetujui').first()).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Minta revisi' })).toHaveCount(0);
+  // Pelapor meralat isian laporan terkirim (seperti aplikasi mobile).
+  const res = await fetch(`${API}/reports/${report.id}`, {
+    method: 'PATCH',
+    headers: { authorization: `Bearer ${report.token}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ data: { jenis_sasaran: 'Tokoh Agama', nama_sasaran: 'Warga ralat', alamat: 'RT 02 / RW 01', pesan_kamtibmas: ['Narkoba'], tanggapan: 'Tanggapan setelah ralat' } }),
+  });
+  expect(res.ok, await res.text()).toBeTruthy();
+  await page.reload();
+  await expect(page.getByText('Tanggapan setelah ralat')).toBeVisible();
 });
 
-test('tab status, pagination, dan ukuran halaman', async ({ page }) => {
+test('pagination dan ukuran halaman', async ({ page }) => {
   await login(page, ACCOUNTS.pimpinan);
   await page.goto('/laporan?rentang=semua');
   const summary = page.locator('nav[aria-label=Halaman] p');
@@ -35,10 +37,6 @@ test('tab status, pagination, dan ukuran halaman', async ({ page }) => {
 
   await page.locator('nav[aria-label=Halaman]').getByRole('link', { name: '50', exact: true }).click();
   await expect(summary).toContainText('Menampilkan 1–50');
-
-  await page.getByRole('link', { name: /Disetujui/ }).first().click();
-  await expect(page).toHaveURL(/status=APPROVED/);
-  await expect(page.locator('tbody').getByText('Disetujui').first()).toBeVisible();
 });
 
 test('ekspor CSV mengikuti filter', async ({ page }) => {
@@ -48,7 +46,7 @@ test('ekspor CSV mengikuti filter', async ({ page }) => {
   expect(download.suggestedFilename()).toMatch(/^laporan_\d{4}-\d{2}-\d{2}\.csv$/);
   const csv = await (await download.createReadStream())!.toArray().then((c) => Buffer.concat(c).toString('utf8'));
   const lines = csv.trim().split('\n');
-  expect(lines[0]).toContain('Nomor;Kategori;Status');
+  expect(lines[0]).toContain('Nomor;Kategori;Prioritas');
   expect(lines.length).toBeGreaterThan(1);
   expect(lines.slice(1).every((l) => l.includes('Harga Pangan'))).toBeTruthy();
 });

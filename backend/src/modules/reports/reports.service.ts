@@ -1,15 +1,16 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { SensitiveDataService } from '../../common/crypto/sensitive-data.service';
 import { Prisma, ReportStatus, UserRole } from '@prisma/client';
 import { AuthUser } from '../../common/decorators/auth.decorators';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { UnitsService } from '../units/units.service';
-import { canReview, NOTE_REQUIRED } from './report-status';
-import { ListReportsQuery, TransitionDto } from './reports.dto';
+import { RALAT_MS } from './report-writer.service';
+import { ListReportsQuery } from './reports.dto';
 
 /** Peran yang boleh membuka isi field sensitif (selain pembuat laporan). */
-const SENSITIVE_READERS: UserRole[] = [UserRole.VERIFIKATOR, UserRole.AUDITOR];
+/** Pemantau yang boleh membuka field sensitif (dengan alasan, tercatat di audit), selain pelapornya sendiri. */
+const SENSITIVE_READERS: UserRole[] = [UserRole.PIMPINAN, UserRole.AUDITOR];
 
 const LIST_SELECT = {
   id: true, nomor: true, category: true, status: true, priority: true, occurredAt: true,
@@ -32,7 +33,7 @@ export class ReportsService {
   }
 
   /** Kondisi pencarian laporan sesuai cakupan & filter. `ignoreStatus` dipakai untuk menghitung jumlah per status. */
-  async buildWhere(me: AuthUser, q: ListReportsQuery, ignoreStatus = false): Promise<Prisma.ReportWhereInput> {
+  async buildWhere(me: AuthUser, q: ListReportsQuery): Promise<Prisma.ReportWhereInput> {
     const scope = await this.scopeWhere(me);
     if (q.unitId) await this.units.assertInScope(me.unitId, q.unitId);
     return {
@@ -42,9 +43,7 @@ export class ReportsService {
         me.role === UserRole.BHABIN ? {} : { status: { not: ReportStatus.DRAFT } },
         {
           ...(q.category && { category: q.category }),
-          ...(q.status && !ignoreStatus && {
-            status: q.status === 'MENUNGGU' ? { in: [ReportStatus.SUBMITTED, ReportStatus.IN_REVIEW] } : q.status,
-          }),
+          ...(q.status && { status: q.status }),
           ...(q.unitId && { unitId: { in: await this.units.descendantIds(q.unitId) } }),
           ...(q.villageId && { villageId: q.villageId }),
           ...(q.userId && { userId: q.userId }),
@@ -73,13 +72,6 @@ export class ReportsService {
     return { data, meta: { page: q.page, limit: q.limit, total } };
   }
 
-  /** Jumlah laporan per status untuk filter yang sama (tanpa filter status), untuk tab status. */
-  async statusCounts(me: AuthUser, q: ListReportsQuery) {
-    const rows = await this.prisma.report.groupBy({ by: ['status'], where: await this.buildWhere(me, q, true), _count: { _all: true } });
-    const counts = Object.fromEntries(rows.map((r) => [r.status, r._count._all])) as Partial<Record<ReportStatus, number>>;
-    return { total: rows.reduce((n, r) => n + r._count._all, 0), counts };
-  }
-
   /** Melempar 404 bila laporan tidak boleh dilihat pengguna ini. */
   async assertCanView(me: AuthUser, id: string) {
     await this.findInScope(me, id);
@@ -94,18 +86,11 @@ export class ReportsService {
   async get(me: AuthUser, id: string) {
     const r = await this.findInScope(me, id);
 
-    // Verifikator membuka laporan baru → otomatis "Ditinjau".
-    if (me.role === UserRole.VERIFIKATOR && r.status === ReportStatus.SUBMITTED) {
-      await this.changeStatus(me, r.id, r.status, ReportStatus.IN_REVIEW);
-    }
-
     const report = await this.prisma.report.findUniqueOrThrow({
       where: { id },
       select: {
         ...LIST_SELECT,
-        schemaVersion: true, data: true, lat: true, lng: true, gpsAccuracyM: true, receivedAt: true,
-        reviewNote: true, reviewedAt: true, createdAt: true,
-        reviewedBy: { select: { nama: true, pangkat: true } },
+        schemaVersion: true, data: true, lat: true, lng: true, gpsAccuracyM: true, receivedAt: true, submittedAt: true, updatedAt: true, createdAt: true,
         items: { select: { harga: true, satuan: true, stok: true, commodity: { select: { id: true, nama: true } } }, orderBy: { commodity: { urutan: 'asc' } } },
         attachments: { select: { id: true, fieldKey: true, mime: true, sizeBytes: true, source: true, capturedAt: true, watermarked: true, thumbKey: true }, orderBy: { createdAt: 'asc' } },
         history: { select: { fromStatus: true, toStatus: true, note: true, at: true, actor: { select: { nama: true, pangkat: true, role: true } } }, orderBy: { at: 'asc' } },
@@ -121,7 +106,8 @@ export class ReportsService {
     const sensitiveFilled = r.sensitive ? Object.keys(this.crypto.decrypt(Buffer.from(r.sensitive))) : [];
     return {
       ...report, attachments, sensitiveFilled, schema: schema?.schema ?? null,
-      canReview: me.role === UserRole.VERIFIKATOR,
+      // Batas pelapor boleh meralat laporan terkirim.
+      editableUntil: r.status === ReportStatus.SUBMITTED && r.submittedAt ? new Date(r.submittedAt.getTime() + RALAT_MS) : null,
       canRevealSensitive: SENSITIVE_READERS.includes(me.role) || r.userId === me.id,
     };
   }
@@ -132,31 +118,5 @@ export class ReportsService {
     if (!SENSITIVE_READERS.includes(me.role) && r.userId !== me.id) throw new ForbiddenException({ code: 'FORBIDDEN' });
     await this.audit.log({ actorId: me.id, action: 'SENSITIVE_READ', entity: 'report', entityId: id, meta: { reason } });
     return r.sensitive ? this.crypto.decrypt(Buffer.from(r.sensitive)) : {};
-  }
-
-  async transition(me: AuthUser, id: string, dto: TransitionDto) {
-    const r = await this.findInScope(me, id);
-    if (!canReview(r.status, dto.to)) {
-      throw new ConflictException({ code: 'INVALID_TRANSITION', message: `Status ${r.status} tidak dapat diubah menjadi ${dto.to}` });
-    }
-    if (NOTE_REQUIRED.includes(dto.to) && !dto.note?.trim()) {
-      throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Catatan wajib diisi untuk revisi atau penolakan' });
-    }
-    await this.changeStatus(me, r.id, r.status, dto.to, dto.note?.trim());
-    return this.prisma.report.findUniqueOrThrow({ where: { id }, select: { id: true, status: true, reviewNote: true, reviewedAt: true } });
-  }
-
-  private changeStatus(me: AuthUser, id: string, from: ReportStatus, to: ReportStatus, note?: string) {
-    const isDecision = to !== ReportStatus.IN_REVIEW;
-    return this.prisma.$transaction(async (tx) => {
-      // Optimistic check: gagal bila status sudah diubah verifikator lain.
-      const res = await tx.report.updateMany({
-        where: { id, status: from },
-        data: { status: to, ...(isDecision && { reviewedById: me.id, reviewedAt: new Date(), reviewNote: note ?? null }) },
-      });
-      if (res.count === 0) throw new ConflictException({ code: 'INVALID_TRANSITION', message: 'Status laporan sudah berubah, muat ulang halaman' });
-      await tx.reportStatusHistory.create({ data: { reportId: id, fromStatus: from, toStatus: to, actorId: me.id, note } });
-      await this.audit.log({ actorId: me.id, action: `REPORT_${to}`, entity: 'report', entityId: id, ...(note && { meta: { note } }) }, tx);
-    });
   }
 }

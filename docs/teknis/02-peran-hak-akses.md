@@ -19,7 +19,7 @@ MABES (Baharkam)
 | Kode | Nama | Platform | Unit tipikal |
 |---|---|---|---|
 | `BHABIN` | Bhabinkamtibmas | Mobile (web hanya baca) | Polsek |
-| `VERIFIKATOR` | Petugas verifikasi laporan | Web | Polsek / Polres |
+| ~~`VERIFIKATOR`~~ | Tidak dipakai lagi — laporan tanpa verifikasi; akun lama menjadi `PIMPINAN` | — | — |
 | `PIMPINAN` | Pimpinan / analis | Web | Polres / Polda / Mabes |
 | `ADMIN_UNIT` | Admin unit | Web | Polres / Polda |
 | `SUPERADMIN` | Admin sistem | Web | Mabes |
@@ -32,23 +32,23 @@ Satu pengguna memiliki satu peran. Jika perlu peran ganda, buat akun terpisah ag
 
 Keterangan: ✅ penuh · 👁 lihat saja · 🔒 tidak · ⓢ hanya milik sendiri · ⓦ dalam cakupan wilayah
 
-| Aksi | BHABIN | VERIFIKATOR | PIMPINAN | ADMIN_UNIT | SUPERADMIN | AUDITOR |
-|---|---|---|---|---|---|---|
-| Buat / edit draft laporan | ✅ⓢ | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 |
-| Kirim laporan | ✅ⓢ | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 |
-| Lihat laporan | 👁ⓢ | 👁ⓦ | 👁ⓦ | 👁ⓦ | 👁 | 👁ⓦ |
-| Verifikasi (setujui/revisi/tolak) | 🔒 | ✅ⓦ | 🔒 | 🔒 | 🔒 | 🔒 |
-| Lihat NIK / identitas pihak (dekripsi) | ✅ⓢ | ✅ⓦ | 🔒 | 🔒 | 🔒 | 👁ⓦ |
-| Absensi | ✅ⓢ | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 |
-| Lihat rekap absensi | 👁ⓢ | 👁ⓦ | 👁ⓦ | 👁ⓦ | 👁 | 👁ⓦ |
-| Dashboard & peta | 🔒 | 👁ⓦ | 👁ⓦ | 👁ⓦ | 👁 | 👁ⓦ |
-| Ekspor CSV/XLSX | 🔒 | ✅ⓦ | ✅ⓦ | ✅ⓦ | ✅ | ✅ⓦ |
-| Kelola pengguna | 🔒 | 🔒 | 🔒 | ✅ⓦ | ✅ | 🔒 |
-| Kelola desa binaan | 🔒 | 🔒 | 🔒 | ✅ⓦ | ✅ | 🔒 |
-| Kelola master data (komoditas, kategori) | 🔒 | 🔒 | 🔒 | 🔒 | ✅ | 🔒 |
-| Kelola skema form | 🔒 | 🔒 | 🔒 | 🔒 | ✅ | 🔒 |
-| Lihat audit log | 🔒 | 🔒 | 🔒 | 👁ⓦ | 👁 | 👁ⓦ |
-| Cabut sesi / perangkat | 🔒 | 🔒 | 🔒 | ✅ⓦ | ✅ | 🔒 |
+| Aksi | BHABIN | PIMPINAN | ADMIN_UNIT | SUPERADMIN | AUDITOR |
+|---|---|---|---|---|---|
+| Buat / edit draft laporan | ✅ⓢ | 🔒 | 🔒 | 🔒 | 🔒 |
+| Kirim laporan | ✅ⓢ | 🔒 | 🔒 | 🔒 | 🔒 |
+| Lihat laporan | 👁ⓢ | 👁ⓦ | 👁ⓦ | 👁 | 👁ⓦ |
+| Ralat laporan terkirim (≤ 3×24 jam) | ✅ⓢ | 🔒 | 🔒 | 🔒 | 🔒 |
+| Lihat NIK / identitas pihak (dekripsi, dengan alasan) | ✅ⓢ | ✅ⓦ | 🔒 | 🔒 | 👁ⓦ |
+| Absensi | ✅ⓢ | 🔒 | 🔒 | 🔒 | 🔒 |
+| Lihat rekap absensi | 👁ⓢ | 👁ⓦ | 👁ⓦ | 👁 | 👁ⓦ |
+| Dashboard & peta | 🔒 | 👁ⓦ | 👁ⓦ | 👁 | 👁ⓦ |
+| Ekspor CSV/XLSX | 🔒 | ✅ⓦ | ✅ⓦ | ✅ | ✅ⓦ |
+| Kelola pengguna | 🔒 | 🔒 | ✅ⓦ | ✅ | 🔒 |
+| Kelola desa binaan | 🔒 | 🔒 | ✅ⓦ | ✅ | 🔒 |
+| Kelola master data (komoditas, kategori) | 🔒 | 🔒 | 🔒 | ✅ | 🔒 |
+| Kelola skema form | 🔒 | 🔒 | 🔒 | ✅ | 🔒 |
+| Lihat audit log | 🔒 | 🔒 | 👁ⓦ | 👁 | 👁ⓦ |
+| Cabut sesi / perangkat | 🔒 | 🔒 | ✅ⓦ | ✅ | 🔒 |
 
 ## 4. Implementasi
 

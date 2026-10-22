@@ -5,9 +5,9 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { UnitsService } from '../units/units.service';
 
 /** Status yang dihitung sebagai laporan masuk (draft tidak termasuk). */
-const COUNTED = Prisma.sql`r.status IN ('SUBMITTED','IN_REVIEW','NEEDS_REVISION','APPROVED','REJECTED')`;
-/** Data harga dari laporan yang ditolak tidak dipakai. */
-const PRICE_VALID = Prisma.sql`r.status IN ('SUBMITTED','IN_REVIEW','APPROVED')`;
+/** Laporan terkirim (tanpa verifikasi, laporan langsung final). */
+const COUNTED = Prisma.sql`r.status = 'SUBMITTED'`;
+const PRICE_VALID = COUNTED;
 
 export interface BhabinPerformanceRow {
   id: string;
@@ -18,10 +18,6 @@ export interface BhabinPerformanceRow {
   timezone: string;
   desa: number;
   total: number;
-  disetujui: number;
-  menunggu: number;
-  revisi: number;
-  ditolak: number;
   lokasi_janggal: number;
   hari_aktif: number;
   terakhir: Date | null;
@@ -44,6 +40,8 @@ export interface MapFilter {
   priority?: boolean;
   bbox?: [number, number, number, number];
   zoom?: number;
+  regionCode?: string;
+  regionLevel?: number;
 }
 
 interface MapPointRow {
@@ -53,7 +51,7 @@ interface MapPointRow {
 
 export interface PerformanceQuery {
   q?: string;
-  sort?: 'total' | 'hari' | 'setuju' | 'nama';
+  sort?: 'total' | 'hari' | 'nama';
   page?: number;
   limit?: number;
 }
@@ -91,24 +89,20 @@ export class AnalyticsService {
     const prevWhere = await this.aggWhere(me, unitId, prevFrom, prevTo);
     const userScope = await this.scopeSql(me, unitId, Prisma.sql`u.unit_id`);
 
-    const [byCategory, byStatus, daily, totals, bhabin, prev, participation] = await Promise.all([
+    const [byCategory, daily, totals, bhabin, prev, participation] = await Promise.all([
       this.prisma.$queryRaw<{ category: string; jumlah: number }[]>`
         SELECT a.category::text, sum(a.jumlah)::int AS jumlah ${fromUnitAgg} GROUP BY 1 ORDER BY 2 DESC`,
-      this.prisma.$queryRaw<{ status: string; jumlah: number }[]>`
-        SELECT a.status::text, sum(a.jumlah)::int AS jumlah ${fromUnitAgg} GROUP BY 1`,
       this.prisma.$queryRaw<{ hari: string; category: string; jumlah: number }[]>`
         SELECT to_char(a.hari, 'YYYY-MM-DD') AS hari, a.category::text, sum(a.jumlah)::int AS jumlah ${fromUnitAgg} GROUP BY 1, 2 ORDER BY 1`,
-      this.prisma.$queryRaw<{ total: number; disetujui: number; menunggu: number; prioritas_terbuka: number; lokasi_janggal: number }[]>`
+      this.prisma.$queryRaw<{ total: number; prioritas: number; lokasi_janggal: number }[]>`
         SELECT coalesce(sum(a.jumlah), 0)::int AS total,
-               coalesce(sum(a.jumlah) FILTER (WHERE a.status = 'APPROVED'), 0)::int AS disetujui,
-               coalesce(sum(a.jumlah) FILTER (WHERE a.status IN ('SUBMITTED','IN_REVIEW')), 0)::int AS menunggu,
-               coalesce(sum(a.prioritas) FILTER (WHERE a.status IN ('SUBMITTED','IN_REVIEW')), 0)::int AS prioritas_terbuka,
+               coalesce(sum(a.prioritas), 0)::int AS prioritas,
                coalesce(sum(a.lokasi_janggal), 0)::int AS lokasi_janggal
         ${fromUnitAgg}`,
       this.prisma.$queryRaw<{ aktif: number }[]>`
         SELECT count(DISTINCT a.user_id)::int AS aktif FROM agg_user_daily a JOIN units u ON u.id = a.unit_id WHERE ${where} AND a.total > 0`,
-      this.prisma.$queryRaw<{ total: number; disetujui: number; bhabin_aktif: number }[]>`
-        SELECT coalesce(sum(a.total), 0)::int AS total, coalesce(sum(a.disetujui), 0)::int AS disetujui, count(DISTINCT a.user_id)::int AS bhabin_aktif
+      this.prisma.$queryRaw<{ total: number; bhabin_aktif: number }[]>`
+        SELECT coalesce(sum(a.total), 0)::int AS total, count(DISTINCT a.user_id)::int AS bhabin_aktif
         FROM agg_user_daily a JOIN units u ON u.id = a.unit_id WHERE ${prevWhere} AND a.total > 0`,
       this.prisma.$queryRaw<{ total_bhabin: number; tidak_aktif_7: number }[]>`
         SELECT count(*)::int AS total_bhabin,
@@ -122,7 +116,8 @@ export class AnalyticsService {
     const priority = await this.prisma.report.findMany({
       where: {
         priority: true,
-        status: { in: ['SUBMITTED', 'IN_REVIEW'] },
+        status: 'SUBMITTED',
+        occurredAt: { gte: from, lte: to },
         ...(me.role !== UserRole.SUPERADMIN || unitId ? { unitId: { in: await this.units.descendantIds(unitId ?? me.unitId) } } : {}),
       },
       select: { id: true, nomor: true, occurredAt: true, data: true, village: { select: { nama: true } }, user: { select: { nama: true } }, unit: { select: { timezone: true } } },
@@ -133,9 +128,8 @@ export class AnalyticsService {
     return {
       range: { from, to, days: Math.round((to.getTime() - from.getTime()) / 86_400_000) },
       totals: { ...totals[0], bhabinAktif: bhabin[0].aktif, totalBhabin: participation[0].total_bhabin, tidakAktif7: participation[0].tidak_aktif_7 },
-      previous: { total: prev[0].total, disetujui: prev[0].disetujui, bhabinAktif: prev[0].bhabin_aktif },
+      previous: { total: prev[0].total, bhabinAktif: prev[0].bhabin_aktif },
       byCategory,
-      byStatus,
       daily,
       priority,
     };
@@ -155,13 +149,11 @@ export class AnalyticsService {
     const order = {
       total: Prisma.sql`total DESC, u.nama`,
       hari: Prisma.sql`hari_aktif DESC, total DESC, u.nama`,
-      setuju: Prisma.sql`(CASE WHEN coalesce(a.disetujui + a.revisi + a.ditolak, 0) = 0 THEN -1 ELSE a.disetujui::float / (a.disetujui + a.revisi + a.ditolak) END) DESC, u.nama`,
       nama: Prisma.sql`u.nama`,
     }[opts.sort ?? 'total'];
 
     const agg = Prisma.sql`
-      SELECT g.user_id, sum(g.total)::int AS total, sum(g.disetujui)::int AS disetujui, sum(g.menunggu)::int AS menunggu,
-             sum(g.revisi)::int AS revisi, sum(g.ditolak)::int AS ditolak, sum(g.lokasi_janggal)::int AS lokasi_janggal,
+      SELECT g.user_id, sum(g.total)::int AS total, sum(g.lokasi_janggal)::int AS lokasi_janggal,
              count(*) FILTER (WHERE g.total > 0)::int AS hari_aktif, max(g.last_at) AS terakhir,
              sum(g.sambang)::int AS sambang, sum(g.deteksi_dini)::int AS deteksi_dini, sum(g.problem_solving)::int AS problem_solving,
              sum(g.penyuluhan)::int AS penyuluhan, sum(g.harga_pangan)::int AS harga_pangan, sum(g.mapping_kk)::int AS mapping_kk,
@@ -174,8 +166,7 @@ export class AnalyticsService {
       this.prisma.$queryRaw<BhabinPerformanceRow[]>`
         SELECT u.id, u.nrp, u.nama, u.pangkat, un.nama AS unit, un.timezone,
                (SELECT count(*) FROM user_villages uv WHERE uv.user_id = u.id AND uv.until IS NULL)::int AS desa,
-               coalesce(a.total, 0) AS total, coalesce(a.disetujui, 0) AS disetujui, coalesce(a.menunggu, 0) AS menunggu,
-               coalesce(a.revisi, 0) AS revisi, coalesce(a.ditolak, 0) AS ditolak, coalesce(a.lokasi_janggal, 0) AS lokasi_janggal,
+               coalesce(a.total, 0) AS total, coalesce(a.lokasi_janggal, 0) AS lokasi_janggal,
                coalesce(a.hari_aktif, 0) AS hari_aktif, a.terakhir,
                (SELECT max(x.last_at) FROM agg_user_daily x WHERE x.user_id = u.id) AS terakhir_sepanjang,
                coalesce(a.sambang, 0) AS sambang, coalesce(a.deteksi_dini, 0) AS deteksi_dini, coalesce(a.problem_solving, 0) AS problem_solving,
@@ -201,6 +192,15 @@ export class AnalyticsService {
       ${f.category ? Prisma.sql`AND r.category::text = ${f.category}` : Prisma.empty}
       ${f.status ? Prisma.sql`AND r.status::text = ${f.status}` : Prisma.empty}
       ${f.priority ? Prisma.sql`AND r.priority` : Prisma.empty}
+      ${f.regionCode && f.regionLevel ? Prisma.sql`AND EXISTS (
+        WITH RECURSIVE selected_regions AS (
+          SELECT kode FROM regions WHERE kode = ${f.regionCode} AND level = ${f.regionLevel}
+          UNION ALL
+          SELECT child.kode FROM regions child JOIN selected_regions parent ON child.parent_kode = parent.kode
+        )
+        SELECT 1 FROM villages v_region JOIN selected_regions sr ON sr.kode = v_region.kecamatan_kode
+        WHERE v_region.id = r.village_id
+      )` : Prisma.empty}
       ${b ? Prisma.sql`AND r.location && ST_MakeEnvelope(${b[0]}, ${b[1]}, ${b[2]}, ${b[3]}, 4326)::geography` : Prisma.empty}`;
   }
 
@@ -224,7 +224,8 @@ export class AnalyticsService {
       return { mode: 'points' as const, total, points };
     }
 
-    const cell = 90 / 2 ** Math.min(Math.max(f.zoom ?? 5, 3), 18);
+    // Sel ±128 px pada zoom ini, agar gugus tidak saling menumpuk.
+    const cell = 180 / 2 ** Math.min(Math.max(f.zoom ?? 5, 3), 18);
     const clusters = await this.prisma.$queryRaw<{ lat: number; lng: number; jumlah: number; prioritas: number; category: string }[]>`
       SELECT avg(r.lat)::float AS lat, avg(r.lng)::float AS lng, count(*)::int AS jumlah,
              count(*) FILTER (WHERE r.priority)::int AS prioritas, mode() WITHIN GROUP (ORDER BY r.category)::text AS category
@@ -233,9 +234,9 @@ export class AnalyticsService {
     return { mode: 'clusters' as const, total, clusters };
   }
 
-  /** Ringkasan panel peta: jumlah per kategori, lokasi janggal, dan laporan prioritas terbaru. */
+  /** Ringkasan panel peta: jumlah per kategori, lokasi janggal, dan 20 laporan prioritas terbaru (strip prioritas). */
   async mapSummary(me: AuthUser, range: Range, f: MapFilter) {
-    const where = await this.mapWhere(me, range, { priority: f.priority });
+    const where = await this.mapWhere(me, range, { priority: f.priority, regionCode: f.regionCode, regionLevel: f.regionLevel });
     const [byCategory, [flags], priority] = await Promise.all([
       this.prisma.$queryRaw<{ category: string; jumlah: number }[]>`
         SELECT r.category::text, count(*)::int AS jumlah FROM reports r WHERE ${where} GROUP BY 1`,
@@ -247,7 +248,7 @@ export class AnalyticsService {
                v.nama AS desa, u.nama AS bhabin, (r.is_mock_location OR r.inside_village = false) AS flagged, ru.timezone
         FROM reports r JOIN villages v ON v.id = r.village_id JOIN users u ON u.id = r.user_id JOIN units ru ON ru.id = r.unit_id
         WHERE ${where} AND r.priority ${f.category ? Prisma.sql`AND r.category::text = ${f.category}` : Prisma.empty}
-        ORDER BY r.occurred_at DESC LIMIT 8`,
+        ORDER BY r.occurred_at DESC LIMIT 20`,
     ]);
     return {
       total: byCategory.reduce((n, c) => n + c.jumlah, 0),

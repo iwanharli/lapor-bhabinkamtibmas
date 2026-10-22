@@ -10,7 +10,7 @@ import { UrlUnitFilter } from '@/features/units/unit-combobox';
 import { withParams } from '@/lib/url';
 
 const RANGES = [7, 30, 90];
-const SORTS: SortKey[] = ['total', 'hari', 'setuju', 'nama'];
+const SORTS: SortKey[] = ['total', 'hari', 'nama'];
 const SIZES = [20, 50, 100];
 type Search = { hari?: string; urut?: string; q?: string; unitId?: string; page?: string; limit?: string };
 

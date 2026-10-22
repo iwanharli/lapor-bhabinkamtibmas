@@ -1,10 +1,10 @@
-import { ChevronRight, FileSearch, MapPinOff, Paperclip } from 'lucide-react';
+import { ChevronRight, FileSearch, Paperclip } from 'lucide-react';
 import Link from 'next/link';
 import { EmptyState, Table, Td, Th, THead, Tr } from '@/components/ui';
 import { CATEGORY_LABEL, personName, tzLabel, tzOf } from '@/lib/format';
 import type { ReportListItem } from '@/lib/types';
 import { CategoryIcon } from './category-icon';
-import { PriorityBadge, StatusBadge } from './status-badge';
+import { LocationBadge, PriorityBadge } from './status-badge';
 
 const dateOnly = (d: string, tz: string) => new Date(d).toLocaleDateString('id-ID', { timeZone: tzOf(tz), day: '2-digit', month: 'short', year: 'numeric' });
 const timeOnly = (d: string, tz: string) => new Date(d).toLocaleTimeString('id-ID', { timeZone: tzOf(tz), hour: '2-digit', minute: '2-digit' }) + ' ' + tzLabel(tz);
@@ -14,7 +14,7 @@ export function ReportTable({ rows }: { rows: ReportListItem[] }) {
   if (rows.length === 0) {
     return (
       <EmptyState icon={<FileSearch size={24} />} tone="neutral" title="Tidak ada laporan" className="py-16">
-        Coba ubah kata kunci, kategori, rentang tanggal, atau status.
+        Coba ubah kata kunci, kategori, atau rentang tanggal.
       </EmptyState>
     );
   }
@@ -28,13 +28,12 @@ export function ReportTable({ rows }: { rows: ReportListItem[] }) {
         <Th>Bhabinkamtibmas</Th>
         <Th>Desa</Th>
         <Th>Waktu kegiatan</Th>
-        <Th>Status</Th>
+        <Th>Cek lokasi</Th>
         <Th />
       </THead>
       <tbody>
         {rows.map((r) => {
           const href = `/laporan/${r.id}`;
-          const flagged = r.isMockLocation || r.insideVillage === false;
           return (
             <Tr key={r.id} className="group relative">
               <Td className="pl-5">
@@ -68,12 +67,9 @@ export function ReportTable({ rows }: { rows: ReportListItem[] }) {
                 <span className="block">{dateOnly(r.occurredAt, r.unit.timezone)}</span>
                 <span className="block text-xs text-muted">{timeOnly(r.occurredAt, r.unit.timezone)}</span>
               </Td>
-              <Td><StatusBadge status={r.status} /></Td>
+              <Td><LocationBadge insideVillage={r.insideVillage} isMockLocation={r.isMockLocation} /></Td>
               <Td align="right" className="pr-5">
                 <span className="inline-flex items-center gap-2 text-muted">
-                  {flagged && (
-                    <span title={r.isMockLocation ? 'Terdeteksi lokasi palsu' : 'Di luar desa binaan'} className="text-warn"><MapPinOff size={16} /></span>
-                  )}
                   {r._count.attachments > 0 && <span title={`${r._count.attachments} lampiran`}><Paperclip size={15} /></span>}
                   <ChevronRight size={18} className="transition group-hover:translate-x-0.5 group-hover:text-primary" />
                 </span>
@@ -102,13 +98,12 @@ function ReportCards({ rows }: { rows: ReportListItem[] }) {
                   {CATEGORY_LABEL[r.category]}
                   {r.priority && <PriorityBadge />}
                 </p>
-                <StatusBadge status={r.status} />
+                <LocationBadge insideVillage={r.insideVillage} isMockLocation={r.isMockLocation} />
               </div>
               <p className="truncate font-mono text-xs text-muted">{r.nomor}</p>
               <p className="mt-1.5 truncate text-sm">{personName(r.user)} · {r.village.nama}</p>
               <p className="flex items-center gap-1.5 text-xs text-muted">
                 {dateOnly(r.occurredAt, r.unit.timezone)}, {timeOnly(r.occurredAt, r.unit.timezone)}
-                {(r.isMockLocation || r.insideVillage === false) && <MapPinOff size={13} className="text-warn" />}
               </p>
             </div>
           </Link>

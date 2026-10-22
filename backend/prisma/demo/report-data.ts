@@ -1,5 +1,5 @@
 /** Pembuat isi laporan contoh bersama untuk seed:demo dan seed:demo-nasional. */
-import { Prisma, ReportCategory as C, ReportStatus as S } from '@prisma/client';
+import { Prisma, ReportCategory as C } from '@prisma/client';
 
 // PRNG deterministik agar data contoh selalu sama.
 let seed = 42;
@@ -80,9 +80,4 @@ export function price(kode: string, daysAgo: number) {
   return Math.round((BASE_PRICE[kode] * trend * spike * noise) / 100) * 100;
 }
 
-export function statusFor(daysAgo: number): S {
-  if (daysAgo <= 1) return pick([S.SUBMITTED, S.SUBMITTED, S.IN_REVIEW]);
-  if (daysAgo <= 4) return pick([S.SUBMITTED, S.IN_REVIEW, S.APPROVED, S.APPROVED, S.NEEDS_REVISION]);
-  return pick([S.APPROVED, S.APPROVED, S.APPROVED, S.APPROVED, S.APPROVED, S.NEEDS_REVISION, S.REJECTED]);
-}
 

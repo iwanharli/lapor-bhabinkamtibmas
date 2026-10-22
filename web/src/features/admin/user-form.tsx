@@ -24,7 +24,7 @@ export interface UserFormValue {
 const EMPTY: UserFormValue = { nrp: '', nama: '', pangkat: '', jabatan: '', role: 'BHABIN', unitId: '', phone: '', active: true };
 
 /** Peran yang semestinya ditempatkan di Polsek; dipakai hanya sebagai petunjuk. */
-const POLSEK_ROLES = ['BHABIN', 'VERIFIKATOR'];
+const POLSEK_ROLES = ['BHABIN'];
 
 function validate(v: UserFormValue) {
   if (!/^\d{4,20}$/.test(v.nrp.trim())) return 'NRP harus berupa angka 4–20 digit.';

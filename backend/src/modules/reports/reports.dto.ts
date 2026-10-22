@@ -4,8 +4,8 @@ import { IsBoolean, IsDateString, IsEnum, IsIn, IsInt, IsNotEmpty, IsNumber, IsO
 
 export class ListReportsQuery {
   @IsOptional() @IsEnum(ReportCategory) category?: ReportCategory;
-  /** Status laporan, atau MENUNGGU = Terkirim + Ditinjau. */
-  @IsOptional() @IsIn([...Object.values(ReportStatus), 'MENUNGGU']) status?: ReportStatus | 'MENUNGGU';
+  /** DRAFT (hanya Bhabin untuk draftnya sendiri) atau SUBMITTED. */
+  @IsOptional() @IsIn([ReportStatus.DRAFT, ReportStatus.SUBMITTED]) status?: ReportStatus;
   @IsOptional() @IsUUID() unitId?: string;
   @IsOptional() @IsUUID() villageId?: string;
   @IsOptional() @IsUUID() userId?: string;
@@ -15,11 +15,6 @@ export class ListReportsQuery {
   @IsOptional() @IsString() @MaxLength(100) q?: string;
   @IsOptional() @Transform(({ value }) => Number(value)) @IsInt() @Min(1) page = 1;
   @IsOptional() @Transform(({ value }) => Number(value)) @IsInt() @Min(1) @Max(100) limit = 20;
-}
-
-export class TransitionDto {
-  @IsIn([ReportStatus.APPROVED, ReportStatus.NEEDS_REVISION, ReportStatus.REJECTED]) to: ReportStatus;
-  @IsOptional() @IsString() @MaxLength(1000) note?: string;
 }
 
 export class LocationDto {

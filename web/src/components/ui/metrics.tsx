@@ -7,9 +7,9 @@ import { cn } from './cn';
 export function SectionLabel({ title, hint, className }: { title: string; hint?: string; className?: string }) {
   return (
     <div className={cn('flex items-center gap-3', className)}>
-      <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-ink/80">{title}</h2>
+      <h2 className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted">{title}</h2>
       {hint && <span className="text-xs text-muted">{hint}</span>}
-      <span className="h-px flex-1 bg-line" />
+      <span className="h-px flex-1 bg-line/80" />
     </div>
   );
 }
@@ -100,7 +100,7 @@ export function StatCard({
   return (
     <div
       className={cn(
-        'group relative flex h-full min-h-[176px] flex-col rounded-2xl border bg-surface p-5 shadow-[0_1px_2px_rgb(var(--shadow-tint)/0.05),0_8px_24px_-12px_rgb(var(--shadow-tint)/0.16)] transition',
+        'group relative flex h-full min-h-[148px] flex-col rounded-2xl border bg-surface p-4 shadow-[0_1px_2px_rgb(var(--shadow-tint)/0.04),0_8px_22px_-16px_rgb(var(--shadow-tint)/0.2)] transition duration-200',
         alert ? 'border-danger/25 bg-gradient-to-br from-danger-soft/70 to-surface' : 'border-line',
         href && 'hover:-translate-y-0.5 hover:shadow-lg',
         className,
@@ -111,10 +111,10 @@ export function StatCard({
           <p className={cn('font-semibold leading-snug', alert && 'text-danger')}>{title}</p>
           {description && <p className={cn('mt-1 text-[13px] leading-snug', alert ? 'text-danger/80' : 'text-muted')}>{description}</p>}
         </div>
-        {icon && <IconChip tone={alert ? 'danger' : tone}>{icon}</IconChip>}
+        {icon && <IconChip tone={alert ? 'danger' : tone} className="h-9 w-9 rounded-lg">{icon}</IconChip>}
       </div>
       <div className="mt-auto pt-4">
-        <p className={cn('text-[2.5rem] font-bold leading-none tracking-tight tabular-nums', alert && 'text-danger')}>
+        <p className={cn('text-4xl font-bold leading-none tracking-tight tabular-nums', alert && 'text-danger')}>
           {value}
           {suffix && <span className="ml-1 text-xl font-medium text-muted">{suffix}</span>}
         </p>

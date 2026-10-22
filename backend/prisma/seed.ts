@@ -66,16 +66,18 @@ async function seedDevSample(mabesId: string) {
 
   const pw = 'Demo#12345';
   const bhabin = await user('90000001', 'Contoh Bhabin', UserRole.BHABIN, polsek.id, pw, 'Bripka');
-  await user('90000002', 'Contoh Verifikator', UserRole.VERIFIKATOR, polsek.id, pw, 'Aiptu');
+  await user('90000002', 'Contoh Pimpinan Polsek', UserRole.PIMPINAN, polsek.id, pw, 'AKP');
   await user('90000003', 'Contoh Pimpinan', UserRole.PIMPINAN, polres.id, pw, 'AKBP');
   await user('90000004', 'Admin Polres Contoh', UserRole.ADMIN_UNIT, polres.id, pw);
   await user('90000005', 'Auditor Polda Contoh', UserRole.AUDITOR, polda.id, pw);
+  // Pemantau tingkat Mabes: melihat seluruh Indonesia (data contoh nasional) tanpa hak admin.
+  await user('90000007', 'Pimpinan Mabes', UserRole.PIMPINAN, mabesId, pw, 'Irjen Pol');
 
   await prisma.userVillage.createMany({
     data: villages.map((v) => ({ userId: bhabin.id, villageId: v.id, since: new Date('2026-01-01') })),
     skipDuplicates: true,
   });
-  console.log(`Akun uji dev (sandi ${pw}): 90000001 Bhabin, 90000002 Verifikator, 90000003 Pimpinan, 90000004 Admin, 90000005 Auditor`);
+  console.log(`Akun uji dev (sandi ${pw}): 90000001 Bhabin, 90000002 Pimpinan Polsek, 90000003 Pimpinan Polres, 90000004 Admin, 90000005 Auditor, 90000007 Pimpinan Mabes (nasional)`);
 }
 
 async function main() {

@@ -71,7 +71,7 @@ export class VillagesController {
   }
 
   @Get('villages/geojson')
-  @Roles(UserRole.VERIFIKATOR, UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR)
+  @Roles(UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR)
   geojson(@CurrentUser() me: AuthUser, @Query('polsekId') polsekId?: string) {
     return this.villages.geojson(me, polsekId || undefined);
   }

@@ -18,7 +18,12 @@ const CLOCK_SKEW_MS = 10 * 60_000;
 /** Titik dianggap di dalam desa binaan bila ≤ 200 m dari batasnya. */
 const VILLAGE_TOLERANCE_M = 200;
 
-const EDITABLE: ReportStatus[] = [ReportStatus.DRAFT, ReportStatus.NEEDS_REVISION];
+/** Laporan terkirim bersifat final (tanpa verifikasi), tetapi pelapor boleh meralatnya selama jendela ini. */
+export const RALAT_MS = Number(process.env.REPORT_RALAT_HOURS ?? 72) * 3_600_000;
+
+/** Draft selalu bisa diubah; laporan terkirim hanya dalam jendela ralat sejak dikirim. */
+export const canEdit = (r: { status: ReportStatus; submittedAt: Date | null }) =>
+  r.status === ReportStatus.DRAFT || (r.status === ReportStatus.SUBMITTED && !!r.submittedAt && Date.now() - r.submittedAt.getTime() <= RALAT_MS);
 
 /** Pembuatan, perubahan, dan pengiriman laporan oleh Bhabin (aplikasi mobile). */
 @Injectable()
@@ -78,7 +83,7 @@ export class ReportWriterService {
   private ownedEditable = async (me: AuthUser, id: string) => {
     const r = await this.prisma.report.findUnique({ where: { id } });
     if (!r || r.userId !== me.id) throw new NotFoundException({ code: 'NOT_FOUND' });
-    if (!EDITABLE.includes(r.status)) throw new ConflictException({ code: 'INVALID_TRANSITION', message: 'Laporan yang sudah dikirim tidak dapat diubah' });
+    if (!canEdit(r)) throw new ConflictException({ code: 'RALAT_CLOSED', message: 'Laporan sudah melewati batas ralat 3×24 jam sejak dikirim' });
     return r;
   };
 
@@ -87,7 +92,7 @@ export class ReportWriterService {
     const existing = await this.prisma.report.findUnique({ where: { clientUuid: dto.clientUuid } });
     if (existing) {
       if (existing.userId !== me.id) throw new ConflictException({ code: 'DUPLICATE', message: 'clientUuid sudah dipakai' });
-      if (!EDITABLE.includes(existing.status)) return this.summary(existing);
+      if (existing.status !== ReportStatus.DRAFT) return this.summary(existing);
       return this.update(me, existing.id, dto);
     }
 
@@ -127,29 +132,33 @@ export class ReportWriterService {
       data = plain as Prisma.InputJsonObject;
       sensitive = this.encryptSecret(r.sensitive ? Buffer.from(r.sensitive) : null, secret);
     }
-    const updated = await this.prisma.report.update({
-      where: { id },
-      data: {
-        ...(dto.villageId && { villageId: dto.villageId }),
-        ...(dto.occurredAt && { occurredAt: new Date(dto.occurredAt) }),
-        ...(dto.location && { lat: dto.location.lat, lng: dto.location.lng }),
-        ...(dto.gpsAccuracyM != null && { gpsAccuracyM: dto.gpsAccuracyM }),
-        ...(dto.isMockLocation != null && { isMockLocation: dto.isMockLocation }),
-        ...(data && { data }),
-        ...(sensitive !== undefined && { sensitive }),
-      },
+    // Ralat laporan terkirim: isian baru harus tetap lengkap; prioritas, item harga & cek lokasi dihitung ulang.
+    const ralat = r.status === ReportStatus.SUBMITTED;
+    const full = ralat ? (dto.data ?? { ...(r.data as Record<string, unknown>), ...(r.sensitive ? this.crypto.decrypt(Buffer.from(r.sensitive)) : {}) }) : null;
+    const commodities = ralat ? await this.assertComplete(id, schema, full!) : [];
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const u = await tx.report.update({
+        where: { id },
+        data: {
+          ...(dto.villageId && { villageId: dto.villageId }),
+          ...(dto.occurredAt && { occurredAt: new Date(dto.occurredAt) }),
+          ...(dto.location && { lat: dto.location.lat, lng: dto.location.lng }),
+          ...(dto.gpsAccuracyM != null && { gpsAccuracyM: dto.gpsAccuracyM }),
+          ...(dto.isMockLocation != null && { isMockLocation: dto.isMockLocation }),
+          ...(data && { data }),
+          ...(sensitive !== undefined && { sensitive }),
+        },
+      });
+      if (ralat) await this.finalize(tx, u, schema, full!, commodities);
+      await this.audit.log({ actorId: me.id, action: 'REPORT_UPDATE', entity: 'report', entityId: id, meta: { ralat } }, tx);
+      return tx.report.findUniqueOrThrow({ where: { id } });
     });
-    await this.audit.log({ actorId: me.id, action: 'REPORT_UPDATE', entity: 'report', entityId: id });
     return this.summary(updated);
   }
 
-  /** Kirim laporan: validasi penuh (termasuk lampiran), cek lokasi, prioritas, item harga, lalu ubah status. */
-  async submit(me: AuthUser, id: string) {
-    const r = await this.ownedEditable(me, id);
-    const schema = await this.schemaOf(r.category, r.schemaVersion);
-    const secret = r.sensitive ? this.crypto.decrypt(Buffer.from(r.sensitive)) : {};
-    const data = { ...(r.data as Record<string, unknown>), ...secret };
-
+  /** Validasi penuh (termasuk jumlah lampiran); mengembalikan daftar komoditas untuk item harga. */
+  private async assertComplete(id: string, schema: FormSchemaJson, data: Record<string, unknown>) {
     const [commodities, attachments] = await Promise.all([
       this.prisma.commodity.findMany({ select: { id: true, satuanDefault: true } }),
       this.prisma.attachment.groupBy({ by: ['fieldKey'], where: { reportId: id }, _count: { _all: true } }),
@@ -159,37 +168,54 @@ export class ReportWriterService {
       attachmentCounts: Object.fromEntries(attachments.map((a) => [a.fieldKey, a._count._all])),
     });
     if (errors.length) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Laporan belum lengkap', details: errors.map((e) => e.message) });
+    return commodities;
+  }
 
-    const [{ inside }] = await this.prisma.$queryRaw<{ inside: boolean | null }[]>`
+  /** Item harga, prioritas, dan cek lokasi terhadap desa binaan — saat kirim maupun ralat. */
+  private async finalize(tx: Prisma.TransactionClient, r: Report, schema: FormSchemaJson, data: Record<string, unknown>, commodities: { id: number; satuanDefault: string }[]) {
+    if (r.category === ReportCategory.HARGA_PANGAN) {
+      const satuan = new Map(commodities.map((c) => [c.id, c.satuanDefault]));
+      const items = (data.items as { commodityId: number; harga: number; satuan?: string; stok: 'AMAN' | 'MENIPIS' | 'KOSONG' }[]) ?? [];
+      await tx.reportItem.deleteMany({ where: { reportId: r.id } });
+      await tx.reportItem.createMany({
+        data: items.map((i) => ({ reportId: r.id, commodityId: Number(i.commodityId), harga: Number(i.harga), satuan: i.satuan ?? satuan.get(Number(i.commodityId)) ?? 'kg', stok: i.stok })),
+        skipDuplicates: true,
+      });
+    }
+    const [{ inside }] = await tx.$queryRaw<{ inside: boolean | null }[]>`
       SELECT CASE WHEN bool_and(v.geom IS NULL) THEN NULL
                   ELSE bool_or(ST_DWithin(v.geom::geography, r.location, ${VILLAGE_TOLERANCE_M})) END AS inside
       FROM reports r JOIN user_villages uv ON uv.user_id = r.user_id AND uv.until IS NULL JOIN villages v ON v.id = uv.village_id
-      WHERE r.id = ${id}::uuid`;
-    const schemaRow = await this.prisma.formSchema.findUniqueOrThrow({ where: { category_version: { category: r.category, version: r.schemaVersion } } });
-    const to = schemaRow.autoApprove ? ReportStatus.APPROVED : ReportStatus.SUBMITTED;
-    const satuan = new Map(commodities.map((c) => [c.id, c.satuanDefault]));
+      WHERE r.id = ${r.id}::uuid`;
+    await tx.report.update({ where: { id: r.id }, data: { priority: isPriority(schema, data), insideVillage: inside } });
+  }
+
+  /** Kirim laporan: validasi penuh lalu langsung final (`SUBMITTED`); tidak ada tahap verifikasi. */
+  async submit(me: AuthUser, id: string) {
+    const r = await this.ownedEditable(me, id);
+    if (r.status !== ReportStatus.DRAFT) return this.summary(r);
+    const schema = await this.schemaOf(r.category, r.schemaVersion);
+    const secret = r.sensitive ? this.crypto.decrypt(Buffer.from(r.sensitive)) : {};
+    const data = { ...(r.data as Record<string, unknown>), ...secret };
+    const commodities = await this.assertComplete(id, schema, data);
 
     await this.prisma.$transaction(async (tx) => {
-      if (r.category === ReportCategory.HARGA_PANGAN) {
-        const items = (data.items as { commodityId: number; harga: number; satuan?: string; stok: 'AMAN' | 'MENIPIS' | 'KOSONG' }[]) ?? [];
-        await tx.reportItem.deleteMany({ where: { reportId: id } });
-        await tx.reportItem.createMany({
-          data: items.map((i) => ({ reportId: id, commodityId: Number(i.commodityId), harga: Number(i.harga), satuan: i.satuan ?? satuan.get(Number(i.commodityId)) ?? 'kg', stok: i.stok })),
-          skipDuplicates: true,
-        });
-      }
       const res = await tx.report.updateMany({
-        where: { id, status: r.status },
-        data: { status: to, priority: isPriority(schema, data), insideVillage: inside, submittedAt: new Date(), reviewNote: null },
+        where: { id, status: ReportStatus.DRAFT },
+        data: { status: ReportStatus.SUBMITTED, submittedAt: new Date() },
       });
       if (!res.count) throw new ConflictException({ code: 'INVALID_TRANSITION', message: 'Status laporan sudah berubah' });
-      await tx.reportStatusHistory.create({ data: { reportId: id, fromStatus: r.status, toStatus: to, actorId: me.id } });
-      await this.audit.log({ actorId: me.id, action: 'REPORT_SUBMIT', entity: 'report', entityId: id, meta: { to } }, tx);
+      await this.finalize(tx, r, schema, data, commodities);
+      await tx.reportStatusHistory.create({ data: { reportId: id, fromStatus: ReportStatus.DRAFT, toStatus: ReportStatus.SUBMITTED, actorId: me.id } });
+      await this.audit.log({ actorId: me.id, action: 'REPORT_SUBMIT', entity: 'report', entityId: id }, tx);
     });
     return this.summary(await this.prisma.report.findUniqueOrThrow({ where: { id } }));
   }
 
   private summary(r: Report) {
-    return { id: r.id, clientUuid: r.clientUuid, nomor: r.nomor, status: r.status, priority: r.priority, insideVillage: r.insideVillage, updatedAt: r.updatedAt };
+    return {
+      id: r.id, clientUuid: r.clientUuid, nomor: r.nomor, status: r.status, priority: r.priority, insideVillage: r.insideVillage, updatedAt: r.updatedAt,
+      editableUntil: r.status === ReportStatus.SUBMITTED && r.submittedAt ? new Date(r.submittedAt.getTime() + RALAT_MS) : null,
+    };
   }
 }

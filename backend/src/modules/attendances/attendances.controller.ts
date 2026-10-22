@@ -20,7 +20,7 @@ class RecordDto {
   @IsOptional() @Transform(({ value }) => value === 'true' || value === true) @IsBoolean() isMockLocation?: boolean;
 }
 
-const VIEWERS = [UserRole.VERIFIKATOR, UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR];
+const VIEWERS = [UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR];
 
 @Controller('attendances')
 export class AttendancesController {

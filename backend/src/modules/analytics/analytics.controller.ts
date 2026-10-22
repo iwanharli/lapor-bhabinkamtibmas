@@ -11,22 +11,26 @@ export function range(q: { unitId?: string; from?: string; to?: string }, defaul
   return { unitId: q.unitId || undefined, from, to };
 }
 
-type MapQuery = { unitId?: string; from?: string; to?: string; category?: string; status?: string; priority?: string; bbox?: string; zoom?: string };
+type MapQuery = { unitId?: string; from?: string; to?: string; category?: string; status?: string; priority?: string; bbox?: string; zoom?: string; regionCode?: string; regionLevel?: string };
 
 function mapFilter(q: MapQuery) {
   const b = q.bbox?.split(',').map(Number);
   if (b && (b.length !== 4 || b.some((n) => !Number.isFinite(n)))) throw new BadRequestException({ code: 'INVALID_BBOX', message: 'bbox harus w,s,e,n' });
+  const regionLevel = q.regionLevel ? Number(q.regionLevel) : undefined;
+  if (q.regionCode && ![1, 2, 3].includes(regionLevel ?? 0)) throw new BadRequestException({ code: 'INVALID_REGION_LEVEL', message: 'regionLevel harus 1–3' });
   return {
     category: q.category || undefined,
     status: q.status || undefined,
     priority: q.priority === 'true',
     bbox: b as [number, number, number, number] | undefined,
     zoom: q.zoom ? Number(q.zoom) : undefined,
+    regionCode: q.regionCode || undefined,
+    regionLevel,
   };
 }
 
 @Controller('analytics')
-@Roles(UserRole.VERIFIKATOR, UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR)
+@Roles(UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR)
 export class AnalyticsController {
   constructor(private analytics: AnalyticsService) {}
 
@@ -40,7 +44,7 @@ export class AnalyticsController {
     @CurrentUser() me: AuthUser,
     @Query() q: { unitId?: string; from?: string; to?: string; q?: string; sort?: string; page?: string; limit?: string },
   ) {
-    const sort = (['total', 'hari', 'setuju', 'nama'] as const).find((s) => s === q.sort);
+    const sort = (['total', 'hari', 'nama'] as const).find((s) => s === q.sort);
     return this.analytics.bhabinPerformance(me, range(q, 30), {
       q: q.q || undefined, sort, page: Number(q.page) || 1, limit: Math.min(Number(q.limit) || 20, 100),
     });

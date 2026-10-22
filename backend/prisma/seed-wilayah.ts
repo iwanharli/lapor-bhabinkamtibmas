@@ -71,13 +71,30 @@ const depth = (a: unknown): number => (Array.isArray(a) ? 1 + depth(a[0]) : 0);
 /** [lat,lng] → [lng,lat] di semua tingkat. */
 const swap = (a: any): any => (typeof a[0] === 'number' ? [a[1], a[0]] : a.map(swap));
 
+const isPoint = (a: unknown) => Array.isArray(a) && typeof a[0] === 'number';
+const isRing = (a: unknown) => Array.isArray(a) && a.length >= 4 && a.every(isPoint);
+
+/**
+ * Koordinat MultiPolygon GeoJSON ([lng,lat]) dari path sumber: Polygon (ring[]), MultiPolygon (polygon[]),
+ * atau campuran tidak konsisten — yang terakhir dipecah per ring menjadi poligon terpisah. Ring < 4 titik dibuang.
+ */
+function toMultiPolygon(path: any[]): number[][][][] {
+  if (path.every(isRing)) return [swap(path)];
+  if (path.every((p) => Array.isArray(p) && p.length && p.every(isRing))) return swap(path);
+  const rings: any[] = [];
+  const walk = (a: any) => (isRing(a) ? rings.push(a) : Array.isArray(a) && !isPoint(a) && a.forEach(walk));
+  walk(path);
+  return rings.map((r) => [swap(r)]);
+}
+
 /** Ubah isi SQL sumber menjadi baris dengan geometri GeoJSON (MultiPolygon). */
 function parse(sql: string): Row[] {
   const rows: Row[] = [];
   for (const m of sql.matchAll(ROW)) {
     const path = JSON.parse(m[5]);
     if (!path.length) continue;
-    const coordinates = depth(path) === 3 ? [swap(path)] : swap(path);
+    const coordinates = toMultiPolygon(path);
+    if (!coordinates.length) continue;
     rows.push({
       kode: m[1],
       nama: m[2].replace(/\\(.)/g, '$1').replace(/''/g, "'").trim(),

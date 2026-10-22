@@ -57,7 +57,7 @@ export function UserImport({ unitExample, villageExample }: { unitExample: strin
   function template() {
     downloadCsv('templat_impor_pengguna.csv', COLUMNS, [
       ['90001234', 'Andi Pratama', 'Bripda', 'Bhabinkamtibmas Desa Sukamaju', 'Bhabinkamtibmas', unitExample, '081200000000', villageExample],
-      ['90005678', 'Siti Rahma', 'Aipda', 'Kanit Binmas', 'Verifikator', unitExample, '', ''],
+      ['90005678', 'Siti Rahma', 'AKP', 'Kanit Binmas', 'Pimpinan', unitExample, '', ''],
     ]);
   }
 
@@ -135,7 +135,7 @@ export function UserImport({ unitExample, villageExample }: { unitExample: strin
           <Step n={1} title="Unduh templat & isi data" done={!!fileName}>
             <p className="mb-3 text-sm text-muted">
               Kolom wajib: <code>nrp</code>, <code>nama</code>, <code>peran</code>, <code>kode_unit</code>. Kolom <code>desa</code> berisi kode wilayah desa binaan (khusus Bhabin), pisahkan dengan <code>|</code>.
-              Peran: Bhabinkamtibmas, Verifikator, Pimpinan, Admin Unit, Auditor. Maksimal 1.000 baris.
+              Peran: Bhabinkamtibmas, Pimpinan, Admin Unit, Auditor. Maksimal 1.000 baris.
             </p>
             <Button variant="secondary" icon={<FileSpreadsheet size={16} />} onClick={template}>Unduh templat CSV</Button>
           </Step>

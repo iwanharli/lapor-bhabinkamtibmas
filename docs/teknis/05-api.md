@@ -72,7 +72,7 @@ Base URL: `https://<host-internal>/api/v1` · Format: JSON (UTF-8) · Dokumentas
 Hanya mengembalikan data yang berubah sejak `since`. Poligon desa diunduh terpisah: `GET /sync/villages/:id/geometry` (GeoJSON, disederhanakan).
 
 ### `GET /sync/reports?since=…`
-Perubahan status laporan milik Bhabin (mis. `NEEDS_REVISION` + catatan) sejak waktu tertentu.
+Perubahan laporan milik Bhabin sejak waktu tertentu.
 
 ## 4. Laporan
 
@@ -114,10 +114,10 @@ Respons `201` (atau `200` jika `clientUuid` sudah ada):
 Validasi skema + kelengkapan lampiran → status `SUBMITTED` (atau `APPROVED` jika kategori `auto_approve`). Error `400 VALIDATION_FAILED` berisi daftar field.
 
 ### `PATCH /reports/:id`
-Ubah `data`/`villageId`/`occurredAt`/`location`. Hanya oleh pemilik, hanya untuk status `DRAFT` atau `NEEDS_REVISION`. `data` **mengganti seluruh isian** (aplikasi selalu mengirim formulir lengkap). Field bertanda `sensitive` di skema disimpan terenkripsi (AES-256-GCM, kunci `DATA_ENCRYPTION_KEYS`) dan tidak pernah dikirim balik kecuali lewat `reveal-sensitive`.
+Ubah `data`/`villageId`/`occurredAt`/`location`. Hanya oleh pemilik: `DRAFT`, atau laporan terkirim dalam jendela ralat 3×24 jam (`REPORT_RALAT_HOURS`); ralat tetap divalidasi penuh, lewat batas → `409 RALAT_CLOSED`. Respons memuat `editableUntil`. `data` **mengganti seluruh isian** (aplikasi selalu mengirim formulir lengkap). Field bertanda `sensitive` di skema disimpan terenkripsi (AES-256-GCM, kunci `DATA_ENCRYPTION_KEYS`) dan tidak pernah dikirim balik kecuali lewat `reveal-sensitive`.
 
 ### Filter status gabungan
-`status=MENUNGGU` = Terkirim + Ditinjau (belum diputuskan). `GET /reports/status-counts` mengembalikan jumlah per status untuk filter yang sama.
+Laporan tidak diverifikasi: semua laporan terkirim berstatus `SUBMITTED` (final). Filter `status` hanya `DRAFT` (draft milik Bhabin sendiri) atau `SUBMITTED`.
 
 ### `GET /reports`
 Filter: `category`, `status`, `unitId`, `villageId`, `userId`, `from`, `to`, `priority`, `q` (teks), `bbox` (`minLng,minLat,maxLng,maxLat`). Hasil otomatis dibatasi cakupan wilayah.
@@ -127,12 +127,6 @@ Detail laporan + lampiran (URL presigned berlaku 10 menit) + riwayat status. Fie
 
 ### `POST /reports/:id/reveal-sensitive`
 Mengembalikan field sensitif asli. Wajib `reason` (teks). Dicatat `SENSITIVE_READ`.
-
-### `POST /reports/:id/transition` — verifikasi
-```json
-{ "to": "NEEDS_REVISION", "note": "Foto etalase buram, mohon diulang." }
-```
-Transisi yang sah dijelaskan di [03-modul-laporan §6](03-modul-laporan.md#6-alur-status-laporan). Transisi lain → `409 INVALID_TRANSITION`.
 
 ### Kode galat tambahan
 | HTTP | Kode | Arti |

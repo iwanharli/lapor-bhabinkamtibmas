@@ -182,6 +182,7 @@ Sandi semua akun contoh: `Demo#12345`.
 | `JWT_ACCESS_SECRET`, `JWT_ACCESS_TTL` | —, 900 | Token akses (detik) |
 | `JWT_REFRESH_TTL_MOBILE` / `_WEB` | 30 hari / 12 jam | Masa berlaku sesi |
 | `CORS_ORIGINS` | `http://localhost:3001` | Asal web yang diizinkan |
+| `HOST` | `0.0.0.0` | Alamat dengar API; `127.0.0.1` di produksi agar hanya terjangkau lewat reverse proxy |
 | `TRUST_PROXY` | `loopback` | Proksi yang dipercaya menentukan IP klien (`X-Forwarded-For`); jangan isi seluruh jaringan internal |
 | `DATA_ENCRYPTION_KEYS` | — | Kunci AES-256 field sensitif (`k1:<base64 32 byte>`) |
 | `STORAGE_DRIVER`, `STORAGE_LOCAL_DIR` | `local`, `./storage` | Penyimpanan berkas (disk lokal; S3/MinIO ditunda) |

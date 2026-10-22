@@ -27,6 +27,7 @@ async function bootstrap() {
     SwaggerModule.setup('api/docs', app, doc);
   }
 
-  await app.listen(Number(process.env.PORT ?? 3000));
+  // HOST=127.0.0.1 di produksi agar API hanya terjangkau lewat reverse proxy, bukan langsung dari internet.
+  await app.listen(Number(process.env.PORT ?? 3000), process.env.HOST ?? '0.0.0.0');
 }
 bootstrap();

@@ -17,6 +17,7 @@ Masuk dengan NRP dan kata sandi, lalu ganti kata sandi awal. Dashboard hanya bis
 | **Laporan** | Semua laporan: cari (nomor, nama Bhabin, desa, kepala keluarga), saring kategori/periode/prioritas, **Ekspor CSV** |
 | **Peta Sebaran** | Titik/gugus laporan; saring wilayah, kategori, prioritas; strip laporan prioritas di bawah peta |
 | **Harga Pangan** | Rata-rata, perubahan 7 hari, tren, dan **sebaran per desa** (saring wilayah, cari desa) |
+| **Peta Stunting** | Warna per wilayah (provinsi → desa sesuai zoom): % stunting/berisiko, belum ditangani, jamban/air tidak layak. Klik desa → laporan Mapping-nya. Abu-abu = data terlalu sedikit |
 | **Keluarga & Stunting** | Balita, status gizi, **stunting belum ditangani**, ibu hamil/KEK, faktor risiko rumah tangga per desa |
 | **Kinerja Bhabin** | Aktivitas pelaporan per personel, **Ekspor CSV** |
 | **Absensi** | Kehadiran harian, terlambat, belum hadir, lokasi dicek, swafoto |

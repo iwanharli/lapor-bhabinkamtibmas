@@ -81,4 +81,13 @@ export class AnalyticsController {
   stunting(@CurrentUser() me: AuthUser, @Query('unitId') unitId?: string) {
     return this.analytics.stunting(me, unitId || undefined);
   }
+
+  @Get('stunting/map')
+  stuntingMap(@CurrentUser() me: AuthUser, @Query() q: { level?: string; bbox?: string; unitId?: string; extent?: string }) {
+    const level = Number(q.level ?? 1);
+    if (![1, 2, 3, 4].includes(level)) throw new BadRequestException({ code: 'INVALID_LEVEL', message: 'level harus 1–4' });
+    const b = (q.bbox ?? '95,-11,141,6').split(',').map(Number);
+    if (b.length !== 4 || b.some((x) => !Number.isFinite(x))) throw new BadRequestException({ code: 'INVALID_BBOX', message: 'bbox harus w,s,e,n' });
+    return this.analytics.stuntingMap(me, level as 1 | 2 | 3 | 4, b as [number, number, number, number], q.unitId || undefined, q.extent === '1');
+  }
 }

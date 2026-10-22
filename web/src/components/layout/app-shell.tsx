@@ -10,7 +10,8 @@ const COLLAPSE_KEY = 'lapor.sidebar.collapsed';
 /** Kerangka dashboard: sidebar (bisa dilipat) + topbar + konten. */
 export function AppShell({ sections, user, children }: { sections: NavSection[]; user: ShellUser; children: React.ReactNode }) {
   const pathname = usePathname();
-  const mapPage = pathname === '/peta';
+  // Halaman peta memakai seluruh area konten (tanpa padding).
+  const mapPage = pathname === '/peta' || pathname === '/peta-stunting';
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 

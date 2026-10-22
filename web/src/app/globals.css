@@ -213,3 +213,13 @@ dialog.modal::backdrop {
 .scroll-thin::-webkit-scrollbar-track { background: transparent; }
 .scroll-thin::-webkit-scrollbar-thumb { border-radius: 999px; background: color-mix(in srgb, var(--muted) 30%, transparent); }
 .scroll-thin:hover::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted) 55%, transparent); }
+
+/* Peta stunting: atribusi kecil di kanan bawah, di bawah tombol zoom (legenda di kiri bawah). */
+.map-stunting.leaflet-container .leaflet-control-attribution {
+  padding: 1px 6px;
+  border-radius: 6px 0 0 0;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  color: var(--muted);
+  font-size: 9.5px;
+}
+.map-stunting.leaflet-container .leaflet-control-attribution a { color: inherit; text-decoration: none; }

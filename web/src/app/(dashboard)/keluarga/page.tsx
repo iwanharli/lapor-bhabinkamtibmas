@@ -36,7 +36,7 @@ export default async function KeluargaPage({ searchParams }: { searchParams: Pro
   return (
     <>
       <PageHeader title="Keluarga & Stunting" subtitle="Rekap dari laporan Mapping Data Keluarga · umur dihitung dari tanggal lahir"
-        actions={<UrlUnitFilter levels={['POLDA', 'POLRES', 'POLSEK']} emptyLabel="Semua wilayah" />} />
+        actions={<div className="flex items-center gap-2"><Link href="/peta-stunting" className="inline-flex h-10 items-center rounded-lg border border-line bg-surface px-3 text-sm font-medium hover:bg-bg">Lihat peta</Link><UrlUnitFilter levels={['POLDA', 'POLRES', 'POLSEK']} emptyLabel="Semua wilayah" /></div>} />
 
       {t.kk === 0 ? (
         <EmptyState icon={<HeartPulse size={22} />} tone="neutral" title="Belum ada data" className="py-16">Belum ada laporan Mapping Data Keluarga di wilayah ini.</EmptyState>

@@ -2,6 +2,7 @@
 
 import {
   CalendarCheck,
+  Layers,
   CalendarRange,
   HeartPulse,
   Bell,
@@ -39,6 +40,7 @@ const ICONS = {
   attendance: CalendarCheck,
   family: HeartPulse,
   monthly: CalendarRange,
+  stuntingMap: Layers,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

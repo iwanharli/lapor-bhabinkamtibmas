@@ -57,6 +57,7 @@ docs/teknis/             Dokumentasi teknis (arsitektur, API, database, keamanan
 - **Absensi lapangan:** check-in/out harian dengan GPS & swafoto; rekap per hari (hadir, terlambat, di luar desa, lokasi palsu).
 - **Laporan:** daftar & detail dengan lampiran, harga komoditas, riwayat, dan cek lokasi.
 - **Harga pangan:** harga rata-rata, perubahan 7 hari, tren, dan sebaran per wilayah.
+- **Peta stunting:** peta tematik per wilayah (provinsi → kabupaten → kecamatan → desa mengikuti zoom): % stunting/berisiko, belum ditangani, jamban & air tidak layak — tanpa titik rumah.
 - **Laporan bulanan:** rekap satu bulan per satuan (kategori vs bulan lalu, per satuan bawahan, Bhabin perlu perhatian, kehadiran, prioritas, harga pangan, keluarga & stunting) — unduh **PDF** siap cetak atau **Excel** lengkap.
 - **Keluarga & Stunting:** balita, status gizi, stunting belum ditangani, ibu hamil/KEK, faktor risiko rumah tangga per desa — dari ringkasan angka (isian per orang tetap terenkripsi).
 - **Administrasi:**

@@ -29,6 +29,7 @@ export function navFor(role: string): NavSection[] {
         { href: '/peta', label: 'Peta Sebaran', icon: 'map' },
         { href: '/harga-pangan', label: 'Harga Pangan', icon: 'prices' },
         { href: '/keluarga', label: 'Keluarga & Stunting', icon: 'family' },
+        { href: '/peta-stunting', label: 'Peta Stunting', icon: 'stuntingMap' },
       ],
     },
     {

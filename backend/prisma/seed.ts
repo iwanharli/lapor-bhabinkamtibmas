@@ -79,7 +79,8 @@ async function seedDevSample(mabesId: string) {
   await user('90000007', 'Pimpinan Mabes', UserRole.PIMPINAN, mabesId, pw, 'Irjen Pol');
 
   await prisma.userVillage.createMany({
-    data: villages.map((v) => ({ userId: bhabin.id, villageId: v.id, since: new Date('2026-01-01') })),
+    // 1 Bhabin membina 1 desa; desa kedua dibina Bhabin lain (seed:demo).
+    data: [{ userId: bhabin.id, villageId: villages[0].id, since: new Date('2026-01-01') }],
     skipDuplicates: true,
   });
   console.log(`Akun uji dev (sandi ${pw}): 90000001 Bhabin, 90000002 Pimpinan Polsek, 90000003 Pimpinan Polres, 90000004 Admin, 90000005 Auditor, 90000007 Pimpinan Mabes (nasional)`);

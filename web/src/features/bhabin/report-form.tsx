@@ -73,7 +73,9 @@ export function ReportForm({
   const ralat = report?.status === 'SUBMITTED';
   const geo = useGeolocation();
   const [clientUuid] = useState(() => newUuid());
-  const [villageId, setVillageId] = useState(report?.village.id ?? (villages.length === 1 ? villages[0].id : ''));
+  // Desa binaan dikunci: 1 Bhabin membina 1 desa (ralat/draft memakai desa laporan itu).
+  const village = report ? { id: report.village.id, nama: report.village.nama, kecamatan: report.village.kecamatan } : villages[0];
+  const villageId = village?.id ?? '';
   // Waktu kegiatan dikunci: laporan baru = waktu saat disimpan/dikirim; draft & ralat mempertahankan waktu awalnya.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -220,12 +222,14 @@ export function ReportForm({
       {steps && <Stepper steps={steps} step={step} onJump={(i) => i < step && setStep(i)} />}
 
       {(!steps || step === 0) && <Section title="Lokasi & waktu">
-        <Labeled label="Desa binaan" required>
-          <Select value={villageId} onChange={(e) => setVillageId(e.target.value)} className="h-11">
-            <option value="">— Pilih desa —</option>
-            {villages.map((v) => <option key={v.id} value={v.id}>{v.nama} · {v.kecamatan}</option>)}
-          </Select>
-        </Labeled>
+        <div>
+          <span className="mb-1.5 block text-sm font-medium">Desa binaan</span>
+          <div className="flex h-11 items-center gap-2 rounded-lg border border-line bg-bg px-3 text-sm">
+            <MapPin size={16} className="shrink-0 text-muted" />
+            <span className="flex-1 truncate">{village ? <><strong className="font-semibold">{village.nama}</strong> · {village.kecamatan}</> : <span className="text-danger">Belum ada desa binaan</span>}</span>
+            <Lock size={14} className="shrink-0 text-muted" aria-label="Terkunci" />
+          </div>
+        </div>
         <div>
           <span className="mb-1.5 block text-sm font-medium">Waktu kegiatan</span>
           <div className="flex h-11 items-center gap-2 rounded-lg border border-line bg-bg px-3 text-sm">
@@ -289,22 +293,43 @@ export function ReportForm({
   );
 }
 
-/** Penunjuk langkah formulir bertahap; langkah sebelumnya bisa diklik untuk kembali. */
+/** Penunjuk langkah formulir bertahap: judul langkah aktif, bilah progres, dan daftar langkah (yang selesai bisa diklik). */
 function Stepper({ steps, step, onJump }: { steps: FormStep[]; step: number; onJump: (i: number) => void }) {
+  const pct = Math.round(((step + 1) / steps.length) * 100);
   return (
-    <nav aria-label="Langkah formulir" className="rounded-2xl border border-line bg-surface p-3 shadow-sm">
-      <p className="mb-2 text-xs text-muted">Langkah <strong className="text-ink">{step + 1}</strong> dari {steps.length}</p>
-      <ol className="flex items-center">
+    <nav aria-label="Langkah formulir" className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
+      <div className="flex items-center gap-3 px-4 pt-3.5">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[var(--brand-2)] to-[var(--brand)] text-sm font-bold text-white shadow-md shadow-[var(--brand)]/25">
+          {step + 1}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted">Langkah {step + 1} dari {steps.length}</p>
+          <p className="truncate text-sm font-semibold">{steps[step].title}</p>
+        </div>
+        <span className="rounded-full bg-primary-soft px-2.5 py-1 text-xs font-bold tabular-nums text-primary">{pct}%</span>
+      </div>
+      <div className="mx-4 mt-3 flex gap-1">
         {steps.map((s, i) => (
-          <li key={s.title} className={cn('flex items-center', i < steps.length - 1 && 'flex-1')}>
-            <button type="button" onClick={() => onJump(i)} disabled={i >= step} title={s.title} aria-current={i === step ? 'step' : undefined}
-              className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold transition',
-                i < step ? 'bg-success text-white' : i === step ? 'bg-[var(--brand)] text-white ring-4 ring-[var(--brand)]/20' : 'bg-bg text-muted ring-1 ring-line')}>
-              {i < step ? <Check size={15} /> : i + 1}
-            </button>
-            {i < steps.length - 1 && <span className={cn('mx-1 h-0.5 flex-1 rounded-full', i < step ? 'bg-success' : 'bg-line')} />}
-          </li>
+          <span key={s.title} className={cn('h-1.5 flex-1 rounded-full transition-colors duration-300', i < step ? 'bg-success' : i === step ? 'bg-[var(--brand)]' : 'bg-line')} />
         ))}
+      </div>
+      <ol className="mt-1 flex gap-1 overflow-x-auto px-2 pb-2 [scrollbar-width:none]">
+        {steps.map((s, i) => {
+          const done = i < step;
+          const cur = i === step;
+          return (
+            <li key={s.title} className="min-w-0 flex-1">
+              <button type="button" onClick={() => onJump(i)} disabled={!done} aria-current={cur ? 'step' : undefined}
+                className={cn('flex w-full min-w-[3.5rem] flex-col items-center gap-1 rounded-lg px-1 py-2 text-center transition', done && 'hover:bg-bg')}>
+                <span className={cn('grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold',
+                  done ? 'bg-success text-white' : cur ? 'bg-[var(--brand)] text-white' : 'bg-bg text-muted ring-1 ring-line')}>
+                  {done ? <Check size={13} strokeWidth={3} /> : i + 1}
+                </span>
+                <span className={cn('line-clamp-2 text-[10px] leading-tight', cur ? 'font-semibold text-ink' : done ? 'text-success' : 'text-muted')}>{s.title}</span>
+              </button>
+            </li>
+          );
+        })}
       </ol>
     </nav>
   );

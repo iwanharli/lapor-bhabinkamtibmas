@@ -136,6 +136,15 @@ export class UsersService {
       throw new ForbiddenException({ code: 'OUT_OF_SCOPE', message: 'Desa binaan harus berada di wilayah Polsek tempat Bhabin bertugas' });
     }
 
+    // 1 desa dibina 1 Bhabin: tolak bila desa masih dibina Bhabin lain.
+    const taken = await this.prisma.userVillage.findFirst({
+      where: { villageId: { in: villageIds }, until: null, userId: { not: id } },
+      include: { user: { select: { nama: true, nrp: true } }, village: { select: { nama: true } } },
+    });
+    if (taken) {
+      throw new ConflictException({ code: 'VILLAGE_TAKEN', message: `Desa ${taken.village.nama} sudah dibina ${taken.user.nama} (NRP ${taken.user.nrp}); lepaskan dulu dari Bhabin tersebut` });
+    }
+
     const today = new Date(new Date().toISOString().slice(0, 10));
     await this.prisma.$transaction(async (tx) => {
       // Riwayat penugasan dipertahankan: tutup yang dilepas, tambah yang baru.

@@ -68,6 +68,8 @@ docs/teknis/             Dokumentasi teknis (arsitektur, API, database, keamanan
   - Bhabin diberi tahu saat desa binaannya diubah.
 - **Ekspor CSV** lewat antrean (`export_jobs`): diunduh otomatis saat selesai, berkas disimpan 24 jam.
 
+**Aturan desa binaan:** 1 Bhabin membina 1 desa dan 1 desa dibina 1 Bhabin (dijaga indeks unik di database); desa & waktu kegiatan di formulir Bhabin terkunci.
+
 **Peran:** Bhabinkamtibmas (web `/bhabin` & mobile), Pimpinan, Admin Unit, Superadmin, Auditor. Peran Verifikator **tidak dipakai lagi**. Akses dibatasi cakupan unit (Polda → Polres → Polsek). Rincian: [docs/teknis/02-peran-hak-akses.md](docs/teknis/02-peran-hak-akses.md).
 
 ## Menjalankan di lokal
@@ -140,7 +142,7 @@ Urutan yang dijalankan `seed:semua`:
 
 Data contoh nasional:
 - **Unit:** Polda per provinsi (`DEMO-POLDA-xx`), Polres per kab/kota (`DEMO-RES-xxxx`), dan Polsek per kecamatan (`DEMO-SEK-xxxxxx`).
-- **Bhabin:** 1 per kecamatan dengan 2 desa binaan asli.
+- **Bhabin:** 1 per kecamatan dengan 1 desa binaan asli.
 - **Laporan:** titik diacak di dalam batas desa, ±3% di luar desa, ±1% lokasi palsu.
 
 Batas desa demo Polres Contoh (kode `99.*`) ada di `backend/prisma/demo/*.geojson` dan bisa diimpor lewat menu **Desa → Impor GeoJSON**.

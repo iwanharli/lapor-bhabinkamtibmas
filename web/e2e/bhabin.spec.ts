@@ -20,7 +20,7 @@ test('Bhabin membuat, mengirim, dan meralat laporan dari web', async ({ page }) 
 
   await page.getByRole('link', { name: 'Sambang' }).first().click();
   await expect(page.getByText('Lokasi didapat')).toBeVisible();
-  await page.locator('label:has-text("Desa binaan") select').selectOption({ index: 1 });
+  await expect(page.getByText('Sukamaju').first()).toBeVisible(); // desa binaan terkunci
   await page.locator('label:has-text("Jenis sasaran") select').selectOption('Warga');
   const nama = `Warga E2E ${Date.now()}`;
   await page.locator('label:has-text("Nama warga/tokoh") input').fill(nama);

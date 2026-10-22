@@ -44,7 +44,7 @@ async function ensureStructure() {
   return {
     polresId: polres.id,
     bhabins: [
-      await bhabin('90000001', 'Contoh Bhabin', polsek1.id, villages1),
+      await bhabin('90000001', 'Contoh Bhabin', polsek1.id, [villages1[0]]),
       await bhabin('90000011', 'Dedi Kurniawan', polsek1.id, [villages1[1]]),
       await bhabin('90000012', 'Rina Wulandari', polsek2.id, [villages2[0]]),
       await bhabin('90000013', 'Agus Salim', polsek2.id, [villages2[1]]),

@@ -1,6 +1,6 @@
 import { UserRole } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { ArrayUnique, IsArray, IsBoolean, IsIn, IsOptional, IsString, IsUUID, Length, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsIn, IsOptional, IsString, IsUUID, Length, ValidateNested } from 'class-validator';
 
 /** Peran yang bisa diberikan. Verifikator tidak dipakai lagi (laporan langsung final, tanpa verifikasi). */
 export const ASSIGNABLE_ROLES = Object.values(UserRole).filter((r) => r !== UserRole.VERIFIKATOR);
@@ -27,7 +27,8 @@ export class UpdateUserDto {
 }
 
 export class SetVillagesDto {
-  @IsArray() @ArrayUnique() @IsUUID('all', { each: true }) villageIds: string[];
+  /** 1 Bhabin membina 1 desa: kosong (lepas) atau tepat satu desa. */
+  @IsArray() @ArrayUnique() @ArrayMaxSize(1, { message: 'Satu Bhabin hanya membina satu desa' }) @IsUUID('all', { each: true }) villageIds: string[];
 }
 
 /** Satu baris impor CSV; nama kolom mengikuti templat impor. */

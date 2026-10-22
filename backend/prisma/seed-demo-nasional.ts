@@ -8,7 +8,7 @@
  *   npm run seed:demo-nasional -- --hapus                 # hapus seluruh data contoh nasional
  *
  * Struktur (kode unit berawalan DEMO-): Polda per provinsi (WIB/WITA/WIT) › Polres per kabupaten/kota ›
- * Polsek per kecamatan. 1 Bhabin per kecamatan (NRP 98 + kode kecamatan) dengan 2 desa binaan asli,
+ * Polsek per kecamatan. 1 Bhabin per kecamatan (NRP 98 + kode kecamatan) dengan 1 desa binaan asli (desa terluas di kecamatannya),
  * 1 pimpinan per Polda (NRP 99 + kode provinsi) dan per Polres (NRP 97 + kode kab/kota). Sandi semua Demo#12345.
  * Laporan langsung final (tanpa verifikasi); titik diacak di dalam batas desa, ±3% di luar desa, ±1% lokasi palsu.
  */
@@ -141,7 +141,7 @@ async function main() {
     ON CONFLICT (nrp) DO UPDATE SET nama = excluded.nama, pangkat = excluded.pangkat, role = excluded.role, unit_id = excluded.unit_id,
       password_hash = excluded.password_hash, active = true, must_change_password = false, updated_at = now()`, 'Pengguna');
 
-  // 3. Desa binaan: 2 desa (terluas) per kecamatan ditetapkan ke Polsek & Bhabin-nya.
+  // 3. Desa binaan: 1 desa (terluas) per kecamatan ditetapkan ke Polsek & Bhabin-nya.
   await prisma.$executeRawUnsafe(`
     WITH pick AS (
       SELECT v.id, v.kecamatan_kode, row_number() OVER (PARTITION BY v.kecamatan_kode ORDER BY ST_Area(v.geom) DESC) AS rn
@@ -151,7 +151,7 @@ async function main() {
       FROM pick p
       JOIN units s ON s.kode = 'DEMO-SEK-' || replace(p.kecamatan_kode, '.', '')
       JOIN users b ON b.unit_id = s.id AND b.role = 'BHABIN'
-      WHERE p.rn <= 2
+      WHERE p.rn <= 1
     ), upd AS (UPDATE villages v SET polsek_id = sel.polsek_id FROM sel WHERE v.id = sel.village_id)
     INSERT INTO user_villages (user_id, village_id, since) SELECT user_id, village_id, '2026-01-01' FROM sel`);
 

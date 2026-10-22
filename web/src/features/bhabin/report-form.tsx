@@ -1,6 +1,6 @@
 'use client';
 
-import { Camera, Check, Clock, Lock, ChevronLeft, ChevronRight, Crosshair, ImagePlus, Loader2, MapPin, Plus, Save, Send, Trash2, UserRound, X } from 'lucide-react';
+import { Camera, Check, Clock, Lock, TriangleAlert, ChevronLeft, ChevronRight, Crosshair, ImagePlus, Loader2, MapPin, Plus, Save, Send, Trash2, UserRound, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, cn, Input, Select, Textarea } from '@/components/ui';
@@ -115,7 +115,10 @@ export function ReportForm({
     if (!ralat) void geo.locate();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const set = (key: string, v: unknown) => setValues((p) => ({ ...p, [key]: v }));
+  const set = (key: string, v: unknown) => {
+    setValues((p) => ({ ...p, [key]: v }));
+    setErrors([]);
+  };
 
   /** `only`: validasi sebagian field (satu langkah); `withPlace`: ikut periksa desa/waktu/lokasi. */
   function validate(send: boolean, only?: Set<string>, withPlace = true) {
@@ -162,14 +165,16 @@ export function ReportForm({
   function next() {
     const errs = validate(true, new Set(steps![step].fields), step === 0);
     setErrors(errs);
-    if (!errs.length) setStep((x) => x + 1);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (!errs.length) {
+      setStep((x) => x + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 
   async function save(send: boolean) {
     const errs = validate(send);
     setErrors(errs);
-    if (errs.length) return window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (errs.length) return;
     setBusy(send ? 'send' : 'draft');
     try {
       const data = cleanData(schema, values);
@@ -201,7 +206,6 @@ export function ReportForm({
       router.refresh();
     } catch (e) {
       setErrors([(e as Error).message]);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setBusy('');
       setProgress('');
@@ -210,11 +214,7 @@ export function ReportForm({
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); void save(true); }} className="space-y-4" noValidate>
-      {errors.length > 0 && (
-        <Alert tone="danger" title="Periksa kembali">
-          <ul className="list-disc space-y-0.5 pl-4">{errors.map((e) => <li key={e}>{e}</li>)}</ul>
-        </Alert>
-      )}
+      <ErrorPopup errors={errors} onClose={() => setErrors([])} />
       {ralat && report?.editableUntil && (
         <Alert tone="info">Ralat laporan terkirim. Perubahan menggantikan isian lama; foto lama tetap tersimpan.</Alert>
       )}
@@ -290,6 +290,44 @@ export function ReportForm({
         </div>
       </div>
     </form>
+  );
+}
+
+/** Peringatan isian melayang di atas layar (tidak menggeser halaman); bisa ditutup, hilang sendiri saat isian diperbaiki. */
+function ErrorPopup({ errors, onClose }: { errors: string[]; onClose: () => void }) {
+  const [shown, setShown] = useState<string[]>([]);
+  useEffect(() => {
+    if (errors.length) setShown(errors);
+  }, [errors]);
+  const open = errors.length > 0;
+  useEffect(() => {
+    if (!open) return;
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', esc);
+    return () => document.removeEventListener('keydown', esc);
+  }, [open, onClose]);
+  return (
+    <div aria-live="assertive" className={cn('pointer-events-none fixed inset-x-0 top-[4.25rem] z-40 flex justify-center px-3 transition-all duration-300',
+      open ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0')}>
+      {shown.length > 0 && (
+        <div role="alert" className={cn('w-full max-w-md overflow-hidden rounded-2xl border border-danger/25 bg-surface shadow-[0_18px_44px_-14px_rgba(200,30,58,.45)]', open && 'pointer-events-auto')}>
+          <div className="flex items-start gap-3 p-3.5">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-danger/10 text-danger"><TriangleAlert size={18} /></span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">{shown.length > 1 ? `${shown.length} isian perlu diperbaiki` : 'Periksa kembali'}</p>
+              <ul className="mt-1 space-y-1">
+                {shown.slice(0, 5).map((e) => (
+                  <li key={e} className="flex gap-2 text-[13px] leading-snug text-muted"><span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-danger" />{e}</li>
+                ))}
+                {shown.length > 5 && <li className="pl-3.5 text-xs text-muted">+{shown.length - 5} lainnya</li>}
+              </ul>
+            </div>
+            <button type="button" onClick={onClose} aria-label="Tutup" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted hover:bg-bg hover:text-ink"><X size={16} /></button>
+          </div>
+          <div className="h-1 bg-gradient-to-r from-danger/70 via-danger/40 to-transparent" />
+        </div>
+      )}
+    </div>
   );
 }
 

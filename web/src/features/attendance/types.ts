@@ -19,6 +19,7 @@ export interface AttendanceRow {
   co_inside: boolean | null;
   co_mock: boolean | null;
   co_selfie: string | null;
+  durasi_menit: number | null;
 }
 
 export interface AttendanceDaily {
@@ -27,4 +28,8 @@ export interface AttendanceDaily {
   data: AttendanceRow[];
   meta: { page: number; limit: number; total: number };
   summary: { bhabin: number; hadir: number; terlambat: number; luar: number; palsu: number; pulang: number; filtered: number };
+  /** Jumlah check-in per jam (waktu setempat). */
+  hours: { jam: number; jumlah: number }[];
+  /** Unit (Polsek) dengan persentase hadir terendah. */
+  lowestUnits: { unit_id: string; unit: string; bhabin: number; hadir: number }[];
 }

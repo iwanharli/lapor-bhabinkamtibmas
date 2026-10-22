@@ -1,8 +1,10 @@
-import { AlarmClock, MapPinX, UserCheck, UserX } from 'lucide-react';
+import { UserCheck } from 'lucide-react';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Card, CountTabs, EmptyState, PageHeader, Pagination, SearchInput, Stack, StatCard } from '@/components/ui';
+import { cn, EmptyState, PageHeader, Pagination, SearchInput, Stack } from '@/components/ui';
 import { AttendanceTable } from '@/features/attendance/attendance-table';
 import { DateFilter } from '@/features/attendance/date-filter';
+import { AttendanceOverview, LowestUnits } from '@/features/attendance/overview';
 import type { AttendanceDaily } from '@/features/attendance/types';
 import { UrlUnitFilter } from '@/features/units/unit-combobox';
 import { apiGet, getSessionUser } from '@/lib/api/server';
@@ -12,13 +14,12 @@ import { withParams } from '@/lib/url';
 const SIZES = [20, 50, 100];
 type Search = { tanggal?: string; unitId?: string; q?: string; status?: string; page?: string; limit?: string };
 
-const pct = (n: number, of: number) => (of ? Math.round((n / of) * 100) : 0);
 const tanggalPanjang = (d: string) =>
   new Date(`${d}T00:00:00Z`).toLocaleDateString('id-ID', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
 export default async function AbsensiPage({ searchParams }: { searchParams: Promise<Search> }) {
   const me = await getSessionUser();
-  if (me?.role === 'BHABIN') redirect('/laporan');
+  if (me?.role === 'BHABIN') redirect('/bhabin/absensi');
 
   const sp = await searchParams;
   const today = localDateStr(0, me?.unit.timezone);
@@ -29,44 +30,46 @@ export default async function AbsensiPage({ searchParams }: { searchParams: Prom
   const res = await apiGet<AttendanceDaily>(
     withParams('/attendances/daily', { date, unitId: sp.unitId, q: sp.q, status: sp.status, page: String(page), limit: String(limit) }),
   );
-  const { summary: s } = res;
-  const belum = s.bhabin - s.hadir;
-  const href = (patch: Partial<Search>) => withParams('/absensi', sp, patch);
+  const s = res.summary;
+  const href = (patch: Partial<Search>) => withParams('/absensi', sp, { page: undefined, ...patch });
+  const tabs = [
+    { key: '', label: 'Semua', count: s.bhabin, dot: 'bg-primary' },
+    { key: 'hadir', label: 'Hadir', count: s.hadir, dot: 'bg-success' },
+    { key: 'terlambat', label: 'Terlambat', count: s.terlambat, dot: 'bg-warn' },
+    { key: 'belum', label: 'Belum hadir', count: s.bhabin - s.hadir, dot: 'bg-danger' },
+    { key: 'luar', label: 'Lokasi dicek', count: s.luar + s.palsu, dot: 'bg-accent' },
+  ];
 
   return (
     <>
       <PageHeader
         title="Absensi Lapangan"
-        subtitle={`${tanggalPanjang(date)} · check-in & check-out Bhabinkamtibmas dengan GPS dan swafoto`}
+        subtitle={`${tanggalPanjang(date)}${date === today ? ' · hari ini' : ''} · absen masuk & pulang Bhabinkamtibmas dengan GPS dan swafoto`}
         actions={<DateFilter date={date} today={today} />}
       />
       <Stack>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:h-full">
-          <StatCard title="Hadir" description="Sudah check-in" icon={<UserCheck size={20} />} tone="success"
-            value={s.hadir} suffix={`/ ${s.bhabin}`} footer={`${pct(s.hadir, s.bhabin)}% Bhabin · ${s.pulang} sudah check-out`} />
-          <StatCard alert={belum > 0} title="Belum hadir" description="Belum check-in" icon={<UserX size={20} />} tone="success"
-            value={belum} footer={belum ? `${pct(belum, s.bhabin)}% Bhabin` : 'semua Bhabin hadir'} />
-          <StatCard title="Terlambat" description={`Check-in setelah ${res.lateAfter.replace(':', '.')} setempat`} icon={<AlarmClock size={20} />} tone="accent"
-            value={s.terlambat} footer={s.hadir ? `${pct(s.terlambat, s.hadir)}% dari yang hadir` : '—'} />
-          <StatCard alert={s.luar + s.palsu > 0} title="Lokasi perlu dicek" description="Di luar desa binaan / lokasi palsu" icon={<MapPinX size={20} />} tone="success"
-            value={s.luar + s.palsu} footer={`${s.luar} di luar desa · ${s.palsu} lokasi palsu`} />
-        </div>
+        <AttendanceOverview res={res} href={(status) => href({ status })} />
+        <LowestUnits units={res.lowestUnits} href={(unitId) => href({ unitId, status: 'belum' })} />
 
-        <CountTabs
-          active={sp.status ?? ''}
-          tabs={[
-            { key: '', label: 'Semua', count: s.bhabin, href: href({ status: undefined, page: undefined }) },
-            { key: 'hadir', label: 'Hadir', count: s.hadir, href: href({ status: 'hadir', page: undefined }), dot: 'bg-success' },
-            { key: 'belum', label: 'Belum hadir', count: belum, href: href({ status: 'belum', page: undefined }), dot: 'bg-danger' },
-            { key: 'terlambat', label: 'Terlambat', count: s.terlambat, href: href({ status: 'terlambat', page: undefined }), dot: 'bg-warn' },
-            { key: 'luar', label: 'Lokasi perlu dicek', count: s.luar + s.palsu, href: href({ status: 'luar', page: undefined }), dot: 'bg-accent' },
-          ]}
-        />
-
-        <Card>
-          <div className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row sm:items-center">
-            <SearchInput placeholder="Cari NRP atau nama Bhabin…" className="flex-1" />
-            <UrlUnitFilter />
+        <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
+          <div className="flex flex-col gap-3 border-b border-line p-3 sm:p-4">
+            <nav aria-label="Status kehadiran" className="-mx-1 flex gap-1 overflow-x-auto px-1 [scrollbar-width:none]">
+              {tabs.map((t) => {
+                const on = (sp.status ?? '') === t.key;
+                return (
+                  <Link key={t.key || 'all'} href={href({ status: t.key || undefined })} aria-current={on ? 'page' : undefined}
+                    className={cn('inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition', on ? 'bg-primary text-white shadow-sm' : 'text-muted hover:bg-bg hover:text-ink')}>
+                    {!on && <span className={cn('h-2 w-2 rounded-full', t.dot)} />}
+                    {t.label}
+                    <span className={cn('rounded-full px-1.5 text-xs tabular-nums', on ? 'bg-white/20' : 'bg-bg')}>{t.count.toLocaleString('id-ID')}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <SearchInput placeholder="Cari NRP atau nama Bhabin…" className="flex-1" />
+              <UrlUnitFilter />
+            </div>
           </div>
           {res.data.length === 0 ? (
             <EmptyState icon={<UserCheck size={22} />} tone="neutral" title="Tidak ada data" className="py-14">Tidak ada Bhabin yang cocok dengan filter ini.</EmptyState>
@@ -79,9 +82,9 @@ export default async function AbsensiPage({ searchParams }: { searchParams: Prom
             total={res.meta.total}
             sizes={SIZES}
             noun="Bhabin"
-            hrefFor={(p, l) => href({ page: p > 1 ? String(p) : undefined, limit: l !== 20 ? String(l) : undefined })}
+            hrefFor={(p, l) => withParams('/absensi', sp, { page: p > 1 ? String(p) : undefined, limit: l !== 20 ? String(l) : undefined })}
           />
-        </Card>
+        </section>
       </Stack>
     </>
   );

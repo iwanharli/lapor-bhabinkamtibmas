@@ -143,9 +143,10 @@ export class AttendancesService {
                ci.id AS ci_id, ci.client_time AS ci_time, ci.inside_village AS ci_inside, ci.distance_m AS ci_distance, ci.is_mock_location AS ci_mock,
                ci.late_sync AS ci_late_sync, ci.selfie_id AS ci_selfie, ci.lat AS ci_lat, ci.lng AS ci_lng,
                (SELECT nama FROM villages WHERE id = ci.village_id) AS ci_desa, coalesce(${late}, false) AS terlambat,
-               co.id AS co_id, co.client_time AS co_time, co.inside_village AS co_inside, co.is_mock_location AS co_mock, co.selfie_id AS co_selfie
+               co.id AS co_id, co.client_time AS co_time, co.inside_village AS co_inside, co.is_mock_location AS co_mock, co.selfie_id AS co_selfie,
+               round(extract(epoch FROM co.client_time - ci.client_time) / 60)::int AS durasi_menit
         ${base} ${status}
-        ORDER BY (ci.id IS NULL) DESC, u.nama
+        ORDER BY u.nama, u.nrp
         LIMIT ${q.limit} OFFSET ${(q.page - 1) * q.limit}`,
       this.prisma.$queryRaw<{ bhabin: number; hadir: number; terlambat: number; luar: number; palsu: number; pulang: number; filtered: number }[]>`
         SELECT count(*)::int AS bhabin,
@@ -157,7 +158,33 @@ export class AttendancesService {
                count(*) FILTER (WHERE TRUE ${status})::int AS filtered
         ${base}`,
     ]);
-    return { date, lateAfter: LATE_AFTER, data, meta: { page: q.page, limit: q.limit, total: summary.filtered }, summary };
+    // Sebaran jam masuk (waktu setempat) & unit dengan kehadiran terendah — untuk grafik ringkasan.
+    const [hours, units] = await Promise.all([
+      this.prisma.$queryRaw<{ jam: number; jumlah: number }[]>`
+        SELECT extract(hour FROM ci.client_time AT TIME ZONE un.timezone)::int AS jam, count(*)::int AS jumlah
+        ${base} AND ci.id IS NOT NULL GROUP BY 1 ORDER BY 1`,
+      // Bandingkan per Polres bila cakupan berisi lebih dari satu Polres, selain itu per Polsek.
+      this.prisma.$queryRaw<{ unit_id: string; unit: string; bhabin: number; hadir: number }[]>`
+        WITH b AS (
+          SELECT u.id, un.id AS sek_id, un.nama AS sek, p.id AS res_id, p.nama AS res
+          FROM users u JOIN units un ON un.id = u.unit_id LEFT JOIN units p ON p.id = un.parent_id
+          WHERE u.role = 'BHABIN' AND u.active AND u.unit_id = ANY(${scope}::uuid[])
+        ), multi AS (SELECT count(DISTINCT res_id) > 1 AS by_res FROM b),
+        x AS (
+          SELECT CASE WHEN multi.by_res THEN b.res_id ELSE b.sek_id END AS gid,
+                 CASE WHEN multi.by_res THEN b.res ELSE b.sek END AS gnama,
+                 ci.id AS ci_id
+          FROM b CROSS JOIN multi
+          LEFT JOIN attendances ci ON ci.user_id = b.id AND ci.work_date = ${date}::date AND ci.type = 'CHECK_IN'
+        )
+        SELECT gid::text AS unit_id, gnama AS unit, count(*)::int AS bhabin, count(ci_id)::int AS hadir
+        FROM x GROUP BY gid, gnama
+        ORDER BY count(ci_id)::float / count(*), count(*) DESC, gnama LIMIT 5`,
+    ]);
+    return {
+      date, lateAfter: LATE_AFTER, data, meta: { page: q.page, limit: q.limit, total: summary.filtered }, summary, hours,
+      lowestUnits: units.filter((u) => u.hadir < u.bhabin),
+    };
   }
 
   /** Swafoto absensi untuk Bhabin pemiliknya atau pengguna dengan cakupan unitnya. */
@@ -183,4 +210,5 @@ export interface DailyRow {
   ci_id: string | null; ci_time: Date | null; ci_inside: boolean | null; ci_distance: number | null; ci_mock: boolean | null; ci_late_sync: boolean | null;
   ci_selfie: string | null; ci_lat: number | null; ci_lng: number | null; ci_desa: string | null; terlambat: boolean;
   co_id: string | null; co_time: Date | null; co_inside: boolean | null; co_mock: boolean | null; co_selfie: string | null;
+  durasi_menit: number | null;
 }

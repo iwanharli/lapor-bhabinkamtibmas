@@ -61,12 +61,10 @@ export default async function AbsensiSayaPage() {
       <h2 className="mb-2 mt-6 text-sm font-semibold">Ringkasan {DAYS} hari</h2>
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
         {stats.map((s) => (
-          <div key={s.label} className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 shadow-sm">
-            <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', s.cls)}><s.icon size={17} /></span>
-            <span className="min-w-0">
-              <span className="block text-base font-bold tabular-nums">{s.value}</span>
-              <span className="block truncate text-[11px] text-muted">{s.label}</span>
-            </span>
+          <div key={s.label} className="rounded-2xl border border-line bg-surface p-3 shadow-sm">
+            <span className={cn('grid h-8 w-8 place-items-center rounded-lg', s.cls)}><s.icon size={16} /></span>
+            <span className="mt-2 block whitespace-nowrap text-lg font-bold leading-tight tabular-nums">{s.value}</span>
+            <span className="block text-xs leading-snug text-muted">{s.label}</span>
           </div>
         ))}
       </div>

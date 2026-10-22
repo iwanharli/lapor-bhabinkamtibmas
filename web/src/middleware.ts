@@ -3,6 +3,17 @@ import { COOKIE, refreshTokens, tokenCookies } from '@/lib/api/session-cookies';
 
 const isApi = (req: NextRequest) => req.nextUrl.pathname.startsWith('/api/');
 
+/**
+ * URL absolut untuk redirect. Di balik reverse proxy (nginx/Cloudflare) req.url berisi host internal
+ * (mis. localhost:3611), jadi pakai host & protokol asli dari X-Forwarded-Host / X-Forwarded-Proto bila ada.
+ */
+function urlFor(req: NextRequest, path: string) {
+  const host = req.headers.get('x-forwarded-host');
+  if (!host) return new URL(path, req.url);
+  const proto = req.headers.get('x-forwarded-proto') ?? req.nextUrl.protocol.replace(':', '');
+  return new URL(path, `${proto}://${host}`);
+}
+
 function sessionUser(req: NextRequest): { role?: string; mustChangePassword?: boolean } {
   try {
     return JSON.parse(req.cookies.get(COOKIE.user)?.value ?? '{}');
@@ -16,8 +27,8 @@ function roleRedirect(req: NextRequest, role?: string) {
   const path = req.nextUrl.pathname;
   if (isApi(req) || path.startsWith('/ganti-sandi') || path.startsWith('/akses-ditolak')) return null;
   const inField = path === '/bhabin' || path.startsWith('/bhabin/');
-  if (role === 'BHABIN' && !inField) return NextResponse.redirect(new URL('/bhabin', req.url));
-  if (role && role !== 'BHABIN' && inField) return NextResponse.redirect(new URL('/', req.url));
+  if (role === 'BHABIN' && !inField) return NextResponse.redirect(urlFor(req, '/bhabin'));
+  if (role && role !== 'BHABIN' && inField) return NextResponse.redirect(urlFor(req, '/'));
   return null;
 }
 
@@ -25,7 +36,7 @@ function toLogin(req: NextRequest, expired: boolean) {
   if (isApi(req)) {
     return NextResponse.json({ error: { code: 'UNAUTHENTICATED', message: 'Sesi berakhir, silakan masuk kembali' } }, { status: 401 });
   }
-  const res = NextResponse.redirect(new URL(expired ? '/login?expired=1' : '/login', req.url));
+  const res = NextResponse.redirect(urlFor(req, expired ? '/login?expired=1' : '/login'));
   Object.values(COOKIE).forEach((n) => res.cookies.delete(n));
   return res;
 }
@@ -41,7 +52,7 @@ export async function middleware(req: NextRequest) {
   // Sandi sementara: hanya halaman ganti sandi yang boleh dibuka (API juga menolak di sisi backend).
   const user = sessionUser(req);
   if (user.mustChangePassword && !req.nextUrl.pathname.startsWith('/ganti-sandi') && !isApi(req)) {
-    return NextResponse.redirect(new URL('/ganti-sandi', req.url));
+    return NextResponse.redirect(urlFor(req, '/ganti-sandi'));
   }
   const redirect = roleRedirect(req, user.role);
   if (redirect) return redirect;

@@ -32,7 +32,7 @@ if [ ! -f /etc/lapor/api.env ]; then
   cat > /etc/lapor/api.env <<ENV
 NODE_ENV=production
 PORT=3000
-DATABASE_URL=postgresql://lapor:${DB_PASSWORD}@localhost:5432/lapor
+DATABASE_URL=postgresql://lapor:${DB_PASSWORD}@localhost:5432/lapor?connection_limit=40&pool_timeout=20
 JWT_ACCESS_SECRET=$(openssl rand -base64 48)
 JWT_ACCESS_TTL=900
 JWT_REFRESH_TTL_MOBILE=2592000
@@ -46,6 +46,8 @@ TRUST_PROXY=loopback
 # Backup harian (lapor-backup.timer). BACKUP_REMOTE=user@host:/path untuk salinan di luar server.
 BACKUP_DIR=/var/backups/lapor
 BACKUP_KEEP_DAYS=14
+# Peringatan (lapor-healthcheck.timer): webhook chat internal yang menerima JSON {"text": "..."}; kosong = hanya journal.
+ALERT_WEBHOOK_URL=
 ENV
   echo "API_URL=http://127.0.0.1:3000/api/v1" > /etc/lapor/web.env
   chown root:lapor /etc/lapor/*.env && chmod 640 /etc/lapor/*.env
@@ -54,12 +56,14 @@ fi
 cp infra/systemd/*.service infra/systemd/*.timer /etc/systemd/system/
 install -m 750 -o root -g lapor infra/scripts/backup.sh /usr/local/sbin/lapor-backup
 install -m 750 -o root -g root infra/scripts/restore.sh /usr/local/sbin/lapor-restore
+install -m 750 -o root -g lapor infra/scripts/healthcheck.sh /usr/local/sbin/lapor-healthcheck
+install -d -m 750 -o lapor -g lapor /var/lib/lapor/health
 install -d -m 750 -o lapor -g lapor /var/backups/lapor
 cp infra/nginx/lapor.conf /etc/nginx/sites-available/lapor.conf
 ln -sf /etc/nginx/sites-available/lapor.conf /etc/nginx/sites-enabled/lapor.conf
 systemctl daemon-reload
 systemctl enable lapor-api lapor-worker lapor-web
-systemctl enable --now lapor-backup.timer
+systemctl enable --now lapor-backup.timer lapor-healthcheck.timer
 
 echo "Selesai. Lengkapi sertifikat TLS & server_name di /etc/nginx/sites-available/lapor.conf, lalu jalankan deploy.sh."
 echo "PENTING: salin DATA_ENCRYPTION_KEYS dari /etc/lapor/api.env ke tempat aman terpisah (tidak ikut backup)."

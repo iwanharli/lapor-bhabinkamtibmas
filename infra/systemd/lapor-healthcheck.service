@@ -1,0 +1,10 @@
+[Unit]
+Description=Lapor Bhabinkamtibmas - pemeriksaan kesehatan & peringatan
+
+[Service]
+Type=oneshot
+User=lapor
+Group=lapor
+ExecStart=/usr/local/sbin/lapor-healthcheck
+# Kode keluar 1 = ada masalah (sudah dilaporkan); jangan tandai unit gagal agar tidak memicu peringatan ganda.
+SuccessExitStatus=1

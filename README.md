@@ -184,6 +184,8 @@ Sandi semua akun contoh: `Demo#12345`.
 | `DATA_ENCRYPTION_KEYS` | — | Kunci AES-256 field sensitif (`k1:<base64 32 byte>`) |
 | `STORAGE_DRIVER`, `STORAGE_LOCAL_DIR` | `local`, `./storage` | Penyimpanan berkas (disk lokal; S3/MinIO ditunda) |
 | `PHOTO_MAX_EDGE`, `PHOTO_QUALITY` | 1920, 78 | Kompresi foto saat unggah |
+| `PHOTO_MOZJPEG` | `false` | mozjpeg: berkas ±10% lebih kecil tetapi ±15× lebih lambat |
+| `RATE_LIMIT_PER_MINUTE` | 300 | Batas permintaan per akun per menit (login: per IP + NRP) |
 | `REPORT_RALAT_HOURS` | 72 | Jendela ralat laporan terkirim |
 | `ATTENDANCE_LATE_AFTER` | `08:00` | Check-in setelah jam ini (setempat) = terlambat |
 | `MAP_POINT_LIMIT` | 1500 | Di atas jumlah ini, peta menerima gugus dari server |
@@ -193,6 +195,7 @@ Sandi semua akun contoh: `Demo#12345`.
 | `SEED_SUPERADMIN_NRP`, `SEED_SUPERADMIN_PASSWORD` | — | Akun superadmin awal |
 | `MIN_APP_VERSION` | 1.0.0 | Versi minimum aplikasi mobile |
 | `BACKUP_DIR`, `BACKUP_KEEP_DAYS`, `BACKUP_REMOTE` | `/var/backups/lapor`, 14, — | Backup harian (produksi); `BACKUP_REMOTE=user@host:/path` untuk salinan di luar server |
+| `ALERT_WEBHOOK_URL`, `ALERT_DISK_PERCENT`, `ALERT_BACKUP_HOURS` | —, 85, 26 | Peringatan pemantauan (produksi) |
 
 ### `web/.env.local`
 
@@ -235,13 +238,20 @@ npx prisma migrate deploy         # terapkan migrasi baru
 
 ### Produksi: keamanan, backup, dan pemulihan
 
+Dokumen pendukung: [Panduan Bhabinkamtibmas](docs/panduan/bhabin.md) · [Panduan Pimpinan](docs/panduan/pimpinan.md) ·
+[Draf kebijakan pelindungan data pribadi](docs/kebijakan-data-pribadi.md) (perlu keputusan & tinjauan hukum).
+
 - **Instalasi:** `sudo bash infra/scripts/install-ubuntu.sh` memasang PostgreSQL + PostGIS, Node, Nginx (HTTPS, `infra/nginx/lapor.conf`),
   layanan systemd, dan **backup harian 02.00** (`lapor-backup.timer`). Rilis baru: `infra/scripts/deploy.sh`.
 - **Kunci enkripsi:** `DATA_ENCRYPTION_KEYS` membuka NIK/No. KK dan data kesehatan keluarga. Kunci **tidak** ikut backup;
   simpan minimal dua salinan di tempat terpisah. Backup tanpa kunci = data sensitif hilang permanen.
+  Rotasi: tambahkan kunci baru di depan daftar, restart, lalu `npm run crypto:rotasi` (backend), baru hapus kunci lama.
 - **Backup:** `sudo -u lapor lapor-backup` (manual). Isinya database (`pg_dump`, diverifikasi) + snapshot lampiran
   (hardlink, hemat ruang), disimpan `BACKUP_KEEP_DAYS` hari. Isi `BACKUP_REMOTE` agar ada salinan di luar server.
 - **Pemulihan:** `sudo lapor-restore <berkas.dump> [folder-storage]`. Uji pemulihan berkala di server cadangan.
+- **Pemantauan:** `lapor-healthcheck.timer` (tiap 5 menit) memeriksa API + database, web, disk (≥85%), umur backup (≥26 jam), dan layanan gagal.
+  Peringatan hanya saat status berubah (masalah baru / pulih) ke journal (`journalctl -t lapor-health`) dan `ALERT_WEBHOOK_URL` bila diisi.
+- **Kapasitas:** hasil uji beban & pengaturan yang dibutuhkan (`UV_THREADPOOL_SIZE`, pool koneksi, mozjpeg) di [infra/loadtest/README.md](infra/loadtest/README.md).
 - **IP klien:** Nginx mengirim `X-Forwarded-For`; backend hanya mempercayai proksi di mesin yang sama (`TRUST_PROXY=loopback`),
   sehingga IP di audit log & batas percobaan login tidak bisa dipalsukan dari jaringan.
 

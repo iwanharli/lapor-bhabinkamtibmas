@@ -9,6 +9,8 @@ User=lapor
 Group=lapor
 WorkingDirectory=/opt/lapor/current/backend
 EnvironmentFile=/etc/lapor/api.env
+# Kompresi foto (sharp) & argon2 memakai thread pool libuv (default 4): samakan dengan jumlah inti CPU.
+Environment=UV_THREADPOOL_SIZE=8
 ExecStart=/usr/bin/node dist/main.js
 Restart=always
 RestartSec=5

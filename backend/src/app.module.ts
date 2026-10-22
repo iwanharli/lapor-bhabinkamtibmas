@@ -2,8 +2,9 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { UserThrottlerGuard } from './common/guards/user-throttler.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { PrismaModule } from './prisma/prisma.module';
 import { CryptoModule } from './common/crypto/crypto.module';
@@ -29,7 +30,8 @@ import { RegionsModule } from './modules/regions/regions.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
+    // Per akun (lihat UserThrottlerGuard); dashboard peta bisa memicu banyak permintaan saat digeser.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: Number(process.env.RATE_LIMIT_PER_MINUTE ?? 300) }]),
     PrismaModule,
     StorageModule,
     CryptoModule,
@@ -51,8 +53,9 @@ import { RegionsModule } from './modules/regions/regions.module';
     HealthModule,
   ],
   providers: [
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Urutan penting: autentikasi dulu agar pembatas laju menghitung per akun.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: UserThrottlerGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })

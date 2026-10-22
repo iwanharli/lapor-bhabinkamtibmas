@@ -19,3 +19,6 @@ docs/*.pdf
 docs/*.zip
 docs/Laporan_*.md
 .next-dev3/
+infra/loadtest/lt-*.json
+infra/loadtest/lt-*.jpg
+infra/loadtest/lt-created.txt

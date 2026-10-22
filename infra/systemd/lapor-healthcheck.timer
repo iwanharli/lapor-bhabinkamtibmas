@@ -1,0 +1,9 @@
+[Unit]
+Description=Pemeriksaan kesehatan Lapor Bhabinkamtibmas tiap 5 menit
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

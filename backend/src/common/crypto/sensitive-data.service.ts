@@ -40,6 +40,15 @@ export class SensitiveDataService {
     return createHmac('sha256', key).update(value.trim()).digest('hex');
   }
 
+  activeKeyId() {
+    return this.activeId;
+  }
+
+  /** ID kunci yang dipakai sebuah blob terenkripsi (untuk rotasi). */
+  keyIdOf(blob: Buffer) {
+    return blob.subarray(1, 1 + blob[0]).toString();
+  }
+
   decrypt(blob: Buffer): Record<string, unknown> {
     const idLen = blob[0];
     const id = blob.subarray(1, 1 + idLen).toString();

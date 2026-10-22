@@ -14,7 +14,7 @@ export class AuthController {
   constructor(private auth: AuthService, private prisma: PrismaService, private audit: AuditService) {}
 
   @Public()
-  // Batas percobaan login per IP per menit; dapat dilonggarkan untuk dev/CI lewat LOGIN_RATE_LIMIT.
+  // Batas percobaan login per IP + NRP per menit (UserThrottlerGuard); dev/CI bisa melonggarkan lewat LOGIN_RATE_LIMIT.
   @Throttle({ default: { ttl: 60_000, limit: () => Number(process.env.LOGIN_RATE_LIMIT ?? 10) } })
   @Post('login')
   @HttpCode(200)

@@ -252,7 +252,7 @@ Format: `{KAT}-{KODE_POLRES}-{YYMM}-{URUT5}`, contoh `DD-POLRESBGR-2610-00042`.
 
 | Jenis | Format | Batas |
 |---|---|---|
-| Foto | JPEG (dikompres di perangkat, sisi terpanjang 1600 px, kualitas 80) | 3 MB |
+| Foto | JPEG (dikompres di perangkat, sisi terpanjang 1600 px, kualitas 80; server mengompres ulang ke maks. 1920 px JPEG q78 bila hemat ≥ 10%) | 3 MB |
 | Dokumen | PDF | 10 MB |
 | Video (opsional, hanya Deteksi Dini) | MP4 H.264, maks. 30 detik | 25 MB |
 

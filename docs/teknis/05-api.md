@@ -107,6 +107,7 @@ Respons `201` (atau `200` jika `clientUuid` sudah ada):
 `multipart/form-data`: `file`, `fieldKey`, `clientUuid`, `sha256`, `capturedAt`, `lat`, `lng`, `source`, `watermarked`.
 - Server menghitung ulang SHA-256. Jika berbeda, unggahan ditolak (`400 CHECKSUM_MISMATCH`).
 - Mengirim ulang `clientUuid` yang sama akan mengembalikan lampiran yang sudah ada.
+- Foto dikompres server sebelum disimpan (sisi terpanjang maks. `PHOTO_MAX_EDGE` = 1920 px, JPEG `PHOTO_QUALITY` = 78, tanpa EXIF) bila hemat ≥ 10%; `sizeBytes`/`mime` mengikuti file tersimpan, `sha256` tetap milik file asli.
 - Untuk koneksi lambat tersedia unggahan terpotong (fase 2): `POST /uploads` (init) → `PUT /uploads/:id/parts/:n` → `POST /uploads/:id/complete`.
 
 ### `POST /reports/:id/submit`

@@ -1,8 +1,8 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { AttachmentSource, ReportStatus, UserRole } from '@prisma/client';
 import { createHash, randomUUID } from 'crypto';
-import sharp from 'sharp';
 import { AuthUser } from '../../common/decorators/auth.decorators';
+import { compressPhoto, thumbnail } from '../../common/storage/image';
 import { StorageService } from '../../common/storage/storage.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -69,19 +69,22 @@ export class AttachmentsService {
 
     const now = new Date();
     const base = StorageService.key('reports', String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, '0'), clientUuid);
-    const objectKey = `${base}.${rule.ext}`;
-    await this.storage.put(objectKey, file.buffer);
+    // Foto dikompres sebelum disimpan; sha256 tetap milik file asli yang dikirim perangkat.
+    const stored = rule.image ? await compressPhoto(file.buffer, mime!).catch(() => null) : null;
+    if (rule.image && !stored) throw new BadRequestException({ code: 'UNSUPPORTED_FILE', message: 'Foto tidak dapat dibaca' });
+    const data = stored?.data ?? file.buffer;
+    const objectKey = `${base}.${stored?.ext ?? rule.ext}`;
+    await this.storage.put(objectKey, data);
 
     let thumbKey: string | undefined;
     if (rule.image) {
       thumbKey = `${base}.thumb.webp`;
-      // Thumbnail tanpa metadata EXIF (koordinat tetap tersimpan di database).
-      await this.storage.put(thumbKey, await sharp(file.buffer).rotate().resize(480, 480, { fit: 'cover' }).webp({ quality: 72 }).toBuffer());
+      await this.storage.put(thumbKey, await thumbnail(data));
     }
 
     const att = await this.prisma.attachment.create({
       data: {
-        reportId, fieldKey: meta.fieldKey, clientUuid, objectKey, thumbKey, mime: mime!, sizeBytes: file.size, sha256,
+        reportId, fieldKey: meta.fieldKey, clientUuid, objectKey, thumbKey, mime: stored?.mime ?? mime!, sizeBytes: data.length, sha256,
         source: meta.source ?? AttachmentSource.CAMERA, capturedAt: meta.capturedAt ? new Date(meta.capturedAt) : null,
         watermarked: !!meta.watermarked,
       },

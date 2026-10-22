@@ -7,13 +7,14 @@
  *   npm run seed:wilayah -- --desa=all       # + seluruh desa (±83.000, unduhan besar)
  *   npm run seed:wilayah -- --desa=34 --timpa  # timpa geometri desa yang sudah ada
  *
- * Berkas sumber di-cache di storage/wilayah-cache. Provinsi–kecamatan masuk ke `regions`;
+ * Berkas sumber di-cache (gzip) di storage/wilayah-cache. Provinsi–kecamatan masuk ke `regions`;
  * desa masuk ke `villages` (kode_wilayah = kode Kemendagri) tanpa mengubah Polsek pembinanya.
  */
 import { PrismaClient } from '@prisma/client';
 import { existsSync } from 'fs';
-import { mkdir, readFile, writeFile } from 'fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'fs/promises';
 import { dirname, join } from 'path';
+import { gunzipSync, gzipSync } from 'zlib';
 
 const BASE = process.env.WILAYAH_SOURCE_URL ?? 'https://raw.githubusercontent.com/cahyadsn/wilayah_boundaries/main/db';
 const CACHE = join(__dirname, '..', 'storage', 'wilayah-cache');
@@ -44,16 +45,24 @@ const arg = (name: string) => process.argv.find((a) => a.startsWith(`--${name}`)
 
 interface Row { kode: string; nama: string; lat: number | null; lng: number | null; g: string }
 
-/** Unduh (atau baca cache) satu berkas SQL; null bila tidak ada (404). */
+/** Unduh (atau baca cache gzip) satu berkas SQL; null bila tidak ada (404). */
 async function source(path: string): Promise<string | null> {
   const file = join(CACHE, path);
-  if (existsSync(file)) return readFile(file, 'utf8');
-  const res = await fetch(`${BASE}/${path}`);
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`Gagal mengunduh ${path}: HTTP ${res.status}`);
-  const text = await res.text();
-  await mkdir(dirname(file), { recursive: true });
-  await writeFile(file, text);
+  const gz = `${file}.gz`;
+  if (existsSync(gz)) return gunzipSync(await readFile(gz)).toString('utf8');
+  let text: string;
+  if (existsSync(file)) {
+    // Cache lama tanpa kompresi: pindahkan ke .gz.
+    text = await readFile(file, 'utf8');
+    await rm(file);
+  } else {
+    const res = await fetch(`${BASE}/${path}`);
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`Gagal mengunduh ${path}: HTTP ${res.status}`);
+    text = await res.text();
+    await mkdir(dirname(file), { recursive: true });
+  }
+  await writeFile(gz, gzipSync(text, { level: 9 }));
   return text;
 }
 

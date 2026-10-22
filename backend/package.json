@@ -14,7 +14,8 @@
     "seed:demo": "ts-node prisma/seed-demo-reports.ts",
     "seed:demo-attachments": "ts-node prisma/seed-demo-attachments.ts",
     "aggregates:rebuild": "ts-node prisma/rebuild-aggregates.ts",
-    "seed:wilayah": "ts-node prisma/seed-wilayah.ts"
+    "seed:wilayah": "ts-node prisma/seed-wilayah.ts",
+    "storage:compress": "ts-node prisma/compress-attachments.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

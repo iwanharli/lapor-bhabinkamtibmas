@@ -15,7 +15,7 @@ Angka di bawah adalah **perkiraan untuk perencanaan** dan perlu dikonfirmasi den
 | Unit | ±38 Polda, ±500 Polres, ±5.000 Polsek |
 | Pengguna dashboard | ±10.000 (verifikator, pimpinan, admin, auditor) |
 | Laporan per Bhabin per hari | 3 |
-| Foto per laporan | 2 × ±400 KB (setelah kompresi di perangkat) |
+| Foto per laporan | 2 × ±200–400 KB (dikompres server: maks. 1920 px, JPEG q78) |
 
 ### Turunan beban
 
@@ -96,7 +96,7 @@ Query dashboard saat ini menghitung langsung dari tabel `reports`. Untuk tingkat
 ### 4.4 Ekspor & berkas
 - Ekspor besar menjadi **job**: diproses worker, disimpan ke object storage, diunduh lewat tautan bertanda waktu.
 - Thumbnail dibuat worker setelah unggah, bukan di request.
-- Driver penyimpanan `s3` di `StorageService` (antarmuka sudah ada).
+- Driver penyimpanan `s3` di `StorageService` (antarmuka sudah ada) — **ditunda**; untuk saat ini penyimpanan tetap disk lokal dengan kompresi foto saat unggah (foto kamera ±4–5 MB → ±0,2–0,4 MB) dan `npm run storage:compress` untuk foto lama.
 
 ### 4.5 Database
 - Partisi `reports`, `report_items`, `report_status_history`, `attachments`, `audit_logs` per bulan (`PARTITION BY RANGE`).
@@ -137,7 +137,7 @@ Angka divalidasi lewat uji beban (k6) pada tahap pilot Polda sebelum pengadaan f
 |---|---|
 | Hierarki unit & pembatasan wilayah | ✅ siap (query rekursif + cache) |
 | Idempotensi sinkron mobile (`clientUuid`) | ✅ siap |
-| Antarmuka penyimpanan (`StorageService`) | 🟡 driver `local`; `s3` belum |
+| Antarmuka penyimpanan (`StorageService`) | 🟡 driver `local` + kompresi foto saat unggah; `s3` ditunda |
 | Zona waktu per unit | ✅ siap (`units.timezone`, nomor laporan, rekap, ekspor) |
 | Analitik dari agregat | ✅ siap (`agg_unit_daily`, `agg_user_daily`, `agg_price_daily`; refresh inkremental tiap `AGG_REFRESH_SECONDS`) |
 | Batas wilayah provinsi → desa di peta | ✅ siap (`regions` + `villages`, tingkat mengikuti zoom; penetapan desa Kemendagri ke Polsek) |

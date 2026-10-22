@@ -143,7 +143,7 @@ Formulir 5 langkah (`steps` di skema). Versi 1 (tanpa langkah) tidak dipakai unt
 | 4. Anggota keluarga | Kartu per anggota (+ tambah, maks. 20): nama, NIK (terenkripsi per baris), hubungan, jenis kelamin, tanggal lahir, pendidikan, pekerjaan + keterangan |
 | 5. Catatan lapangan | Teks bebas |
 
-Keterangan pekerjaan wajib untuk semua pekerjaan kecuali *Belum/Tidak Bekerja* dan *Mengurus Rumah Tangga* (mis. PNS → instansi, guru → sekolah & mapel, pelajar → sekolah/kelas, petani → komoditas, sopir → jenis kendaraan, perangkat desa → jabatan). Skema memakai `requiredIf: { field, in: [...] }` (berlaku juga di dalam baris repeater) dan `placeholders` untuk petunjuk per pilihan.
+Keterangan pekerjaan wajib untuk sebagian besar pekerjaan (mis. PNS → instansi, guru → sekolah & mapel, pelajar → sekolah/kelas, petani → komoditas, perangkat desa → jabatan); tidak diminta untuk belum/tidak bekerja, mengurus rumah tangga, nelayan, buruh (harian lepas/tani/nelayan), sopir, pembantu rumah tangga, seniman, dan wartawan. Skema memakai `requiredIf: { field, in: [...] }` (berlaku juga di dalam baris repeater) dan `placeholders` untuk petunjuk per pilihan.
 
 ### 3.7 KETAHANAN_PANGAN — Ketahanan Pangan
 

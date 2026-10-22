@@ -237,18 +237,10 @@
           "Pensiunan",
           "Petani/Pekebun",
           "Peternak",
-          "Nelayan/Perikanan",
-          "Buruh Harian Lepas",
-          "Buruh Tani/Perkebunan",
-          "Buruh Nelayan/Perikanan",
-          "Sopir/Pengemudi",
-          "Pembantu Rumah Tangga",
           "Guru",
           "Dosen",
           "Kepala Desa/Perangkat Desa",
-          "Anggota Legislatif",
-          "Seniman",
-          "Wartawan"
+          "Anggota Legislatif"
         ]
       },
       "placeholders": {
@@ -269,18 +261,10 @@
         "Pensiunan": "Pensiunan dari, mis. PNS Dinas Kesehatan / TNI AD",
         "Petani/Pekebun": "Komoditas utama, mis. padi, kopi",
         "Peternak": "Jenis ternak, mis. sapi, ayam petelur",
-        "Nelayan/Perikanan": "Jenis usaha, mis. nelayan tangkap / tambak udang",
-        "Buruh Harian Lepas": "Jenis pekerjaan, mis. kuli bangunan",
-        "Buruh Tani/Perkebunan": "Tempat/jenis kebun, mis. perkebunan sawit",
-        "Buruh Nelayan/Perikanan": "Kapal/tempat kerja",
-        "Sopir/Pengemudi": "Jenis kendaraan, mis. angkot, truk, ojek online",
-        "Pembantu Rumah Tangga": "Tempat bekerja (nama majikan/kota)",
         "Guru": "Nama sekolah & mata pelajaran, mis. SDN 2 Sukamaju",
         "Dosen": "Nama perguruan tinggi",
         "Kepala Desa/Perangkat Desa": "Jabatan & desa, mis. Kaur Keuangan Desa Sukamaju",
-        "Anggota Legislatif": "Lembaga, mis. DPRD Kab. Bogor",
-        "Seniman": "Bidang seni, mis. musik, tari, lukis",
-        "Wartawan": "Nama media"
+        "Anggota Legislatif": "Lembaga, mis. DPRD Kab. Bogor"
       }
     },
     {
@@ -427,18 +411,10 @@
               "Pensiunan",
               "Petani/Pekebun",
               "Peternak",
-              "Nelayan/Perikanan",
-              "Buruh Harian Lepas",
-              "Buruh Tani/Perkebunan",
-              "Buruh Nelayan/Perikanan",
-              "Sopir/Pengemudi",
-              "Pembantu Rumah Tangga",
               "Guru",
               "Dosen",
               "Kepala Desa/Perangkat Desa",
-              "Anggota Legislatif",
-              "Seniman",
-              "Wartawan"
+              "Anggota Legislatif"
             ]
           },
           "placeholders": {
@@ -459,18 +435,10 @@
             "Pensiunan": "Pensiunan dari, mis. PNS Dinas Kesehatan / TNI AD",
             "Petani/Pekebun": "Komoditas utama, mis. padi, kopi",
             "Peternak": "Jenis ternak, mis. sapi, ayam petelur",
-            "Nelayan/Perikanan": "Jenis usaha, mis. nelayan tangkap / tambak udang",
-            "Buruh Harian Lepas": "Jenis pekerjaan, mis. kuli bangunan",
-            "Buruh Tani/Perkebunan": "Tempat/jenis kebun, mis. perkebunan sawit",
-            "Buruh Nelayan/Perikanan": "Kapal/tempat kerja",
-            "Sopir/Pengemudi": "Jenis kendaraan, mis. angkot, truk, ojek online",
-            "Pembantu Rumah Tangga": "Tempat bekerja (nama majikan/kota)",
             "Guru": "Nama sekolah & mata pelajaran, mis. SDN 2 Sukamaju",
             "Dosen": "Nama perguruan tinggi",
             "Kepala Desa/Perangkat Desa": "Jabatan & desa, mis. Kaur Keuangan Desa Sukamaju",
-            "Anggota Legislatif": "Lembaga, mis. DPRD Kab. Bogor",
-            "Seniman": "Bidang seni, mis. musik, tari, lukis",
-            "Wartawan": "Nama media"
+            "Anggota Legislatif": "Lembaga, mis. DPRD Kab. Bogor"
           }
         }
       ]

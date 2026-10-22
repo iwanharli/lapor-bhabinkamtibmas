@@ -25,7 +25,7 @@ Aplikasi untuk mengirim laporan kegiatan dan absen dari lapangan. Buka di HP lew
 2. **Desa binaan** dan **waktu kegiatan** terisi otomatis dan terkunci.
 3. Tunggu tulisan **"Lokasi didapat"**. Bila muncul peringatan *"Titik GPS … dari batas desa"*, laporan tetap bisa
    dikirim, tetapi pimpinan akan mengecek lokasinya — pastikan Anda memang di lokasi kegiatan.
-4. Isi formulir per langkah, tekan **Lanjut**. Isian bertanda <span>*</span> wajib.
+4. Isi formulir per langkah, tekan **Lanjut**. Isian bertanda bintang merah (\*) wajib.
 5. Ambil **foto** langsung dari kamera.
 6. Di langkah terakhir tekan **Kirim laporan**.
 
@@ -38,7 +38,7 @@ Draft yang tidak jadi dipakai bisa **dibuang**.
 ## 4. Mapping Data Keluarga
 
 - **No. KK** dan **NIK** wajib 16 digit dan disimpan **terenkripsi**.
-- Tambahkan anggota keluarga dengan tombol **+ Tambah anggota**. Isi **tanggal lahir** — dari situ aplikasi tahu umurnya:
+- Tambahkan anggota keluarga dengan tombol **Tambah anggota keluarga**. Isi **tanggal lahir** — dari situ aplikasi tahu umurnya:
   - **Balita (< 5 tahun):** status perkawinan, pendidikan, dan pekerjaan terisi otomatis. Isi **status stunting**
     sesuai **buku KIA/KMS atau keterangan Posyandu/Puskesmas** — jangan menilai sendiri.
   - **Perempuan 10–49 tahun:** isi kelompok risiko stunting (ibu hamil, KEK/anemia, remaja putri anemia) bila diketahui.

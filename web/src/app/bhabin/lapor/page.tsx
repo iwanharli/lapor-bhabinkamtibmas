@@ -8,7 +8,7 @@ const HINT: Record<string, string> = {
   DETEKSI_DINI: 'Potensi gangguan kamtibmas — urgensi tinggi jadi prioritas',
   PROBLEM_SOLVING: 'Mediasi & penyelesaian masalah warga',
   HARGA_PANGAN: 'Harga & stok komoditas di pasar/kios',
-  MAPPING_KK: 'Pendataan kepala keluarga',
+  MAPPING_KK: 'Pendataan data keluarga di desa binaan',
   KETAHANAN_PANGAN: 'Kegiatan & lahan ketahanan pangan',
 };
 

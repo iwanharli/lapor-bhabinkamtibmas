@@ -11,7 +11,7 @@ import type { Paged, ReportListItem } from '@/lib/types';
 
 const SHORT: Record<string, string> = {
   SAMBANG: 'Sambang', DETEKSI_DINI: 'Deteksi Dini', PROBLEM_SOLVING: 'Problem Solving',
-  HARGA_PANGAN: 'Harga Pangan', MAPPING_KK: 'Mapping KK', KETAHANAN_PANGAN: 'Ketahanan Pangan',
+  HARGA_PANGAN: 'Harga Pangan', MAPPING_KK: 'Mapping Data Keluarga', KETAHANAN_PANGAN: 'Ketahanan Pangan',
 };
 
 function salam(tz: string) {

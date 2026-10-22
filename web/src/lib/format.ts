@@ -4,7 +4,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
   PROBLEM_SOLVING: 'Problem Solving',
   PENYULUHAN: 'Penyuluhan',
   HARGA_PANGAN: 'Harga Pangan',
-  MAPPING_KK: 'Mapping KK',
+  MAPPING_KK: 'Mapping Data Keluarga',
   KETAHANAN_PANGAN: 'Ketahanan Pangan',
 };
 

@@ -25,12 +25,17 @@ async function seedMaster() {
   for (const file of readdirSync(SCHEMA_DIR).filter((f) => /\.v\d+\.json$/.test(f))) {
     const s = JSON.parse(readFileSync(join(SCHEMA_DIR, file), 'utf8'));
     // Skema yang sudah dipublikasikan tidak ditimpa (immutable).
+    const where = { category_version: { category: s.category as ReportCategory, version: s.version } };
     await prisma.formSchema.upsert({
-      where: { category_version: { category: s.category as ReportCategory, version: s.version } },
+      where,
       create: { category: s.category, version: s.version, schema: s, autoApprove: !!s.autoApprove, status: s.status ?? 'ACTIVE' },
-      // Isi skema immutable; hanya status aktif/ditunda yang mengikuti file.
+      // Field skema immutable; hanya status aktif/ditunda yang mengikuti file.
       update: { status: s.status ?? 'ACTIVE' },
     });
+    // Judul (nama kategori) boleh mengikuti file tanpa mengubah field.
+    const row = await prisma.formSchema.findUniqueOrThrow({ where });
+    const cur = row.schema as { title?: string };
+    if (s.title && cur.title !== s.title) await prisma.formSchema.update({ where, data: { schema: { ...cur, title: s.title } } });
   }
 }
 

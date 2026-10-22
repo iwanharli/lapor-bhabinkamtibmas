@@ -11,7 +11,7 @@
 | `PROBLEM_SOLVING` | Penyelesaian Masalah / Mediasi | Proposal | Insidental |
 | `PENYULUHAN` | Penyuluhan & Pembinaan | Proposal | **Ditunda** — formulir nonaktif (status skema `RETIRED`); data lama tetap tampil |
 | `HARGA_PANGAN` | Pemantauan Harga Pangan & Kios Pasar | Proposal + Demo | Harian/mingguan |
-| `MAPPING_KK` | Mapping Kepala Keluarga | Demo | Bertahap |
+| `MAPPING_KK` | Mapping Data Keluarga | Demo | Bertahap |
 | `KETAHANAN_PANGAN` | Ketahanan Pangan | Demo | Berkala |
 
 Ditambah modul **Absensi Lapangan** (bukan laporan, lihat §5).
@@ -131,7 +131,7 @@ Master komoditas awal:
 | Daging Sapi | kg |
 | Daging Ayam | kg |
 
-### 3.6 MAPPING_KK — Mapping Kepala Keluarga
+### 3.6 MAPPING_KK — Mapping Data Keluarga
 
 | Key | Label | Tipe | Wajib |
 |---|---|---|---|

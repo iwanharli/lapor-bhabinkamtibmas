@@ -17,7 +17,7 @@ export const MAX_ROWS = Number(process.env.EXPORT_MAX_ROWS ?? 200_000);
 
 const CATEGORY: Record<string, string> = {
   SAMBANG: 'Sambang / DDS', DETEKSI_DINI: 'Deteksi Dini', PROBLEM_SOLVING: 'Problem Solving', PENYULUHAN: 'Penyuluhan',
-  HARGA_PANGAN: 'Harga Pangan', MAPPING_KK: 'Mapping KK', KETAHANAN_PANGAN: 'Ketahanan Pangan',
+  HARGA_PANGAN: 'Harga Pangan', MAPPING_KK: 'Mapping Data Keluarga', KETAHANAN_PANGAN: 'Ketahanan Pangan',
 };
 const ROLE: Record<string, string> = {
   BHABIN: 'Bhabinkamtibmas', VERIFIKATOR: 'Verifikator', PIMPINAN: 'Pimpinan', ADMIN_UNIT: 'Admin Unit', SUPERADMIN: 'Superadmin', AUDITOR: 'Auditor', INTEGRASI: 'Integrasi',
@@ -130,7 +130,7 @@ export class ExportsService {
     const days = Math.round((day(r.to) - day(r.from)) / 86_400_000) + 1;
     const csv = toCsv(
       ['NRP', 'Nama', 'Pangkat', 'Unit', 'Desa binaan', 'Total laporan', 'Hari aktif', `Hari aktif (%) dari ${days} hari`, 'Lokasi perlu dicek',
-        'Sambang', 'Deteksi Dini', 'Problem Solving', 'Penyuluhan', 'Harga Pangan', 'Mapping KK', 'Ketahanan Pangan', 'Laporan terakhir (setempat)'],
+        'Sambang', 'Deteksi Dini', 'Problem Solving', 'Penyuluhan', 'Harga Pangan', 'Mapping Data Keluarga', 'Ketahanan Pangan', 'Laporan terakhir (setempat)'],
       rows.map((b) => [
         b.nrp, b.nama, b.pangkat, b.unit, b.desa, b.total, b.hari_aktif, Math.min(Math.round((b.hari_aktif / days) * 100), 100), b.lokasi_janggal,
         b.sambang, b.deteksi_dini, b.problem_solving, b.penyuluhan, b.harga_pangan, b.mapping_kk, b.ketahanan_pangan, waktu(b.terakhir_sepanjang, b.timezone),

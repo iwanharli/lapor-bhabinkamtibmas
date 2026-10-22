@@ -32,7 +32,7 @@ docs/teknis/             Dokumentasi teknis (arsitektur, API, database, keamanan
 ## Fitur
 
 **Laporan** (dikirim Bhabin dari aplikasi mobile)
-- 6 kategori aktif: Sambang/DDS, Deteksi Dini, Problem Solving, Harga Pangan, Mapping KK, Ketahanan Pangan. Penyuluhan & Pembinaan **ditunda**.
+- 6 kategori aktif: Sambang/DDS, Deteksi Dini, Problem Solving, Harga Pangan, Mapping Data Keluarga, Ketahanan Pangan. Penyuluhan & Pembinaan **ditunda**.
 - **Tanpa verifikasi:** laporan yang dikirim langsung final. Pelapor masih bisa **meralat** selama 3×24 jam (`REPORT_RALAT_HOURS`).
 - Pengaman kualitas data:
   - validasi isian & lampiran wajib,

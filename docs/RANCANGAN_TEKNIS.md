@@ -91,7 +91,7 @@ Satu laporan memuat **banyak komoditas**:
 
 Master komoditas awal: Beras Medium, Beras Premium, Minyak Goreng Curah, Minyak Goreng Kemasan, Gula Pasir, Cabai Merah, Telur Ayam, Daging Sapi, Daging Ayam, Bawang Merah, Bawang Putih.
 
-### 3.6 Mapping Kepala Keluarga *(demo)*
+### 3.6 Mapping Data Keluarga *(demo)*
 - Nama kepala keluarga*, jumlah anggota*, alamat/RT-RW*
 - Kondisi hunian* (Layak, Perlu perhatian, Dalam pemantauan)
 - Catatan

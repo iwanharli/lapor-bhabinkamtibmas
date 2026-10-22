@@ -33,7 +33,7 @@ test('Bhabin membuat, mengirim, dan meralat laporan dari web', async ({ page }) 
   await expect(page.getByText('Laporan terkirim')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(nama)).toBeVisible();
 
-  await page.getByRole('link', { name: 'Ralat laporan' }).click();
+  await page.getByRole('link', { name: 'Ralat', exact: true }).click();
   await page.locator('label:has-text("Tanggapan") textarea').fill('Tanggapan setelah ralat E2E');
   await page.getByRole('button', { name: 'Simpan ralat' }).click();
   await expect(page.getByText('Ralat tersimpan')).toBeVisible({ timeout: 20_000 });

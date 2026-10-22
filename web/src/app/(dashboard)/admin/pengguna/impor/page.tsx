@@ -1,12 +1,12 @@
 import { BackLink, PageHeader } from '@/components/ui';
 import { UserImport } from '@/features/admin/user-import';
 import { apiGet } from '@/lib/api/server';
-import type { UnitOption, VillageOption } from '@/lib/types';
+import type { VillageOption } from '@/lib/types';
 
 export default async function ImporPenggunaPage() {
-  const [units, villages] = await Promise.all([apiGet<UnitOption[]>('/units'), apiGet<(VillageOption & { kodeWilayah: string })[]>('/villages')]);
+  const [polseks, villages] = await Promise.all([apiGet<{ id: string; kode: string }[]>('/units/search?level=POLSEK&limit=1'), apiGet<(VillageOption & { kodeWilayah: string })[]>('/villages')]);
   // Contoh di templat memakai kode nyata dari cakupan admin.
-  const polsek = units.find((u) => u.level === 'POLSEK') ?? units[0];
+  const polsek = polseks[0];
   const desa = villages.filter((v) => v.polsekId === polsek?.id).slice(0, 2).map((v) => v.kodeWilayah).join('|');
   return (
     <>

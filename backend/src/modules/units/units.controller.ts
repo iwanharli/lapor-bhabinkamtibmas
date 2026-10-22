@@ -1,5 +1,5 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { UnitLevel, UserRole } from '@prisma/client';
 import { IsIn, IsOptional, IsString, IsUUID, Length } from 'class-validator';
 import { TIMEZONES } from '../../common/time';
 import { ALL_ROLES, AuthUser, CurrentUser, Roles } from '../../common/decorators/auth.decorators';
@@ -28,6 +28,30 @@ export class UnitsController {
     const units = await this.units.tree(me.unitId);
     const bhabin = await this.units.bhabinCounts(units.map((u) => u.id));
     return units.map(({ _count, ...u }) => ({ ...u, counts: { users: _count.users, villages: _count.villages, bhabin: bhabin.get(u.id) ?? 0 } }));
+  }
+
+  /** GET /units/search?q=&level=POLSEK,POLRES&ids=&limit= — kolom pencarian unit. */
+  @Get('search')
+  @Roles(...ALL_ROLES)
+  search(@CurrentUser() me: AuthUser, @Query() q: { q?: string; level?: string; ids?: string; limit?: string }) {
+    const levels = q.level?.split(',').filter((l): l is UnitLevel => l in UnitLevel);
+    const ids = q.ids?.split(',').filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+    return this.units.search(me.unitId, { q: q.q, levels, ids, limit: Number(q.limit) || 20 });
+  }
+
+  /** GET /units/children?parentId= — anak langsung (tanpa parentId: unit akar pengguna). */
+  @Get('children')
+  @Roles(...ALL_ROLES)
+  children(@CurrentUser() me: AuthUser, @Query('parentId') parentId?: string) {
+    if (parentId && !/^[0-9a-f-]{36}$/i.test(parentId)) return [];
+    return this.units.children(me.unitId, parentId || undefined);
+  }
+
+  /** GET /units/summary — ringkasan cakupan untuk halaman Unit. */
+  @Get('summary')
+  @Roles(...ALL_ROLES)
+  summary(@CurrentUser() me: AuthUser) {
+    return this.units.summary(me.unitId);
   }
 
   @Patch(':id/timezone')

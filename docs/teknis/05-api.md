@@ -177,8 +177,25 @@ Sumber: [cahyadsn/wilayah_boundaries](https://github.com/cahyadsn/wilayah_bounda
 ### `GET /regions/boundaries?level=1..4&bbox=w,s,e,n&parent=kode`
 GeoJSON FeatureCollection (`properties: kode, nama, chain, level`), maksimal 3.000 fitur (`truncated: true` bila lebih). Level 1 provinsi, 2 kabupaten/kota, 3 kecamatan, 4 desa (wajib `bbox` atau `parent` = kode kecamatan). Geometri disederhanakan untuk tampilan. Semua peran.
 
+### `GET /regions?parent=kode`
+Anak wilayah tanpa geometri (tanpa `parent`: daftar provinsi), dengan jumlah desa per kecamatan. Untuk pemilih bertingkat.
+
+### `GET /admin/villages/by-kecamatan/:kode` · `POST /admin/villages/assign`
+Desa satu kecamatan Kemendagri beserta Polsek-nya (`assignable` bila belum ada Polsek atau Polsek dalam cakupan), lalu tetapkan banyak desa ke satu Polsek: `{ polsekId, villageIds[] }`. Ditolak (409, `details` per desa) bila desa milik Polsek di luar cakupan atau masih dibina Bhabin Polsek lain. Admin unit & superadmin.
+
 ### `GET /regions/at?lat=&lng=`
 Rantai wilayah pada satu titik: `[{kode, nama, level}]` dari provinsi sampai desa.
+
+## 6d. Peta ter-cluster & unit
+
+### `GET /analytics/map?from=&to=&category=&priority=&bbox=w,s,e,n&zoom=`
+`{ mode: 'points', total, points[] }` bila jumlah dalam bbox ≤ `MAP_POINT_LIMIT` (default 1.500) atau zoom ≥ 15; selain itu `{ mode: 'clusters', total, clusters[{ lat, lng, jumlah, prioritas, category }] }` per sel grid (±64 px).
+
+### `GET /analytics/map/summary`
+Jumlah per kategori, lokasi janggal, dan 8 laporan prioritas terbaru untuk panel peta.
+
+### `GET /units/search?q=&level=POLSEK,POLRES&ids=&limit=` · `GET /units/children?parentId=` · `GET /units/summary`
+Pencarian unit dalam cakupan (dengan `path` rantai induk), anak satu cabang untuk pohon bertahap (`childCount`, `counts`), dan ringkasan cakupan. `GET /admin/users` dan `/admin/users/role-counts` menerima `unitId`.
 
 ## 7. Administrasi (web)
 

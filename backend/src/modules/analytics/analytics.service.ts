@@ -35,6 +35,22 @@ export interface BhabinPerformanceRow {
   ketahanan_pangan: number;
 }
 
+/** Di atas jumlah ini peta menerima gugus, bukan titik. */
+const MAP_POINT_LIMIT = Number(process.env.MAP_POINT_LIMIT ?? 1500);
+
+export interface MapFilter {
+  category?: string;
+  status?: string;
+  priority?: boolean;
+  bbox?: [number, number, number, number];
+  zoom?: number;
+}
+
+interface MapPointRow {
+  id: string; nomor: string; category: string; status: string; priority: boolean; lat: number; lng: number;
+  occurred_at: Date; desa: string; bhabin: string; flagged: boolean; timezone: string;
+}
+
 export interface PerformanceQuery {
   q?: string;
   sort?: 'total' | 'hari' | 'setuju' | 'nama';
@@ -177,21 +193,68 @@ export class AnalyticsService {
     return { data, meta: { page, limit, total: summary.bhabin }, summary: { ...summary, hari: span } };
   }
 
-  /** Titik laporan untuk peta (maks. 5.000 titik terbaru dalam rentang). */
-  async mapPoints(me: AuthUser, { unitId, from, to }: Range, f: { category?: string; status?: string; priority?: boolean }) {
+  /** Filter laporan untuk peta: cakupan, periode, kategori/status/prioritas, dan bbox (w,s,e,n). */
+  private async mapWhere(me: AuthUser, { unitId, from, to }: Range, f: MapFilter) {
     const scope = await this.scopeSql(me, unitId);
-    return this.prisma.$queryRaw<
-      { id: string; nomor: string; category: string; status: string; priority: boolean; lat: number; lng: number; occurred_at: Date; desa: string; bhabin: string; flagged: boolean }[]
-    >`
-      SELECT r.id, r.nomor, r.category::text, r.status::text, r.priority, r.lat, r.lng, r.occurred_at,
-             v.nama AS desa, u.nama AS bhabin, (r.is_mock_location OR r.inside_village = false) AS flagged, ru.timezone
-      FROM reports r JOIN villages v ON v.id = r.village_id JOIN users u ON u.id = r.user_id JOIN units ru ON ru.id = r.unit_id
-      WHERE ${scope} AND ${COUNTED} AND r.occurred_at BETWEEN ${from} AND ${to}
-        ${f.category ? Prisma.sql`AND r.category::text = ${f.category}` : Prisma.empty}
-        ${f.status ? Prisma.sql`AND r.status::text = ${f.status}` : Prisma.empty}
-        ${f.priority ? Prisma.sql`AND r.priority` : Prisma.empty}
-      ORDER BY r.occurred_at DESC
-      LIMIT 5000`;
+    const b = f.bbox;
+    return Prisma.sql`${scope} AND ${COUNTED} AND r.occurred_at BETWEEN ${from} AND ${to}
+      ${f.category ? Prisma.sql`AND r.category::text = ${f.category}` : Prisma.empty}
+      ${f.status ? Prisma.sql`AND r.status::text = ${f.status}` : Prisma.empty}
+      ${f.priority ? Prisma.sql`AND r.priority` : Prisma.empty}
+      ${b ? Prisma.sql`AND r.location && ST_MakeEnvelope(${b[0]}, ${b[1]}, ${b[2]}, ${b[3]}, 4326)::geography` : Prisma.empty}`;
+  }
+
+  /**
+   * Isi peta untuk area tampilan (docs/teknis/12 §4.2): titik apa adanya bila sedikit,
+   * selain itu gugus per sel grid yang ukurannya mengikuti zoom (±64 px per sel).
+   */
+  async mapView(me: AuthUser, range: Range, f: MapFilter) {
+    const where = await this.mapWhere(me, range, f);
+    const [{ total }] = await this.prisma.$queryRaw<{ total: number }[]>`SELECT count(*)::int AS total FROM reports r WHERE ${where}`;
+
+    // Zoom sangat dekat: selalu titik (dibatasi), gugus tidak lagi berguna.
+    if (total <= MAP_POINT_LIMIT || (f.zoom ?? 0) >= 15) {
+      const points = await this.prisma.$queryRaw<MapPointRow[]>`
+        SELECT r.id, r.nomor, r.category::text, r.status::text, r.priority, r.lat, r.lng, r.occurred_at,
+               v.nama AS desa, u.nama AS bhabin, (r.is_mock_location OR r.inside_village = false) AS flagged, ru.timezone
+        FROM reports r JOIN villages v ON v.id = r.village_id JOIN users u ON u.id = r.user_id JOIN units ru ON ru.id = r.unit_id
+        WHERE ${where}
+        ORDER BY r.occurred_at DESC
+        LIMIT 5000`;
+      return { mode: 'points' as const, total, points };
+    }
+
+    const cell = 90 / 2 ** Math.min(Math.max(f.zoom ?? 5, 3), 18);
+    const clusters = await this.prisma.$queryRaw<{ lat: number; lng: number; jumlah: number; prioritas: number; category: string }[]>`
+      SELECT avg(r.lat)::float AS lat, avg(r.lng)::float AS lng, count(*)::int AS jumlah,
+             count(*) FILTER (WHERE r.priority)::int AS prioritas, mode() WITHIN GROUP (ORDER BY r.category)::text AS category
+      FROM reports r WHERE ${where}
+      GROUP BY floor(r.lng / ${cell}), floor(r.lat / ${cell})`;
+    return { mode: 'clusters' as const, total, clusters };
+  }
+
+  /** Ringkasan panel peta: jumlah per kategori, lokasi janggal, dan laporan prioritas terbaru. */
+  async mapSummary(me: AuthUser, range: Range, f: MapFilter) {
+    const where = await this.mapWhere(me, range, { priority: f.priority });
+    const [byCategory, [flags], priority] = await Promise.all([
+      this.prisma.$queryRaw<{ category: string; jumlah: number }[]>`
+        SELECT r.category::text, count(*)::int AS jumlah FROM reports r WHERE ${where} GROUP BY 1`,
+      this.prisma.$queryRaw<{ flagged: number }[]>`
+        SELECT count(*) FILTER (WHERE r.is_mock_location OR r.inside_village = false)::int AS flagged
+        FROM reports r WHERE ${where} ${f.category ? Prisma.sql`AND r.category::text = ${f.category}` : Prisma.empty}`,
+      this.prisma.$queryRaw<MapPointRow[]>`
+        SELECT r.id, r.nomor, r.category::text, r.status::text, r.priority, r.lat, r.lng, r.occurred_at,
+               v.nama AS desa, u.nama AS bhabin, (r.is_mock_location OR r.inside_village = false) AS flagged, ru.timezone
+        FROM reports r JOIN villages v ON v.id = r.village_id JOIN users u ON u.id = r.user_id JOIN units ru ON ru.id = r.unit_id
+        WHERE ${where} AND r.priority ${f.category ? Prisma.sql`AND r.category::text = ${f.category}` : Prisma.empty}
+        ORDER BY r.occurred_at DESC LIMIT 8`,
+    ]);
+    return {
+      total: byCategory.reduce((n, c) => n + c.jumlah, 0),
+      byCategory: Object.fromEntries(byCategory.map((c) => [c.category, c.jumlah])),
+      flagged: flags.flagged,
+      priority,
+    };
   }
 
   /** Harga rata-rata 7 hari terakhir per komoditas dan perubahan dibanding 7 hari sebelumnya (dari agregat). */

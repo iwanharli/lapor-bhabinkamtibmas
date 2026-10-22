@@ -6,6 +6,13 @@ import { RegionLevel, RegionsService } from './regions.service';
 export class RegionsController {
   constructor(private regions: RegionsService) {}
 
+  /** GET /regions?parent=kode — anak wilayah (tanpa parent: provinsi). */
+  @Get()
+  @Roles(...ALL_ROLES)
+  list(@Query('parent') parent?: string) {
+    return this.regions.list(parent || undefined);
+  }
+
   /** GET /regions/boundaries?level=1..4&bbox=w,s,e,n&parent=kode */
   @Get('boundaries')
   @Roles(...ALL_ROLES)

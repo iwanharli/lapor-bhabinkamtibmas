@@ -2,10 +2,10 @@
 
 import { CheckCircle2, FileUp, Upload, XCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useMemo, useRef, useState } from 'react';
-import { Alert, Badge, Button, ErrorText, Field, Modal, ModalBody, Select, Table, Td, Th, THead, Tr } from '@/components/ui';
+import { useRef, useState } from 'react';
+import { Alert, Badge, Button, ErrorText, Field, Modal, ModalBody, Table, Td, Th, THead, Tr } from '@/components/ui';
+import { UnitCombobox } from '../units/unit-combobox';
 import { callApi } from '@/lib/api/client';
-import type { UnitOption } from '@/lib/types';
 
 interface PreviewRow {
   row: number;
@@ -17,12 +17,11 @@ interface PreviewRow {
 }
 
 /** Impor desa + batas wilayah dari GeoJSON (mis. ekspor BIG/BPS/Kemendagri) ke satu Polsek. */
-export function GeojsonImportButton({ units }: { units: UnitOption[] }) {
+export function GeojsonImportButton() {
   const router = useRouter();
-  const polseks = useMemo(() => units.filter((u) => u.level === 'POLSEK'), [units]);
   const input = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
-  const [polsekId, setPolsekId] = useState(polseks[0]?.id ?? '');
+  const [polsekId, setPolsekId] = useState('');
   const [file, setFile] = useState('');
   const [features, setFeatures] = useState<unknown[]>([]);
   const [preview, setPreview] = useState<{ valid: boolean; total: number; errorCount: number; rows: PreviewRow[] } | null>(null);
@@ -60,7 +59,8 @@ export function GeojsonImportButton({ units }: { units: UnitOption[] }) {
       const list = json.type === 'FeatureCollection' ? json.features : json.type === 'Feature' ? [json] : null;
       if (!Array.isArray(list)) return setError('File harus GeoJSON FeatureCollection.');
       setFeatures(list);
-      await check(list);
+      if (polsekId) await check(list);
+      else setError('Pilih Polsek terlebih dahulu; berkas akan diperiksa setelah Polsek dipilih.');
     } catch {
       setError('File tidak terbaca sebagai JSON/GeoJSON.');
     }
@@ -107,9 +107,8 @@ export function GeojsonImportButton({ units }: { units: UnitOption[] }) {
             <>
               <Field label="Polsek tujuan" required>
                 {(id) => (
-                  <Select id={id} value={polsekId} onChange={(e) => { setPolsekId(e.target.value); if (features.length) check(features, e.target.value); }}>
-                    {polseks.map((p) => <option key={p.id} value={p.id}>{p.nama}</option>)}
-                  </Select>
+                  <UnitCombobox id={id} value={polsekId} levels={['POLSEK']} placeholder="Cari Polsek…"
+                    onChange={(pid) => { setPolsekId(pid); setError(''); if (features.length && pid) check(features, pid); }} />
                 )}
               </Field>
               <input ref={input} type="file" accept=".geojson,.json,application/geo+json,application/json" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />

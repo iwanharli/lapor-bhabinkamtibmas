@@ -92,6 +92,47 @@ export class VillagesService {
     return updated;
   }
 
+  /**
+   * Desa satu kecamatan dari data Kemendagri (seed:wilayah) untuk ditetapkan ke Polsek.
+   * `assignable`: belum punya Polsek, atau Polsek-nya dalam cakupan admin.
+   */
+  async byKecamatan(me: AuthUser, kecamatanKode: string) {
+    const scope = me.role === UserRole.SUPERADMIN ? null : await this.units.descendantIds(me.unitId);
+    const rows = await this.prisma.$queryRaw<{ id: string; kodeWilayah: string; nama: string; polsekId: string | null; polsek: string | null; bhabin: number; batas: boolean }[]>`
+      SELECT v.id::text, v.kode_wilayah AS "kodeWilayah", v.nama, v.polsek_id::text AS "polsekId", u.nama AS polsek,
+             (SELECT count(*) FROM user_villages uv WHERE uv.village_id = v.id AND uv.until IS NULL)::int AS bhabin,
+             v.geom IS NOT NULL AS batas
+      FROM villages v LEFT JOIN units u ON u.id = v.polsek_id
+      WHERE v.kecamatan_kode = ${kecamatanKode}
+      ORDER BY v.kode_wilayah`;
+    return rows.map((r) => ({ ...r, assignable: !r.polsekId || !scope || scope.includes(r.polsekId) }));
+  }
+
+  /** Tetapkan banyak desa ke satu Polsek. Desa milik Polsek di luar cakupan atau masih dibina Bhabin Polsek lain ditolak. */
+  async assign(me: AuthUser, dto: { polsekId: string; villageIds: string[] }) {
+    await this.units.assertInScope(me.unitId, dto.polsekId);
+    const polsek = await this.prisma.unit.findUnique({ where: { id: dto.polsekId } });
+    if (polsek?.level !== 'POLSEK') throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Desa hanya dapat ditetapkan ke Polsek' });
+    const scope = me.role === UserRole.SUPERADMIN ? null : await this.units.descendantIds(me.unitId);
+    const villages = await this.prisma.village.findMany({
+      where: { id: { in: dto.villageIds } },
+      select: { id: true, nama: true, polsekId: true, _count: { select: { userVillages: { where: { until: null } } } } },
+    });
+    const problems = villages.flatMap((v) => {
+      if (v.polsekId === dto.polsekId) return [];
+      if (v.polsekId && scope && !scope.includes(v.polsekId)) return [`${v.nama}: dibina Polsek di luar cakupan Anda`];
+      if (v.polsekId && v._count.userVillages) return [`${v.nama}: masih dibina ${v._count.userVillages} Bhabin Polsek lain`];
+      return [];
+    });
+    if (villages.length !== dto.villageIds.length) problems.push('Sebagian desa tidak ditemukan');
+    if (problems.length) throw new ConflictException({ code: 'CONFLICT', message: 'Sebagian desa tidak dapat ditetapkan', details: problems });
+
+    const ids = villages.filter((v) => v.polsekId !== dto.polsekId).map((v) => v.id);
+    if (ids.length) await this.prisma.village.updateMany({ where: { id: { in: ids } }, data: { polsekId: dto.polsekId } });
+    await this.audit.log({ actorId: me.id, action: 'VILLAGE_UPDATE', entity: 'unit', entityId: dto.polsekId, meta: { assigned: ids.length, villageIds: ids } });
+    return { assigned: ids.length };
+  }
+
   /** Batas desa (GeoJSON, disederhanakan) untuk peta. */
   async geojson(me: AuthUser, polsekId?: string) {
     if (polsekId) await this.units.assertInScope(me.unitId, polsekId);

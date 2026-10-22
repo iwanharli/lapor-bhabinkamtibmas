@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
-import { UnitLevel } from '@prisma/client';
+import { Prisma, UnitLevel } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const CHILD_LEVEL: Record<UnitLevel, UnitLevel | null> = {
@@ -49,6 +49,63 @@ export class UnitsService {
       orderBy: [{ level: 'asc' }, { nama: 'asc' }],
       include: { _count: { select: { users: { where: { active: true } }, villages: true } } },
     });
+  }
+
+  /**
+   * Cari unit dalam cakupan berdasarkan nama/kode (untuk kolom pencarian unit),
+   * atau ambil unit tertentu lewat `ids` (label nilai terpilih). `path` = rantai nama induk.
+   */
+  async search(actorUnitId: string, opts: { q?: string; levels?: UnitLevel[]; ids?: string[]; limit?: number }) {
+    const scope = await this.descendantIds(actorUnitId);
+    const ids = opts.ids?.filter((id) => scope.includes(id));
+    if (opts.ids && !ids?.length) return [];
+    const q = opts.q?.trim();
+    return this.prisma.$queryRaw<{ id: string; parentId: string | null; level: UnitLevel; kode: string; nama: string; timezone: string; path: string }[]>`
+      SELECT u.id::text, u.parent_id::text AS "parentId", u.level, u.kode, u.nama, u.timezone,
+             concat_ws(' › ', p3.nama, p2.nama, p1.nama) AS path
+      FROM units u
+      LEFT JOIN units p1 ON p1.id = u.parent_id
+      LEFT JOIN units p2 ON p2.id = p1.parent_id
+      LEFT JOIN units p3 ON p3.id = p2.parent_id
+      WHERE u.deleted_at IS NULL AND u.id = ANY(${ids ?? scope}::uuid[])
+        ${opts.levels?.length ? Prisma.sql`AND u.level::text = ANY(${opts.levels}::text[])` : Prisma.empty}
+        ${q ? Prisma.sql`AND (u.nama ILIKE ${'%' + q + '%'} OR u.kode ILIKE ${q + '%'})` : Prisma.empty}
+      ORDER BY (u.nama ILIKE ${(q ?? '') + '%'}) DESC, u.level, u.nama
+      LIMIT ${Math.min(opts.limit ?? 20, 100)}`;
+  }
+
+  /** Anak langsung satu unit (atau unit akar pengguna) beserta jumlah — untuk pohon unit bertahap. */
+  async children(actorUnitId: string, parentId?: string) {
+    if (parentId) await this.assertInScope(actorUnitId, parentId);
+    const rows = await this.prisma.unit.findMany({
+      where: parentId ? { parentId, deletedAt: null } : { id: actorUnitId },
+      orderBy: { nama: 'asc' },
+      include: { _count: { select: { users: { where: { active: true } }, villages: true, children: { where: { deletedAt: null } } } } },
+    });
+    const bhabin = await this.bhabinCounts(rows.map((u) => u.id));
+    return rows.map(({ _count, ...u }) => ({
+      ...u,
+      childCount: _count.children,
+      counts: { users: _count.users, villages: _count.villages, bhabin: bhabin.get(u.id) ?? 0 },
+    }));
+  }
+
+  /** Ringkasan seluruh cakupan: jumlah unit per level, personel, Bhabin, desa, Polsek tanpa Bhabin. */
+  async summary(actorUnitId: string) {
+    const scope = await this.descendantIds(actorUnitId);
+    const [row] = await this.prisma.$queryRaw<
+      { polda: number; polres: number; polsek: number; users: number; bhabin: number; villages: number; polsek_tanpa_bhabin: number }[]
+    >`
+      SELECT count(*) FILTER (WHERE u.level = 'POLDA')::int AS polda,
+             count(*) FILTER (WHERE u.level = 'POLRES')::int AS polres,
+             count(*) FILTER (WHERE u.level = 'POLSEK')::int AS polsek,
+             (SELECT count(*) FROM users x WHERE x.unit_id = ANY(${scope}::uuid[]) AND x.active)::int AS users,
+             (SELECT count(*) FROM users x WHERE x.unit_id = ANY(${scope}::uuid[]) AND x.active AND x.role = 'BHABIN')::int AS bhabin,
+             (SELECT count(*) FROM villages v WHERE v.polsek_id = ANY(${scope}::uuid[]))::int AS villages,
+             count(*) FILTER (WHERE u.level = 'POLSEK' AND NOT EXISTS (
+               SELECT 1 FROM users x WHERE x.unit_id = u.id AND x.active AND x.role = 'BHABIN'))::int AS polsek_tanpa_bhabin
+      FROM units u WHERE u.id = ANY(${scope}::uuid[]) AND u.deleted_at IS NULL`;
+    return row;
   }
 
   /** Jumlah Bhabin aktif per unit (langsung, bukan termasuk turunan). */

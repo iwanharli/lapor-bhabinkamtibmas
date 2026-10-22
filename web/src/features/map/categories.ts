@@ -23,3 +23,23 @@ export interface MapPoint {
   flagged: boolean;
   timezone: string;
 }
+
+export interface MapCluster {
+  lat: number;
+  lng: number;
+  jumlah: number;
+  prioritas: number;
+  /** Kategori terbanyak di gugus (untuk warna). */
+  category: string;
+}
+
+export type MapView =
+  | { mode: 'points'; total: number; points: MapPoint[] }
+  | { mode: 'clusters'; total: number; clusters: MapCluster[] };
+
+export interface MapSummary {
+  total: number;
+  byCategory: Record<string, number>;
+  flagged: number;
+  priority: MapPoint[];
+}

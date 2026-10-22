@@ -1,12 +1,12 @@
 import { CalendarDays, CalendarCheck, FileStack, UserCheck, UserX } from 'lucide-react';
 import { redirect } from 'next/navigation';
-import { Card, ExportButton, PageHeader, Pagination, SearchInput, SegmentedLinks, Stack, StatCard, UrlSelect } from '@/components/ui';
+import { Card, ExportButton, PageHeader, Pagination, SearchInput, SegmentedLinks, Stack, StatCard } from '@/components/ui';
 import { CATEGORY_COLOR } from '@/features/map/categories';
 import { PerformanceTable, type SortKey } from '@/features/performance/performance-table';
 import { CATEGORY_KEYS, type PerformancePage } from '@/features/performance/types';
 import { apiGet, getSessionUser } from '@/lib/api/server';
 import { CATEGORY_LABEL } from '@/lib/format';
-import type { UnitOption } from '@/lib/types';
+import { UrlUnitFilter } from '@/features/units/unit-combobox';
 import { withParams } from '@/lib/url';
 
 const RANGES = [7, 30, 90];
@@ -31,10 +31,9 @@ export default async function KinerjaPage({ searchParams }: { searchParams: Prom
   const limit = SIZES.includes(Number(sp.limit)) ? Number(sp.limit) : 20;
   const query = { from, unitId: sp.unitId, q: sp.q };
 
-  const [{ data: rows, meta, summary }, units] = await Promise.all([
-    apiGet<PerformancePage>(withParams('/analytics/bhabin-performance', { ...query, sort, page: String(page), limit: String(limit) })),
-    apiGet<UnitOption[]>('/units'),
-  ]);
+  const { data: rows, meta, summary } = await apiGet<PerformancePage>(
+    withParams('/analytics/bhabin-performance', { ...query, sort, page: String(page), limit: String(limit) }),
+  );
   const reporting = summary.melapor;
   const avgPct = span ? Math.min((summary.rata_hari / span) * 100, 100) : 0;
   const totalReports = summary.total;
@@ -86,7 +85,7 @@ export default async function KinerjaPage({ searchParams }: { searchParams: Prom
         >
           <div className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row sm:items-center">
             <SearchInput placeholder="Cari NRP atau nama Bhabin…" className="flex-1" />
-            <UrlSelect param="unitId" label="Unit" options={[{ value: '', label: 'Semua unit' }, ...units.map((u) => ({ value: u.id, label: u.nama }))]} />
+            <UrlUnitFilter />
           </div>
           <PerformanceTable rows={rows} days={span} sort={sort} hrefFor={(k) => href({ urut: k === 'total' ? undefined : k, page: undefined })} />
           <Pagination

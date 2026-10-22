@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, Patch, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
-import { IsArray, IsBoolean, IsObject, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsObject, IsOptional, IsString, IsUUID, Length } from 'class-validator';
 import { ALL_ROLES, AuthUser, CurrentUser, Roles } from '../../common/decorators/auth.decorators';
 import { GeoFeature, VillagesService } from './villages.service';
 
@@ -16,6 +16,11 @@ class ImportGeojsonDto {
   @IsUUID() polsekId: string;
   @IsArray() features: GeoFeature[];
   @IsOptional() @IsBoolean() dryRun?: boolean;
+}
+
+class AssignVillagesDto {
+  @IsUUID() polsekId: string;
+  @IsArray() @ArrayMaxSize(1000) @IsUUID('all', { each: true }) villageIds: string[];
 }
 
 class CreateVillageDto {
@@ -49,6 +54,20 @@ export class VillagesController {
       q: q.q || undefined, polsekId: q.polsekId || undefined, batas: q.batas,
       page: Math.max(Number(q.page) || 1, 1), limit: Math.min(Number(q.limit) || 20, 100),
     });
+  }
+
+  /** Desa dalam satu kecamatan Kemendagri untuk ditetapkan ke Polsek. */
+  @Get('admin/villages/by-kecamatan/:kode')
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
+  byKecamatan(@CurrentUser() me: AuthUser, @Param('kode') kode: string) {
+    return this.villages.byKecamatan(me, kode);
+  }
+
+  @Post('admin/villages/assign')
+  @HttpCode(200)
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
+  assign(@CurrentUser() me: AuthUser, @Body() dto: AssignVillagesDto) {
+    return this.villages.assign(me, dto);
   }
 
   @Get('villages/geojson')

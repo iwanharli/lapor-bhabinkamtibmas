@@ -18,10 +18,11 @@ export class UsersController {
     @Query('q') q?: string,
     @Query('role') role?: UserRole,
     @Query('active') active?: string,
+    @Query('unitId') unitId?: string,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
   ) {
-    return this.users.list(me, { q, role, active: parseActive(active), page: Math.max(Number(page) || 1, 1), limit: Math.min(Number(limit) || 20, 100) });
+    return this.users.list(me, { q, role, active: parseActive(active), unitId: unitId || undefined, page: Math.max(Number(page) || 1, 1), limit: Math.min(Number(limit) || 20, 100) });
   }
 
   /** Impor massal: `dryRun: true` untuk pratinjau & validasi, tanpa menyimpan. */
@@ -33,8 +34,8 @@ export class UsersController {
 
   // Sebelum ':id' agar tidak tertangkap sebagai id.
   @Get('role-counts')
-  roleCounts(@CurrentUser() me: AuthUser, @Query('q') q?: string, @Query('active') active?: string) {
-    return this.users.roleCounts(me, { q, active: parseActive(active) });
+  roleCounts(@CurrentUser() me: AuthUser, @Query('q') q?: string, @Query('active') active?: string, @Query('unitId') unitId?: string) {
+    return this.users.roleCounts(me, { q, active: parseActive(active), unitId: unitId || undefined });
   }
 
   @Get(':id')

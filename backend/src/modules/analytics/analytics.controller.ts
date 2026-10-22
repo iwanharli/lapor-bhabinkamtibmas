@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { AuthUser, CurrentUser, Roles } from '../../common/decorators/auth.decorators';
 import { AnalyticsService, Range } from './analytics.service';
@@ -9,6 +9,20 @@ export function range(q: { unitId?: string; from?: string; to?: string }, defaul
   const to = q.to ? new Date(q.to) : new Date();
   const from = q.from ? new Date(q.from) : new Date(to.getTime() - defaultDays * DAY);
   return { unitId: q.unitId || undefined, from, to };
+}
+
+type MapQuery = { unitId?: string; from?: string; to?: string; category?: string; status?: string; priority?: string; bbox?: string; zoom?: string };
+
+function mapFilter(q: MapQuery) {
+  const b = q.bbox?.split(',').map(Number);
+  if (b && (b.length !== 4 || b.some((n) => !Number.isFinite(n)))) throw new BadRequestException({ code: 'INVALID_BBOX', message: 'bbox harus w,s,e,n' });
+  return {
+    category: q.category || undefined,
+    status: q.status || undefined,
+    priority: q.priority === 'true',
+    bbox: b as [number, number, number, number] | undefined,
+    zoom: q.zoom ? Number(q.zoom) : undefined,
+  };
 }
 
 @Controller('analytics')
@@ -32,9 +46,16 @@ export class AnalyticsController {
     });
   }
 
+  /** GET /analytics/map?bbox=w,s,e,n&zoom= — titik atau gugus untuk area tampilan peta. */
   @Get('map')
-  map(@CurrentUser() me: AuthUser, @Query() q: { unitId?: string; from?: string; to?: string; category?: string; status?: string; priority?: string }) {
-    return this.analytics.mapPoints(me, range(q, 7), { category: q.category || undefined, status: q.status || undefined, priority: q.priority === 'true' });
+  map(@CurrentUser() me: AuthUser, @Query() q: MapQuery) {
+    return this.analytics.mapView(me, range(q, 7), mapFilter(q));
+  }
+
+  /** GET /analytics/map/summary — jumlah per kategori & prioritas terbaru (tanpa bbox). */
+  @Get('map/summary')
+  mapSummary(@CurrentUser() me: AuthUser, @Query() q: MapQuery) {
+    return this.analytics.mapSummary(me, range(q, 7), mapFilter(q));
   }
 
   @Get('prices/latest')

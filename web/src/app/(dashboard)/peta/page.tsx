@@ -1,7 +1,7 @@
 import { CalendarDays, Flame } from 'lucide-react';
 import Link from 'next/link';
 import { Card, cn, PageHeader, SegmentedLinks, Stack } from '@/components/ui';
-import { CATEGORY_COLOR, type MapPoint } from '@/features/map/categories';
+import { CATEGORY_COLOR, type MapSummary } from '@/features/map/categories';
 import { ReportMap } from '@/features/map/report-map';
 import { apiGet } from '@/lib/api/server';
 import { CATEGORY_LABEL, tanggalJam } from '@/lib/format';
@@ -15,21 +15,18 @@ export default async function PetaPage({ searchParams }: { searchParams: Promise
   const days = RANGES.includes(Number(sp.hari)) ? Number(sp.hari) : 7;
   const from = new Date(Date.now() - days * 86_400_000).toISOString();
 
-  // Titik untuk peta (sesuai filter) + semua titik periode untuk jumlah per kategori.
-  const [points, all] = await Promise.all([
-    apiGet<MapPoint[]>(withParams('/analytics/map', { from, category: sp.category, priority: sp.priority })),
-    apiGet<MapPoint[]>(withParams('/analytics/map', { from, priority: sp.priority })),
-  ]);
-  const counts = all.reduce<Record<string, number>>((m, p) => ((m[p.category] = (m[p.category] ?? 0) + 1), m), {});
-  const priority = points.filter((p) => p.priority).slice(0, 8);
-  const flagged = points.filter((p) => p.flagged).length;
+  // Ringkasan panel dari server; titik/gugus dimuat peta per area tampilan.
+  const summary = await apiGet<MapSummary>(withParams('/analytics/map/summary', { from, category: sp.category, priority: sp.priority }));
+  const counts = summary.byCategory;
+  const shown = sp.category ? (counts[sp.category] ?? 0) : summary.total;
+  const { priority, flagged } = summary;
   const href = (patch: Partial<Search>) => withParams('/peta', sp, patch);
 
   return (
     <>
       <PageHeader
         title="Peta Sebaran"
-        subtitle={`${points.length.toLocaleString('id-ID')} titik laporan · ${days} hari terakhir${flagged ? ` · ${flagged} lokasi perlu dicek` : ''}`}
+        subtitle={`${shown.toLocaleString('id-ID')} titik laporan · ${days} hari terakhir${flagged ? ` · ${flagged} lokasi perlu dicek` : ''}`}
         actions={
           <SegmentedLinks
             active={String(days)}
@@ -39,7 +36,7 @@ export default async function PetaPage({ searchParams }: { searchParams: Promise
       />
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <Card className="flex flex-col" bodyClassName="flex-1 h-[calc(100vh-15rem)] min-h-[480px]">
-          <ReportMap points={points} />
+          <ReportMap filters={{ from, category: sp.category, priority: sp.priority }} />
         </Card>
 
         <Stack>
@@ -47,7 +44,7 @@ export default async function PetaPage({ searchParams }: { searchParams: Promise
             <ul className="p-2">
               <li>
                 <Link href={href({ category: undefined })} className={cn('flex items-center justify-between rounded-lg px-3 py-2 text-sm hover:bg-bg', !sp.category && 'bg-primary-soft font-semibold')}>
-                  Semua kategori <span className="tabular-nums">{all.length}</span>
+                  Semua kategori <span className="tabular-nums">{summary.total}</span>
                 </Link>
               </li>
               {Object.keys(CATEGORY_LABEL).map((k) => (

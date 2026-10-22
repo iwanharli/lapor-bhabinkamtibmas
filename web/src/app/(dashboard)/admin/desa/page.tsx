@@ -4,8 +4,10 @@ import { BoundaryMap } from '@/features/villages/boundary-map';
 import { GeojsonImportButton } from '@/features/villages/geojson-import';
 import type { VillageGeoJson, VillageRow, VillageStats } from '@/features/villages/types';
 import { VillageFormButton } from '@/features/villages/village-form';
+import { AssignVillagesButton } from '@/features/villages/assign-villages';
+import { UrlUnitFilter } from '@/features/units/unit-combobox';
 import { apiGet } from '@/lib/api/server';
-import type { Paged, UnitOption } from '@/lib/types';
+import type { Paged, UnitSummary } from '@/lib/types';
 import { withParams } from '@/lib/url';
 
 const SIZES = [20, 50, 100];
@@ -16,24 +18,23 @@ export default async function DesaPage({ searchParams }: { searchParams: Promise
   const page = Math.max(Number(sp.page) || 1, 1);
   const limit = SIZES.includes(Number(sp.limit)) ? Number(sp.limit) : 20;
 
-  const [list, geo, units] = await Promise.all([
+  const [list, geo, summary] = await Promise.all([
     apiGet<Paged<VillageRow> & { stats: VillageStats }>(withParams('/admin/villages', { q: sp.q, polsekId: sp.polsekId, batas: sp.batas, page: String(page), limit: String(limit) })),
     apiGet<VillageGeoJson>(withParams('/villages/geojson', { polsekId: sp.polsekId })),
-    apiGet<UnitOption[]>('/units'),
+    apiGet<UnitSummary>('/units/summary'),
   ]);
   const { data, meta, stats } = list;
-  const polseks = units.filter((u) => u.level === 'POLSEK');
 
   return (
     <>
       <PageHeader
         title="Desa & Kelurahan"
         subtitle="Wilayah binaan Bhabinkamtibmas beserta batasnya — dipakai untuk memeriksa lokasi laporan"
-        actions={<><GeojsonImportButton units={units} /><VillageFormButton units={units} /></>}
+        actions={<><AssignVillagesButton /><GeojsonImportButton /><VillageFormButton /></>}
       />
       <Stack>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:h-full">
-          <StatCard title="Desa terdaftar" description="Dalam cakupan unit Anda" icon={<MapPinned size={20} />} value={stats.total} footer={`${polseks.length} Polsek`} />
+          <StatCard title="Desa terdaftar" description="Dalam cakupan unit Anda" icon={<MapPinned size={20} />} value={stats.total} footer={`${summary.polsek} Polsek`} />
           <StatCard title="Punya batas wilayah" description="Poligon untuk cek lokasi" icon={<Shapes size={20} />} tone="success" value={stats.dengan_batas}
             footer={`${stats.total ? Math.round((stats.dengan_batas / stats.total) * 100) : 0}% desa`} />
           <StatCard alert={stats.total - stats.dengan_batas > 0} title="Belum ada batas" description="Lokasi laporan tidak bisa diperiksa" icon={<MapPinOff size={20} />} tone="success"
@@ -46,7 +47,7 @@ export default async function DesaPage({ searchParams }: { searchParams: Promise
           <Card>
             <div className="flex flex-col gap-3 border-b border-line p-4 lg:flex-row lg:items-center">
               <SearchInput placeholder="Cari nama desa, kecamatan, atau kode…" className="flex-1" />
-              <UrlSelect param="polsekId" label="Polsek" options={[{ value: '', label: 'Semua Polsek' }, ...polseks.map((p) => ({ value: p.id, label: p.nama }))]} />
+              <UrlUnitFilter param="polsekId" levels={['POLSEK']} emptyLabel="Semua Polsek" />
               <UrlSelect param="batas" label="Batas wilayah" options={[{ value: '', label: 'Semua' }, { value: 'ada', label: 'Ada batas' }, { value: 'belum', label: 'Belum ada batas' }]} />
             </div>
             {data.length === 0 ? (
@@ -71,7 +72,7 @@ export default async function DesaPage({ searchParams }: { searchParams: Promise
                       <Td>{v.hasGeometry ? <Badge tone="success">{v.luasKm2?.toLocaleString('id-ID')} km²</Badge> : <Badge tone="warn">Belum ada</Badge>}</Td>
                       <Td align="right" numeric className={v.bhabin ? undefined : 'font-medium text-danger'}>{v.bhabin}</Td>
                       <Td align="right" numeric>{v.laporan}</Td>
-                      <Td align="right" className="pr-5"><VillageFormButton units={units} village={v} /></Td>
+                      <Td align="right" className="pr-5"><VillageFormButton village={v} /></Td>
                     </Tr>
                   ))}
                 </tbody>

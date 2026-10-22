@@ -2,31 +2,32 @@
 
 import { Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Button, ErrorText, Field, Input, Modal, ModalBody, Select } from '@/components/ui';
 import { callApi } from '@/lib/api/client';
-import type { UnitOption } from '@/lib/types';
-import { CHILD_LEVEL_LABEL, unitOptions } from '@/lib/units';
+import { CHILD_LEVEL_LABEL } from '@/lib/units';
 import { tzLabel } from '@/lib/format';
+import { UnitCombobox } from '../units/unit-combobox';
 import { TIMEZONE_OPTIONS } from './timezone-button';
 
-/** Tombol + modal tambah unit. `parentId` mengunci unit induk (dipakai di baris pohon unit). */
-export function AddUnitButton({ units, parentId: fixedParent, compact }: { units: UnitOption[]; parentId?: string; compact?: boolean }) {
+type ParentUnit = { id: string; level: string; timezone?: string };
+
+/** Tombol + modal tambah unit. `parent` mengunci unit induk (dipakai di baris pohon unit); tanpa itu induk dicari. */
+export function AddUnitButton({ parent: fixedParent, compact }: { parent?: ParentUnit; compact?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [parentId, setParentId] = useState('');
+  const [parent, setParent] = useState<ParentUnit | null>(null);
+  const parentId = parent?.id ?? '';
   const [kode, setKode] = useState('');
   const [nama, setNama] = useState('');
   const [timezone, setTimezone] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  // Polsek tidak bisa punya turunan, jadi tidak ditawarkan sebagai induk.
-  const parents = useMemo(() => unitOptions(units).filter((o) => o.level !== 'POLSEK'), [units]);
-  const parentLevel = units.find((u) => u.id === parentId)?.level;
+  const parentLevel = parent?.level;
 
   function show() {
-    setParentId(fixedParent ?? parents[0]?.id ?? '');
+    setParent(fixedParent ?? null);
     setKode('');
     setNama('');
     setTimezone('');
@@ -52,13 +53,11 @@ export function AddUnitButton({ units, parentId: fixedParent, compact }: { units
     }
   }
 
-  if (parents.length === 0) return null;
-
   return (
     <>
       {compact ? (
         <Button variant="ghost" size="sm" icon={<Plus size={14} />} onClick={show} className="relative z-10">
-          Tambah {CHILD_LEVEL_LABEL[units.find((u) => u.id === fixedParent)?.level ?? ''] ?? 'turunan'}
+          Tambah {CHILD_LEVEL_LABEL[fixedParent?.level ?? ''] ?? 'turunan'}
         </Button>
       ) : (
         <Button icon={<Plus size={18} />} onClick={show}>Tambah unit</Button>
@@ -81,9 +80,9 @@ export function AddUnitButton({ units, parentId: fixedParent, compact }: { units
           <ModalBody>
             <Field label="Unit induk" required>
               {(id) => (
-                <Select id={id} value={parentId} disabled={!!fixedParent} onChange={(e) => setParentId(e.target.value)}>
-                  {parents.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                </Select>
+                // Polsek tidak bisa punya turunan, jadi tidak ditawarkan sebagai induk.
+                <UnitCombobox id={id} value={parentId} disabled={!!fixedParent} levels={['MABES', 'POLDA', 'POLRES']} placeholder="Cari Polda/Polres…"
+                  onChange={(_, u) => setParent(u ? { id: u.id, level: u.level, timezone: u.timezone } : null)} />
               )}
             </Field>
             <Field label="Nama unit" required>
@@ -98,7 +97,7 @@ export function AddUnitButton({ units, parentId: fixedParent, compact }: { units
             <Field label="Zona waktu" hint="Kosongkan untuk mengikuti unit induk">
               {(id) => (
                 <Select id={id} value={timezone} onChange={(e) => setTimezone(e.target.value)}>
-                  <option value="">Ikuti induk ({tzLabel(units.find((u) => u.id === parentId)?.timezone)})</option>
+                  <option value="">Ikuti induk ({tzLabel(parent?.timezone)})</option>
                   {TIMEZONE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </Select>
               )}

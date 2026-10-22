@@ -1,12 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Alert, Button, ButtonLink, Checkbox, ErrorText, Field, FormGrid, Input, Select } from '@/components/ui';
 import { callApi } from '@/lib/api/client';
 import { ROLE_LABEL } from '@/lib/format';
-import type { UnitOption } from '@/lib/types';
-import { ASSIGNABLE_ROLES, unitOptions } from '@/lib/units';
+import { ASSIGNABLE_ROLES } from '@/lib/units';
+import { UnitCombobox } from '../units/unit-combobox';
 import { TempPassword } from './temp-password';
 
 export interface UserFormValue {
@@ -34,12 +34,10 @@ function validate(v: UserFormValue) {
 }
 
 export function UserForm({
-  units,
   initial,
   canAssignSuperadmin,
   onDone,
 }: {
-  units: UnitOption[];
   initial?: UserFormValue;
   canAssignSuperadmin: boolean;
   /** Bila diisi (mis. di dalam modal), tampilkan tombol Batal/Tutup yang memanggil ini. */
@@ -53,9 +51,8 @@ export function UserForm({
   const [saved, setSaved] = useState(false);
   const [created, setCreated] = useState<{ id: string; password: string } | null>(null);
 
-  const options = useMemo(() => unitOptions(units), [units]);
+  const [unitLevel, setUnitLevel] = useState<string>();
   const roles = canAssignSuperadmin ? [...ASSIGNABLE_ROLES, 'SUPERADMIN'] : ASSIGNABLE_ROLES;
-  const unitLevel = units.find((u) => u.id === v.unitId)?.level;
   const unitHint = POLSEK_ROLES.includes(v.role) && unitLevel && unitLevel !== 'POLSEK' ? `${ROLE_LABEL[v.role]} biasanya ditempatkan di Polsek.` : undefined;
 
   const set = <K extends keyof UserFormValue>(k: K, val: UserFormValue[K]) => {
@@ -136,10 +133,7 @@ export function UserForm({
       </Field>
       <Field label="Unit" required hint={unitHint}>
         {(id) => (
-          <Select id={id} value={v.unitId} onChange={(e) => set('unitId', e.target.value)}>
-            <option value="">— Pilih unit —</option>
-            {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-          </Select>
+          <UnitCombobox id={id} value={v.unitId} placeholder="Cari Polsek/Polres…" onChange={(unitId, u) => { set('unitId', unitId); setUnitLevel(u?.level); }} />
         )}
       </Field>
       <Field label="No. HP">

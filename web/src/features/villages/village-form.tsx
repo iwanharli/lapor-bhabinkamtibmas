@@ -2,17 +2,16 @@
 
 import { Pencil, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
-import { Button, ErrorText, Field, FormGrid, Input, Modal, Select } from '@/components/ui';
+import { useState } from 'react';
+import { Button, ErrorText, Field, FormGrid, Input, Modal } from '@/components/ui';
+import { UnitCombobox } from '../units/unit-combobox';
 import { callApi } from '@/lib/api/client';
-import type { UnitOption } from '@/lib/types';
 import type { VillageRow } from './types';
 
 /** Tombol + modal tambah/ubah desa. Batas wilayah diatur lewat impor GeoJSON. */
-export function VillageFormButton({ units, village }: { units: UnitOption[]; village?: VillageRow }) {
+export function VillageFormButton({ village }: { village?: VillageRow }) {
   const router = useRouter();
-  const polseks = useMemo(() => units.filter((u) => u.level === 'POLSEK'), [units]);
-  const empty = { kodeWilayah: '', nama: '', kecamatan: '', kabupaten: '', provinsi: '', polsekId: polseks[0]?.id ?? '' };
+  const empty = { kodeWilayah: '', nama: '', kecamatan: '', kabupaten: '', provinsi: '', polsekId: '' };
   const [open, setOpen] = useState(false);
   const [v, setV] = useState(empty);
   const [busy, setBusy] = useState(false);
@@ -75,9 +74,7 @@ export function VillageFormButton({ units, village }: { units: UnitOption[]; vil
           <Field label="Provinsi" required>{(id) => <Input id={id} value={v.provinsi} onChange={set('provinsi')} />}</Field>
           <Field label="Polsek" required hint="Polsek yang membawahi desa ini">
             {(id) => (
-              <Select id={id} value={v.polsekId} onChange={set('polsekId')}>
-                {polseks.map((p) => <option key={p.id} value={p.id}>{p.nama}</option>)}
-              </Select>
+              <UnitCombobox id={id} value={v.polsekId} levels={['POLSEK']} placeholder="Cari Polsek…" onChange={(polsekId) => setV((p) => ({ ...p, polsekId }))} />
             )}
           </Field>
           <div className="sm:col-span-2"><ErrorText>{error}</ErrorText></div>

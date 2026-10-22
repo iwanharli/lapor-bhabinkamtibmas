@@ -35,9 +35,10 @@ export class UsersService {
     return user;
   }
 
-  private async listWhere(me: AuthUser, q: { q?: string; role?: UserRole; active?: boolean }, ignoreRole = false): Promise<Prisma.UserWhereInput> {
+  private async listWhere(me: AuthUser, q: { q?: string; role?: UserRole; active?: boolean; unitId?: string }, ignoreRole = false): Promise<Prisma.UserWhereInput> {
+    if (q.unitId) await this.units.assertInScope(me.unitId, q.unitId);
     return {
-      unitId: { in: await this.units.descendantIds(me.unitId) },
+      unitId: { in: await this.units.descendantIds(q.unitId ?? me.unitId) },
       ...(q.role && !ignoreRole && { role: q.role }),
       ...(q.active !== undefined && { active: q.active }),
       ...(q.q && { OR: [{ nrp: { contains: q.q } }, { nama: { contains: q.q, mode: 'insensitive' } }] }),
@@ -45,12 +46,12 @@ export class UsersService {
   }
 
   /** Jumlah pengguna per peran (filter lain tetap berlaku), untuk tab peran. */
-  async roleCounts(me: AuthUser, q: { q?: string; active?: boolean }) {
+  async roleCounts(me: AuthUser, q: { q?: string; active?: boolean; unitId?: string }) {
     const rows = await this.prisma.user.groupBy({ by: ['role'], where: await this.listWhere(me, q, true), _count: { _all: true } });
     return { total: rows.reduce((n, r) => n + r._count._all, 0), counts: Object.fromEntries(rows.map((r) => [r.role, r._count._all])) };
   }
 
-  async list(me: AuthUser, q: { q?: string; role?: UserRole; active?: boolean; page: number; limit: number }) {
+  async list(me: AuthUser, q: { q?: string; role?: UserRole; active?: boolean; unitId?: string; page: number; limit: number }) {
     const where = await this.listWhere(me, q);
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({ where, select: PUBLIC_FIELDS, orderBy: { nama: 'asc' }, take: q.limit, skip: (q.page - 1) * q.limit }),

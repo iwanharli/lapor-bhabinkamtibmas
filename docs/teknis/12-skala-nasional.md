@@ -140,9 +140,9 @@ Angka divalidasi lewat uji beban (k6) pada tahap pilot Polda sebelum pengadaan f
 | Antarmuka penyimpanan (`StorageService`) | 🟡 driver `local`; `s3` belum |
 | Zona waktu per unit | ✅ siap (`units.timezone`, nomor laporan, rekap, ekspor) |
 | Analitik dari agregat | ✅ siap (`agg_unit_daily`, `agg_user_daily`, `agg_price_daily`; refresh inkremental tiap `AGG_REFRESH_SECONDS`) |
-| Batas wilayah provinsi → desa di peta | ✅ siap (`regions` + `villages`, tingkat mengikuti zoom) |
-| Peta ter-cluster | ❌ batas 5.000 titik |
-| Paginasi kinerja, pencarian unit | 🟡 kinerja: paginasi + cari + filter unit; pencarian unit belum |
+| Batas wilayah provinsi → desa di peta | ✅ siap (`regions` + `villages`, tingkat mengikuti zoom; penetapan desa Kemendagri ke Polsek) |
+| Peta ter-cluster | ✅ siap (titik ≤ 1.500 per tampilan, selain itu gugus grid sesuai zoom) |
+| Paginasi kinerja, pencarian unit | ✅ siap (kolom pencarian unit, pohon unit bertahap, filter unit di Pengguna/Kinerja/Desa) |
 | Ekspor sebagai job, thumbnail di worker | ❌ |
 | Partisi tabel | ❌ (bisa ditambahkan lewat migrasi tanpa mengubah kode aplikasi) |
 | Redis untuk rate limit/cache/antrean | ❌ |

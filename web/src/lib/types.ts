@@ -138,6 +138,29 @@ export interface PriceAreaRow {
 
 // ===== Administrasi =====
 
+/** Simpul pohon unit dari /units/children. */
+export interface UnitNode {
+  id: string;
+  parentId: string | null;
+  level: string;
+  kode: string;
+  nama: string;
+  timezone: string;
+  childCount: number;
+  /** Jumlah langsung di unit ini (bukan termasuk turunan). */
+  counts: { users: number; bhabin: number; villages: number };
+}
+
+export interface UnitSummary {
+  polda: number;
+  polres: number;
+  polsek: number;
+  users: number;
+  bhabin: number;
+  villages: number;
+  polsek_tanpa_bhabin: number;
+}
+
 export interface UnitOption {
   id: string;
   parentId: string | null;

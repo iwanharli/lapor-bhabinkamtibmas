@@ -58,6 +58,10 @@ export function displayValue(v: unknown): string {
   if (v == null || v === '') return '—';
   if (Array.isArray(v)) return v.join(', ');
   if (typeof v === 'number') return v.toLocaleString('id-ID');
+  // Tanggal isian (YYYY-MM-DD) → "1 Januari 1998".
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    return new Date(`${v}T00:00:00Z`).toLocaleDateString('id-ID', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' });
+  }
   return String(v);
 }
 

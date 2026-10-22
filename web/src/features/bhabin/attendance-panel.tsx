@@ -84,7 +84,7 @@ export function AttendancePanel({ today, tz, lateAfter }: { today: MyAttendance[
 
   return (
     <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
-      <div className="relative bg-gradient-to-br from-[var(--navy-2)] via-primary to-primary-2 p-4 text-white">
+      <div className="relative bg-gradient-to-br from-[var(--brand-deep)] via-[var(--brand)] to-[var(--brand-2)] p-4 text-white">
         <div className="pointer-events-none absolute -right-8 -top-10 h-36 w-36 rounded-full bg-white/10 blur-2xl" />
         <div className="relative flex items-start justify-between gap-3">
           <div>

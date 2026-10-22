@@ -272,7 +272,7 @@ function FieldInput({
             const on = picked.includes(o);
             return (
               <button key={o} type="button" aria-pressed={on} onClick={() => set(f.key, on ? picked.filter((x) => x !== o) : [...picked, o])}
-                className={cn('rounded-full border px-3.5 py-2 text-sm transition', on ? 'border-primary bg-primary text-white' : 'border-line bg-surface hover:border-primary/40')}>
+                className={cn('rounded-full border px-3.5 py-2 text-sm transition', on ? 'border-[var(--brand)] bg-[var(--brand)] text-white' : 'border-line bg-surface hover:border-primary/40')}>
                 {o}
               </button>
             );

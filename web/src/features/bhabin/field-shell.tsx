@@ -74,7 +74,7 @@ export function FieldShell({ user, children }: { user: { nama: string; pangkat?:
             const on = active(t);
             return t.primary ? (
               <Link key={t.href} href={t.href} aria-current={on ? 'page' : undefined} className="flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold text-primary">
-                <span className="-mt-6 grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-primary-2 to-primary text-white shadow-lg shadow-primary/30 ring-4 ring-bg"><t.icon size={24} /></span>
+                <span className="-mt-6 grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[var(--brand-2)] to-[var(--brand)] text-white shadow-lg shadow-[var(--brand)]/30 ring-4 ring-bg"><t.icon size={24} /></span>
                 {t.label}
               </Link>
             ) : (

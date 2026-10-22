@@ -38,7 +38,7 @@ export default async function BerandaBhabinPage() {
 
   return (
     <>
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[var(--navy-2)] via-primary to-primary-2 p-4 text-white shadow-lg shadow-primary/20">
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[var(--brand-deep)] via-[var(--brand)] to-[var(--brand-2)] p-4 text-white shadow-lg shadow-primary/20">
         <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
         <p className="text-sm text-white/80">{salam(tz)},</p>
         <h1 className="text-lg font-bold leading-tight">{[me.pangkat, me.nama].filter(Boolean).join(' ')}</h1>

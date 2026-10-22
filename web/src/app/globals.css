@@ -2,6 +2,10 @@
 
 /* Token warna: biru — navy gelap untuk sidebar, biru sebagai warna utama, biru langit sebagai aksen. */
 :root {
+  /* Biru merek untuk latar berteks putih (tombol, kartu bergradasi): sama di mode terang & malam agar kontras tetap terjaga. */
+  --brand: #1d4ed8;
+  --brand-2: #2563eb;
+  --brand-deep: #0f2a5a;
   --bg: #f4f6fb;
   --surface: #ffffff;
   --ink: #0f1b2d;

@@ -3,7 +3,7 @@ import { forwardRef } from 'react';
 import { cn } from './cn';
 
 const VARIANTS = {
-  primary: 'bg-primary text-white hover:brightness-110',
+  primary: 'bg-[var(--brand)] text-white hover:brightness-110',
   secondary: 'border border-line bg-surface text-ink hover:bg-bg',
   ghost: 'text-muted hover:bg-bg hover:text-ink',
   danger: 'bg-danger text-white hover:brightness-110',

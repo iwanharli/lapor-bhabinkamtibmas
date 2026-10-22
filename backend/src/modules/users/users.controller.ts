@@ -1,7 +1,8 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { AuthUser, CurrentUser, Roles } from '../../common/decorators/auth.decorators';
-import { CreateUserDto, SetVillagesDto, UpdateUserDto } from './dto/user.dto';
+import { CreateUserDto, ImportUsersDto, SetVillagesDto, UpdateUserDto } from './dto/user.dto';
+import { UsersImportService } from './users-import.service';
 import { UsersService } from './users.service';
 
 const parseActive = (v?: string) => (v === 'true' ? true : v === 'false' ? false : undefined);
@@ -9,7 +10,7 @@ const parseActive = (v?: string) => (v === 'true' ? true : v === 'false' ? false
 @Controller('admin/users')
 @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
 export class UsersController {
-  constructor(private users: UsersService) {}
+  constructor(private users: UsersService, private importer: UsersImportService) {}
 
   @Get()
   list(
@@ -21,6 +22,13 @@ export class UsersController {
     @Query('limit') limit = '20',
   ) {
     return this.users.list(me, { q, role, active: parseActive(active), page: Math.max(Number(page) || 1, 1), limit: Math.min(Number(limit) || 20, 100) });
+  }
+
+  /** Impor massal: `dryRun: true` untuk pratinjau & validasi, tanpa menyimpan. */
+  @Post('import')
+  @HttpCode(200)
+  import(@CurrentUser() me: AuthUser, @Body() dto: ImportUsersDto) {
+    return dto.dryRun ? this.importer.preview(me, dto.rows) : this.importer.commit(me, dto.rows);
   }
 
   // Sebelum ':id' agar tidak tertangkap sebagai id.

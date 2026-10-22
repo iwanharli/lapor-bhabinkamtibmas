@@ -1,5 +1,5 @@
 import { Boxes, CalendarDays, PackageX, Percent, TrendingUp } from 'lucide-react';
-import { Card, EmptyState, PageHeader, SectionLabel, SegmentedLinks, Stack, StatCard } from '@/components/ui';
+import { Card, EmptyState, ExportButton, PageHeader, SectionLabel, SegmentedLinks, Stack, StatCard } from '@/components/ui';
 import { CommodityFocus } from '@/features/prices/commodity-focus';
 import { CommodityPicker } from '@/features/prices/commodity-picker';
 import { LatestPriceTable } from '@/features/prices/latest-price-table';
@@ -107,7 +107,7 @@ export default async function HargaPanganPage({ searchParams }: { searchParams: 
 
         <Stack>
           <SectionLabel title="Semua komoditas" hint="tabel lengkap 7 hari terakhir" />
-          <Card>
+          <Card actions={<ExportButton path="/exports/prices.csv" />} title="Rata-rata 7 hari" subtitle="Dibanding 7 hari sebelumnya">
             <LatestPriceTable prices={latest} selectedId={selected?.commodity_id} hrefFor={(c) => href({ c })} />
           </Card>
         </Stack>

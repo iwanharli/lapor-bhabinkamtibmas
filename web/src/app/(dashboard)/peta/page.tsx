@@ -1,0 +1,94 @@
+import { CalendarDays, Flame } from 'lucide-react';
+import Link from 'next/link';
+import { Card, cn, PageHeader, SegmentedLinks, Stack } from '@/components/ui';
+import { CATEGORY_COLOR, type MapPoint } from '@/features/map/categories';
+import { ReportMap } from '@/features/map/report-map';
+import { apiGet } from '@/lib/api/server';
+import { CATEGORY_LABEL, tanggalJam } from '@/lib/format';
+import { withParams } from '@/lib/url';
+
+const RANGES = [7, 30, 90];
+type Search = { hari?: string; category?: string; priority?: string };
+
+export default async function PetaPage({ searchParams }: { searchParams: Promise<Search> }) {
+  const sp = await searchParams;
+  const days = RANGES.includes(Number(sp.hari)) ? Number(sp.hari) : 7;
+  const from = new Date(Date.now() - days * 86_400_000).toISOString();
+
+  // Titik untuk peta (sesuai filter) + semua titik periode untuk jumlah per kategori.
+  const [points, all] = await Promise.all([
+    apiGet<MapPoint[]>(withParams('/analytics/map', { from, category: sp.category, priority: sp.priority })),
+    apiGet<MapPoint[]>(withParams('/analytics/map', { from, priority: sp.priority })),
+  ]);
+  const counts = all.reduce<Record<string, number>>((m, p) => ((m[p.category] = (m[p.category] ?? 0) + 1), m), {});
+  const priority = points.filter((p) => p.priority).slice(0, 8);
+  const flagged = points.filter((p) => p.flagged).length;
+  const href = (patch: Partial<Search>) => withParams('/peta', sp, patch);
+
+  return (
+    <>
+      <PageHeader
+        title="Peta Sebaran"
+        subtitle={`${points.length.toLocaleString('id-ID')} titik laporan · ${days} hari terakhir${flagged ? ` · ${flagged} lokasi perlu dicek` : ''}`}
+        actions={
+          <SegmentedLinks
+            active={String(days)}
+            items={RANGES.map((d) => ({ key: String(d), label: `${d} hari`, href: href({ hari: d === 7 ? undefined : String(d) }), icon: d === days ? <CalendarDays size={15} /> : undefined }))}
+          />
+        }
+      />
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <Card className="flex flex-col" bodyClassName="flex-1 h-[calc(100vh-15rem)] min-h-[480px]">
+          <ReportMap points={points} />
+        </Card>
+
+        <Stack>
+          <Card title="Kategori" subtitle="Klik untuk menyaring titik">
+            <ul className="p-2">
+              <li>
+                <Link href={href({ category: undefined })} className={cn('flex items-center justify-between rounded-lg px-3 py-2 text-sm hover:bg-bg', !sp.category && 'bg-primary-soft font-semibold')}>
+                  Semua kategori <span className="tabular-nums">{all.length}</span>
+                </Link>
+              </li>
+              {Object.keys(CATEGORY_LABEL).map((k) => (
+                <li key={k}>
+                  <Link href={href({ category: sp.category === k ? undefined : k })}
+                    className={cn('flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm hover:bg-bg', sp.category === k && 'bg-primary-soft font-semibold', !counts[k] && 'opacity-50')}>
+                    <span className="h-3 w-3 rounded-full ring-2 ring-white" style={{ background: CATEGORY_COLOR[k] }} />
+                    <span className="flex-1">{CATEGORY_LABEL[k]}</span>
+                    <span className="tabular-nums text-muted">{counts[k] ?? 0}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <div className="border-t border-line p-3">
+              <Link href={href({ priority: sp.priority ? undefined : 'true' })}
+                className={cn('flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium',
+                  sp.priority ? 'border-danger/40 bg-danger-soft text-danger' : 'border-line text-muted hover:text-ink')}>
+                <Flame size={16} /> {sp.priority ? 'Menampilkan prioritas saja' : 'Tampilkan prioritas saja'}
+              </Link>
+            </div>
+          </Card>
+
+          <Card title="Deteksi dini prioritas" subtitle="Titik bercincin merah di peta">
+            {priority.length === 0 ? (
+              <p className="px-5 py-6 text-center text-sm text-muted">Tidak ada laporan prioritas pada periode ini.</p>
+            ) : (
+              <ul className="divide-y divide-line">
+                {priority.map((p) => (
+                  <li key={p.id}>
+                    <Link href={`/laporan/${p.id}`} className="block px-5 py-3 text-sm hover:bg-bg">
+                      <span className="font-medium text-danger">{p.desa}</span> · {p.bhabin}
+                      <span className="block font-mono text-xs text-muted">{p.nomor}</span>
+                      <span className="block text-xs text-muted">{tanggalJam(p.occurred_at)}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </Stack>
+      </div>
+    </>
+  );
+}

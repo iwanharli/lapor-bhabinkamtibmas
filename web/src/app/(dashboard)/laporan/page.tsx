@@ -1,4 +1,4 @@
-import { Card, PageHeader, Pagination, Stack } from '@/components/ui';
+import { Card, ExportButton, PageHeader, Pagination, Stack } from '@/components/ui';
 import { ReportFilters } from '@/features/reports/report-filters';
 import { ReportSearch, resolveRange, toApiQuery } from '@/features/reports/report-search';
 import { tanggal } from '@/lib/format';
@@ -23,6 +23,13 @@ export default async function LaporanPage({ searchParams }: { searchParams: Prom
   const page = Math.max(Number(sp.page) || 1, 1);
   const limit = SIZES.includes(Number(sp.limit)) ? Number(sp.limit) : 20;
   const query = toApiQuery(sp, page, limit);
+  // Ekspor memakai filter yang sama, tanpa paginasi.
+  const exportQuery = (() => {
+    const q = new URLSearchParams(query);
+    q.delete('page');
+    q.delete('limit');
+    return q.toString();
+  })();
 
   const [{ data, meta }, counts] = await Promise.all([
     apiGet<Paged<ReportListItem>>(`/reports?${query}`),
@@ -31,7 +38,11 @@ export default async function LaporanPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <PageHeader title="Laporan" subtitle={`Laporan kegiatan Bhabinkamtibmas dalam cakupan unit Anda · ${rangeLabel(sp)}`} />
+      <PageHeader
+        title="Laporan"
+        subtitle={`Laporan kegiatan Bhabinkamtibmas dalam cakupan unit Anda · ${rangeLabel(sp)}`}
+        actions={<ExportButton path={`/exports/reports.csv?${exportQuery}`} />}
+      />
       <Stack>
         <StatusTabs sp={sp} total={counts.total} counts={counts.counts} />
         <Card>

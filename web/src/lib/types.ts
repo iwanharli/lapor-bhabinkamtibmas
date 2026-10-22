@@ -49,6 +49,17 @@ export interface StatusHistoryEntry {
   actor: PersonRef & { role: string };
 }
 
+export interface ReportAttachment {
+  id: string;
+  fieldKey: string;
+  mime: string;
+  sizeBytes: number;
+  source: 'CAMERA' | 'FILE';
+  capturedAt: string | null;
+  watermarked: boolean;
+  hasThumb: boolean;
+}
+
 export interface ReportDetail extends ReportListItem {
   submittedAt: string | null;
   receivedAt: string;
@@ -61,7 +72,7 @@ export interface ReportDetail extends ReportListItem {
   reviewedAt: string | null;
   reviewedBy: PersonRef | null;
   items: ReportPriceItem[];
-  attachments: { id: string; fieldKey: string; mime: string; source: string }[];
+  attachments: ReportAttachment[];
   history: StatusHistoryEntry[];
   canReview: boolean;
 }

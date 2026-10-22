@@ -5,7 +5,7 @@ import { AnalyticsService, Range } from './analytics.service';
 
 const DAY = 86_400_000;
 
-function range(q: { unitId?: string; from?: string; to?: string }, defaultDays = 30): Range {
+export function range(q: { unitId?: string; from?: string; to?: string }, defaultDays = 30): Range {
   const to = q.to ? new Date(q.to) : new Date();
   const from = q.from ? new Date(q.from) : new Date(to.getTime() - defaultDays * DAY);
   return { unitId: q.unitId || undefined, from, to };
@@ -19,6 +19,16 @@ export class AnalyticsController {
   @Get('overview')
   overview(@CurrentUser() me: AuthUser, @Query() q: { unitId?: string; from?: string; to?: string }) {
     return this.analytics.overview(me, range(q));
+  }
+
+  @Get('bhabin-performance')
+  performance(@CurrentUser() me: AuthUser, @Query() q: { unitId?: string; from?: string; to?: string }) {
+    return this.analytics.bhabinPerformance(me, range(q, 30));
+  }
+
+  @Get('map')
+  map(@CurrentUser() me: AuthUser, @Query() q: { unitId?: string; from?: string; to?: string; category?: string; status?: string; priority?: string }) {
+    return this.analytics.mapPoints(me, range(q, 7), { category: q.category || undefined, status: q.status || undefined, priority: q.priority === 'true' });
   }
 
   @Get('prices/latest')

@@ -1,4 +1,5 @@
-import { Card, CountTabs, PageHeader, Pagination, SearchInput, Stack, UrlSelect } from '@/components/ui';
+import { FileUp } from 'lucide-react';
+import { ButtonLink, Card, CountTabs, ExportButton, PageHeader, Pagination, SearchInput, Stack, UrlSelect } from '@/components/ui';
 import { AddUserButton } from '@/features/admin/add-user-button';
 import { ROLE_DOT } from '@/features/admin/role-badge';
 import { UserTable } from '@/features/admin/user-table';
@@ -33,7 +34,13 @@ export default async function PenggunaPage({ searchParams }: { searchParams: Pro
       <PageHeader
         title="Pengguna"
         subtitle="Kelola akun personel dalam cakupan unit Anda"
-        actions={<AddUserButton units={units} canAssignSuperadmin={me?.role === 'SUPERADMIN'} />}
+        actions={
+          <>
+            <ExportButton path={withParams('/exports/users.csv', { role: sp.role, active: sp.active })} />
+            <ButtonLink href="/admin/pengguna/impor" variant="secondary" icon={<FileUp size={16} />}>Impor CSV</ButtonLink>
+            <AddUserButton units={units} canAssignSuperadmin={me?.role === 'SUPERADMIN'} />
+          </>
+        }
       />
       <Stack>
         <CountTabs

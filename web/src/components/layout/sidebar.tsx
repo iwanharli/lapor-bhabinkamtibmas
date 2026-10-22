@@ -3,7 +3,10 @@
 import {
   Building2,
   ClipboardList,
+  History,
   LayoutDashboard,
+  Map,
+  TrendingUp,
   LucideIcon,
   ShieldCheck,
   ShoppingBasket,
@@ -21,6 +24,9 @@ const ICONS = {
   prices: ShoppingBasket,
   users: Users,
   units: Building2,
+  map: Map,
+  performance: TrendingUp,
+  audit: History,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

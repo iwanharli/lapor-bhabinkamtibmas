@@ -28,7 +28,7 @@ export class ReportsService {
   }
 
   /** Kondisi pencarian laporan sesuai cakupan & filter. `ignoreStatus` dipakai untuk menghitung jumlah per status. */
-  private async buildWhere(me: AuthUser, q: ListReportsQuery, ignoreStatus = false): Promise<Prisma.ReportWhereInput> {
+  async buildWhere(me: AuthUser, q: ListReportsQuery, ignoreStatus = false): Promise<Prisma.ReportWhereInput> {
     const scope = await this.scopeWhere(me);
     if (q.unitId) await this.units.assertInScope(me.unitId, q.unitId);
     return {

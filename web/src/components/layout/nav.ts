@@ -1,6 +1,7 @@
 import type { NavSection } from './sidebar';
 
 const ADMIN_ROLES = ['SUPERADMIN', 'ADMIN_UNIT'];
+const AUDIT_ROLES = ['SUPERADMIN', 'ADMIN_UNIT', 'AUDITOR'];
 
 /** Menu per peran. Menu hanya disembunyikan; keputusan akses tetap di backend. */
 export function navFor(role: string): NavSection[] {
@@ -8,7 +9,14 @@ export function navFor(role: string): NavSection[] {
     return [{ title: 'Menu', items: [{ href: '/laporan', label: 'Laporan saya', icon: 'reports' }] }];
   }
   const sections: NavSection[] = [
-    { title: 'Pemantauan', items: [{ href: '/', label: 'Ringkasan', icon: 'dashboard' }] },
+    {
+      title: 'Pemantauan',
+      items: [
+        { href: '/', label: 'Ringkasan', icon: 'dashboard' },
+        { href: '/peta', label: 'Peta Sebaran', icon: 'map' },
+        { href: '/kinerja', label: 'Kinerja Bhabin', icon: 'performance' },
+      ],
+    },
     {
       title: 'Operasional',
       items: [
@@ -23,8 +31,11 @@ export function navFor(role: string): NavSection[] {
       items: [
         { href: '/admin/pengguna', label: 'Pengguna', icon: 'users' },
         { href: '/admin/unit', label: 'Unit', icon: 'units' },
+        { href: '/audit', label: 'Audit log', icon: 'audit' },
       ],
     });
+  } else if (AUDIT_ROLES.includes(role)) {
+    sections.push({ title: 'Pengawasan', items: [{ href: '/audit', label: 'Audit log', icon: 'audit' }] });
   }
   return sections;
 }

@@ -9,6 +9,31 @@ const COUNTED = Prisma.sql`r.status IN ('SUBMITTED','IN_REVIEW','NEEDS_REVISION'
 /** Data harga dari laporan yang ditolak tidak dipakai. */
 const PRICE_VALID = Prisma.sql`r.status IN ('SUBMITTED','IN_REVIEW','APPROVED')`;
 
+export interface BhabinPerformanceRow {
+  id: string;
+  nrp: string;
+  nama: string;
+  pangkat: string | null;
+  unit: string;
+  desa: number;
+  total: number;
+  disetujui: number;
+  menunggu: number;
+  revisi: number;
+  ditolak: number;
+  lokasi_janggal: number;
+  hari_aktif: number;
+  terakhir: Date | null;
+  terakhir_sepanjang: Date | null;
+  sambang: number;
+  deteksi_dini: number;
+  problem_solving: number;
+  penyuluhan: number;
+  harga_pangan: number;
+  mapping_kk: number;
+  ketahanan_pangan: number;
+}
+
 export interface Range {
   unitId?: string;
   from: Date;
@@ -87,6 +112,53 @@ export class AnalyticsService {
       daily,
       priority,
     };
+  }
+
+  /** Rekap kinerja tiap Bhabin aktif dalam cakupan pada rentang waktu. */
+  async bhabinPerformance(me: AuthUser, { unitId, from, to }: Range) {
+    const userScope = await this.scopeSql(me, unitId, Prisma.sql`u.unit_id`);
+    return this.prisma.$queryRaw<BhabinPerformanceRow[]>`
+      SELECT u.id, u.nrp, u.nama, u.pangkat, un.nama AS unit,
+             (SELECT count(*) FROM user_villages uv WHERE uv.user_id = u.id AND uv.until IS NULL)::int AS desa,
+             count(r.id)::int AS total,
+             count(r.id) FILTER (WHERE r.status = 'APPROVED')::int AS disetujui,
+             count(r.id) FILTER (WHERE r.status IN ('SUBMITTED','IN_REVIEW'))::int AS menunggu,
+             count(r.id) FILTER (WHERE r.status = 'NEEDS_REVISION')::int AS revisi,
+             count(r.id) FILTER (WHERE r.status = 'REJECTED')::int AS ditolak,
+             count(r.id) FILTER (WHERE r.is_mock_location OR r.inside_village = false)::int AS lokasi_janggal,
+             count(DISTINCT (r.occurred_at AT TIME ZONE 'Asia/Jakarta')::date)::int AS hari_aktif,
+             max(r.occurred_at) AS terakhir,
+             (SELECT max(r2.occurred_at) FROM reports r2 WHERE r2.user_id = u.id AND r2.status <> 'DRAFT') AS terakhir_sepanjang,
+             count(r.id) FILTER (WHERE r.category = 'SAMBANG')::int AS sambang,
+             count(r.id) FILTER (WHERE r.category = 'DETEKSI_DINI')::int AS deteksi_dini,
+             count(r.id) FILTER (WHERE r.category = 'PROBLEM_SOLVING')::int AS problem_solving,
+             count(r.id) FILTER (WHERE r.category = 'PENYULUHAN')::int AS penyuluhan,
+             count(r.id) FILTER (WHERE r.category = 'HARGA_PANGAN')::int AS harga_pangan,
+             count(r.id) FILTER (WHERE r.category = 'MAPPING_KK')::int AS mapping_kk,
+             count(r.id) FILTER (WHERE r.category = 'KETAHANAN_PANGAN')::int AS ketahanan_pangan
+      FROM users u
+      JOIN units un ON un.id = u.unit_id
+      LEFT JOIN reports r ON r.user_id = u.id AND ${COUNTED} AND r.occurred_at BETWEEN ${from} AND ${to}
+      WHERE u.role = 'BHABIN' AND u.active AND ${userScope}
+      GROUP BY u.id, un.nama
+      ORDER BY total DESC, u.nama`;
+  }
+
+  /** Titik laporan untuk peta (maks. 5.000 titik terbaru dalam rentang). */
+  async mapPoints(me: AuthUser, { unitId, from, to }: Range, f: { category?: string; status?: string; priority?: boolean }) {
+    const scope = await this.scopeSql(me, unitId);
+    return this.prisma.$queryRaw<
+      { id: string; nomor: string; category: string; status: string; priority: boolean; lat: number; lng: number; occurred_at: Date; desa: string; bhabin: string; flagged: boolean }[]
+    >`
+      SELECT r.id, r.nomor, r.category::text, r.status::text, r.priority, r.lat, r.lng, r.occurred_at,
+             v.nama AS desa, u.nama AS bhabin, (r.is_mock_location OR r.inside_village = false) AS flagged
+      FROM reports r JOIN villages v ON v.id = r.village_id JOIN users u ON u.id = r.user_id
+      WHERE ${scope} AND ${COUNTED} AND r.occurred_at BETWEEN ${from} AND ${to}
+        ${f.category ? Prisma.sql`AND r.category::text = ${f.category}` : Prisma.empty}
+        ${f.status ? Prisma.sql`AND r.status::text = ${f.status}` : Prisma.empty}
+        ${f.priority ? Prisma.sql`AND r.priority` : Prisma.empty}
+      ORDER BY r.occurred_at DESC
+      LIMIT 5000`;
   }
 
   /** Harga terbaru (7 hari) per komoditas dan perubahan dibanding 7 hari sebelumnya. */

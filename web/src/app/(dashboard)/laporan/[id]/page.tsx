@@ -1,6 +1,6 @@
-import { ImageOff } from 'lucide-react';
 import { notFound } from 'next/navigation';
-import { BackLink, Card, EmptyState, SplitLayout, Stack } from '@/components/ui';
+import { BackLink, Card, SplitLayout, Stack } from '@/components/ui';
+import { AttachmentGallery } from '@/features/reports/attachment-gallery';
 import { LocationInfo } from '@/features/reports/location-info';
 import { PriceItemsTable } from '@/features/reports/price-items-table';
 import { ReportFields } from '@/features/reports/report-fields';
@@ -51,14 +51,8 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
               <PriceItemsTable items={r.items} averages={averages} />
             </Card>
           )}
-          <Card title="Lampiran" subtitle="Foto & dokumen bukti kegiatan">
-            {r.attachments.length === 0 ? (
-              <EmptyState icon={<ImageOff size={22} />} tone="neutral" title="Belum ada lampiran">
-                Foto dari aplikasi mobile akan tampil di sini setelah modul unggah lampiran aktif.
-              </EmptyState>
-            ) : (
-              <p className="px-5 py-4 text-sm text-muted">{r.attachments.length} lampiran</p>
-            )}
+          <Card title="Lampiran" subtitle={r.attachments.length ? `${r.attachments.length} berkas · klik foto untuk memperbesar` : 'Foto & dokumen bukti kegiatan'}>
+            <AttachmentGallery items={r.attachments} fields={r.schema?.fields ?? []} />
           </Card>
         </SplitLayout>
       </Stack>

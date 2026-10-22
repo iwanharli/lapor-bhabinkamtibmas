@@ -30,6 +30,8 @@ cp .env.example .env          # sekali saja
 npm install
 npx prisma migrate dev
 npx prisma db seed
+npm run seed:demo              # ±250 laporan contoh (dev)
+npm run seed:demo-attachments  # foto contoh untuk laporan (dev, disimpan di backend/storage)
 npm run start:dev
 
 # 3. Web → http://localhost:3001

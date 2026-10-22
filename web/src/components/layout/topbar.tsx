@@ -22,7 +22,7 @@ function useCrumbs(sections: NavSection[]) {
     const item = [...s.items].sort((a, b) => b.href.length - a.href.length).find((it) => isActive(pathname, it.href));
     if (item) {
       const crumbs = [{ label: s.title }, { label: item.label, href: item.href }];
-      if (pathname !== item.href) crumbs.push({ label: pathname.endsWith('/baru') ? 'Tambah' : 'Detail' });
+      if (pathname !== item.href) crumbs.push({ label: pathname.endsWith('/baru') ? 'Tambah' : pathname.endsWith('/impor') ? 'Impor' : 'Detail' });
       return crumbs;
     }
   }

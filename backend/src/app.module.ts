@@ -7,6 +7,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { PrismaModule } from './prisma/prisma.module';
 import { StorageModule } from './common/storage/storage.module';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
+import { ExportsModule } from './modules/exports/exports.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -34,6 +35,7 @@ import { VillagesModule } from './modules/villages/villages.module';
     ReportsModule,
     AnalyticsModule,
     AttachmentsModule,
+    ExportsModule,
     HealthModule,
   ],
   providers: [

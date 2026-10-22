@@ -15,3 +15,4 @@ export { Avatar } from './avatar';
 export { CountTabs, type CountTab } from './count-tabs';
 export { SearchInput } from './search-input';
 export { UrlSelect } from './url-select';
+export { ExportButton } from './export-button';

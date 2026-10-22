@@ -1,0 +1,92 @@
+{
+  "category": "PROBLEM_SOLVING",
+  "version": 1,
+  "title": "Problem Solving / Mediasi",
+  "autoApprove": false,
+  "fields": [
+    {
+      "key": "pihak_1_nama",
+      "label": "Nama Pihak 1",
+      "type": "text",
+      "required": true,
+      "sensitive": true
+    },
+    {
+      "key": "pihak_1_nik",
+      "label": "NIK Pihak 1",
+      "type": "nik",
+      "required": false,
+      "sensitive": true
+    },
+    {
+      "key": "pihak_2_nama",
+      "label": "Nama Pihak 2",
+      "type": "text",
+      "required": true,
+      "sensitive": true
+    },
+    {
+      "key": "pihak_2_nik",
+      "label": "NIK Pihak 2",
+      "type": "nik",
+      "required": false,
+      "sensitive": true
+    },
+    {
+      "key": "pokok_masalah",
+      "label": "Pokok permasalahan",
+      "type": "select",
+      "required": true,
+      "options": [
+        "Batas Tanah",
+        "Perkelahian",
+        "Utang-Piutang Ringan",
+        "KDRT Non-Fisik",
+        "Lainnya"
+      ]
+    },
+    {
+      "key": "uraian",
+      "label": "Uraian permasalahan",
+      "type": "textarea",
+      "required": true,
+      "maxLength": 1000
+    },
+    {
+      "key": "hasil",
+      "label": "Hasil mediasi",
+      "type": "select",
+      "required": true,
+      "options": [
+        "Tercapai Kesepakatan",
+        "Lanjut Proses Hukum",
+        "Mediasi Lanjutan"
+      ]
+    },
+    {
+      "key": "dokumen_kesepakatan",
+      "label": "Surat kesepakatan damai",
+      "type": "file",
+      "required": false,
+      "requiredIf": {
+        "field": "hasil",
+        "equals": "Tercapai Kesepakatan"
+      },
+      "min": 1,
+      "max": 2,
+      "accept": [
+        "image/jpeg",
+        "application/pdf"
+      ]
+    },
+    {
+      "key": "foto_kegiatan",
+      "label": "Foto kegiatan",
+      "type": "photo",
+      "required": false,
+      "min": 0,
+      "max": 3
+    }
+  ],
+  "rules": []
+}

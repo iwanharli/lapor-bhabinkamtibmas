@@ -1,0 +1,100 @@
+{
+  "category": "HARGA_PANGAN",
+  "version": 1,
+  "title": "Harga Pangan & Kios Pasar",
+  "autoApprove": true,
+  "fields": [
+    {
+      "key": "jenis_lokasi",
+      "label": "Jenis lokasi",
+      "type": "select",
+      "required": true,
+      "options": [
+        "Pasar Tradisional",
+        "Kios/Agen Sembako",
+        "Sentra Distribusi"
+      ]
+    },
+    {
+      "key": "nama_pasar",
+      "label": "Nama pasar / lokasi",
+      "type": "text",
+      "required": true
+    },
+    {
+      "key": "nama_kios",
+      "label": "Nama kios",
+      "type": "text",
+      "required": false
+    },
+    {
+      "key": "nama_pemilik",
+      "label": "Nama pemilik kios",
+      "type": "text",
+      "required": false
+    },
+    {
+      "key": "items",
+      "label": "Daftar harga komoditas",
+      "type": "repeater",
+      "required": true,
+      "min": 1,
+      "fields": [
+        {
+          "key": "commodityId",
+          "label": "Komoditas",
+          "type": "select",
+          "required": true,
+          "source": "commodities"
+        },
+        {
+          "key": "harga",
+          "label": "Harga (Rp)",
+          "type": "currency",
+          "required": true,
+          "min": 100,
+          "max": 10000000
+        },
+        {
+          "key": "satuan",
+          "label": "Satuan",
+          "type": "select",
+          "required": true,
+          "options": [
+            "kg",
+            "liter",
+            "butir",
+            "ikat"
+          ]
+        },
+        {
+          "key": "stok",
+          "label": "Status stok",
+          "type": "select",
+          "required": true,
+          "options": [
+            "AMAN",
+            "MENIPIS",
+            "KOSONG"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "catatan",
+      "label": "Catatan kondisi",
+      "type": "textarea",
+      "required": false,
+      "maxLength": 500
+    },
+    {
+      "key": "foto_etalase",
+      "label": "Foto etalase/kios",
+      "type": "photo",
+      "required": true,
+      "min": 1,
+      "max": 3
+    }
+  ],
+  "rules": []
+}

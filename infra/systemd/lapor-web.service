@@ -1,0 +1,21 @@
+[Unit]
+Description=Lapor Bhabinkamtibmas - Dashboard web
+After=network.target lapor-api.service
+
+[Service]
+Type=simple
+User=lapor
+Group=lapor
+WorkingDirectory=/opt/lapor/current/web
+EnvironmentFile=/etc/lapor/web.env
+Environment=PORT=3001 HOSTNAME=127.0.0.1
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

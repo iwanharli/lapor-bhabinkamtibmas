@@ -1,0 +1,138 @@
+import { Injectable } from '@nestjs/common';
+import { Prisma, UserRole } from '@prisma/client';
+import { AuthUser } from '../../common/decorators/auth.decorators';
+import { PrismaService } from '../../prisma/prisma.service';
+import { UnitsService } from '../units/units.service';
+
+/** Status yang dihitung sebagai laporan masuk (draft tidak termasuk). */
+const COUNTED = Prisma.sql`r.status IN ('SUBMITTED','IN_REVIEW','NEEDS_REVISION','APPROVED','REJECTED')`;
+/** Data harga dari laporan yang ditolak tidak dipakai. */
+const PRICE_VALID = Prisma.sql`r.status IN ('SUBMITTED','IN_REVIEW','APPROVED')`;
+
+export interface Range {
+  unitId?: string;
+  from: Date;
+  to: Date;
+}
+
+@Injectable()
+export class AnalyticsService {
+  constructor(private prisma: PrismaService, private units: UnitsService) {}
+
+  /** Filter cakupan unit untuk kolom tertentu (default laporan `r.unit_id`). */
+  private async scopeSql(me: AuthUser, unitId?: string, column = Prisma.sql`r.unit_id`) {
+    if (unitId) await this.units.assertInScope(me.unitId, unitId);
+    if (!unitId && me.role === UserRole.SUPERADMIN) return Prisma.sql`TRUE`;
+    const ids = await this.units.descendantIds(unitId ?? me.unitId);
+    return Prisma.sql`${column} = ANY(${ids}::uuid[])`;
+  }
+
+  async overview(me: AuthUser, { unitId, from, to }: Range) {
+    const scope = await this.scopeSql(me, unitId);
+    const base = Prisma.sql`FROM reports r WHERE ${scope} AND ${COUNTED} AND r.occurred_at BETWEEN ${from} AND ${to}`;
+
+    const [byCategory, byStatus, daily, totals, bhabin] = await Promise.all([
+      this.prisma.$queryRaw<{ category: string; jumlah: number }[]>`
+        SELECT r.category::text, count(*)::int AS jumlah ${base} GROUP BY 1 ORDER BY 2 DESC`,
+      this.prisma.$queryRaw<{ status: string; jumlah: number }[]>`
+        SELECT r.status::text, count(*)::int AS jumlah ${base} GROUP BY 1`,
+      this.prisma.$queryRaw<{ hari: string; category: string; jumlah: number }[]>`
+        SELECT to_char(r.occurred_at AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') AS hari, r.category::text, count(*)::int AS jumlah
+        ${base} GROUP BY 1, 2 ORDER BY 1`,
+      this.prisma.$queryRaw<{ total: number; disetujui: number; menunggu: number; prioritas_terbuka: number; lokasi_janggal: number }[]>`
+        SELECT count(*)::int AS total,
+               count(*) FILTER (WHERE r.status = 'APPROVED')::int AS disetujui,
+               count(*) FILTER (WHERE r.status IN ('SUBMITTED','IN_REVIEW'))::int AS menunggu,
+               count(*) FILTER (WHERE r.priority AND r.status IN ('SUBMITTED','IN_REVIEW'))::int AS prioritas_terbuka,
+               count(*) FILTER (WHERE r.is_mock_location OR r.inside_village = false)::int AS lokasi_janggal
+        ${base}`,
+      this.prisma.$queryRaw<{ aktif: number }[]>`SELECT count(DISTINCT r.user_id)::int AS aktif ${base}`,
+    ]);
+
+    const priority = await this.prisma.report.findMany({
+      where: {
+        priority: true,
+        status: { in: ['SUBMITTED', 'IN_REVIEW'] },
+        ...(me.role !== UserRole.SUPERADMIN || unitId ? { unitId: { in: await this.units.descendantIds(unitId ?? me.unitId) } } : {}),
+      },
+      select: { id: true, nomor: true, occurredAt: true, data: true, village: { select: { nama: true } }, user: { select: { nama: true } } },
+      orderBy: { occurredAt: 'desc' },
+      take: 8,
+    });
+
+    // Periode pembanding dengan panjang yang sama, tepat sebelum periode terpilih.
+    const prevFrom = new Date(from.getTime() - (to.getTime() - from.getTime()));
+    const userScope = await this.scopeSql(me, unitId, Prisma.sql`u.unit_id`);
+    const [prev, participation] = await Promise.all([
+      this.prisma.$queryRaw<{ total: number; disetujui: number; bhabin_aktif: number }[]>`
+        SELECT count(*)::int AS total,
+               count(*) FILTER (WHERE r.status = 'APPROVED')::int AS disetujui,
+               count(DISTINCT r.user_id)::int AS bhabin_aktif
+        FROM reports r WHERE ${scope} AND ${COUNTED} AND r.occurred_at >= ${prevFrom} AND r.occurred_at < ${from}`,
+      this.prisma.$queryRaw<{ total_bhabin: number; tidak_aktif_7: number }[]>`
+        SELECT count(*)::int AS total_bhabin,
+               count(*) FILTER (WHERE NOT EXISTS (
+                 SELECT 1 FROM reports r
+                 WHERE r.user_id = u.id AND ${COUNTED} AND r.occurred_at >= now() - interval '7 days'
+               ))::int AS tidak_aktif_7
+        FROM users u WHERE u.role = 'BHABIN' AND u.active AND ${userScope}`,
+    ]);
+
+    return {
+      range: { from, to, days: Math.round((to.getTime() - from.getTime()) / 86_400_000) },
+      totals: { ...totals[0], bhabinAktif: bhabin[0].aktif, totalBhabin: participation[0].total_bhabin, tidakAktif7: participation[0].tidak_aktif_7 },
+      previous: { total: prev[0].total, disetujui: prev[0].disetujui, bhabinAktif: prev[0].bhabin_aktif },
+      byCategory,
+      byStatus,
+      daily,
+      priority,
+    };
+  }
+
+  /** Harga terbaru (7 hari) per komoditas dan perubahan dibanding 7 hari sebelumnya. */
+  async latestPrices(me: AuthUser, unitId?: string) {
+    const scope = await this.scopeSql(me, unitId);
+    return this.prisma.$queryRaw<
+      { commodity_id: number; nama: string; satuan: string; rata2: number; minimum: number; maksimum: number; sampel: number; rata2_sebelumnya: number | null; stok_menipis: number; stok_kosong: number }[]
+    >`
+      WITH x AS (
+        SELECT i.commodity_id, i.harga, i.stok,
+               r.occurred_at >= now() - interval '7 days' AS kini
+        FROM report_items i JOIN reports r ON r.id = i.report_id
+        WHERE ${scope} AND ${PRICE_VALID} AND r.occurred_at >= now() - interval '14 days'
+      )
+      SELECT c.id AS commodity_id, c.nama, c.satuan_default AS satuan,
+             round(avg(x.harga) FILTER (WHERE x.kini))::int AS rata2,
+             min(x.harga) FILTER (WHERE x.kini)::int AS minimum,
+             max(x.harga) FILTER (WHERE x.kini)::int AS maksimum,
+             count(*) FILTER (WHERE x.kini)::int AS sampel,
+             round(avg(x.harga) FILTER (WHERE NOT x.kini))::int AS rata2_sebelumnya,
+             count(*) FILTER (WHERE x.kini AND x.stok = 'MENIPIS')::int AS stok_menipis,
+             count(*) FILTER (WHERE x.kini AND x.stok = 'KOSONG')::int AS stok_kosong
+      FROM commodities c LEFT JOIN x ON x.commodity_id = c.id
+      WHERE c.active
+      GROUP BY c.id ORDER BY c.urutan`;
+  }
+
+  /** Tren harga harian per komoditas. */
+  async priceTrend(me: AuthUser, { unitId, from, to }: Range, commodityId?: number) {
+    const scope = await this.scopeSql(me, unitId);
+    return this.prisma.$queryRaw<{ hari: string; commodity_id: number; rata2: number; sampel: number }[]>`
+      SELECT to_char(r.occurred_at AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') AS hari, i.commodity_id,
+             round(avg(i.harga))::int AS rata2, count(*)::int AS sampel
+      FROM report_items i JOIN reports r ON r.id = i.report_id
+      WHERE ${scope} AND ${PRICE_VALID} AND r.occurred_at BETWEEN ${from} AND ${to}
+        ${commodityId ? Prisma.sql`AND i.commodity_id = ${commodityId}` : Prisma.empty}
+      GROUP BY 1, 2 ORDER BY 1`;
+  }
+
+  /** Harga terbaru per wilayah (kecamatan) untuk satu komoditas. */
+  async pricesByArea(me: AuthUser, commodityId: number, unitId?: string) {
+    const scope = await this.scopeSql(me, unitId);
+    return this.prisma.$queryRaw<{ kecamatan: string; desa: string; rata2: number; sampel: number; terakhir: Date }[]>`
+      SELECT v.kecamatan, v.nama AS desa, round(avg(i.harga))::int AS rata2, count(*)::int AS sampel, max(r.occurred_at) AS terakhir
+      FROM report_items i JOIN reports r ON r.id = i.report_id JOIN villages v ON v.id = r.village_id
+      WHERE ${scope} AND ${PRICE_VALID} AND i.commodity_id = ${commodityId} AND r.occurred_at >= now() - interval '7 days'
+      GROUP BY 1, 2 ORDER BY 3 DESC`;
+  }
+}

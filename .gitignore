@@ -1,0 +1,20 @@
+.DS_Store
+node_modules/
+dist/
+.next/
+.env
+.env.*
+!.env.example
+infra/secrets/
+coverage/
+# flutter
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins*
+backend/storage/
+.next-build/
+
+# Dokumen sumber (proposal, laporan, demo) — tidak dipublikasikan di repo
+docs/*.pdf
+docs/*.zip
+docs/Laporan_*.md

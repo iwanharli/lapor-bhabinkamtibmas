@@ -1,0 +1,74 @@
+[
+  {
+    "kode": "BERAS_MEDIUM",
+    "nama": "Beras Medium",
+    "satuan": "kg",
+    "urutan": 1
+  },
+  {
+    "kode": "BERAS_PREMIUM",
+    "nama": "Beras Premium",
+    "satuan": "kg",
+    "urutan": 2
+  },
+  {
+    "kode": "MINYAK_CURAH",
+    "nama": "Minyak Goreng Curah",
+    "satuan": "liter",
+    "urutan": 3
+  },
+  {
+    "kode": "MINYAK_KEMASAN",
+    "nama": "Minyak Goreng Kemasan",
+    "satuan": "liter",
+    "urutan": 4
+  },
+  {
+    "kode": "GULA_PASIR",
+    "nama": "Gula Pasir",
+    "satuan": "kg",
+    "urutan": 5
+  },
+  {
+    "kode": "CABAI_MERAH",
+    "nama": "Cabai Merah",
+    "satuan": "kg",
+    "urutan": 6
+  },
+  {
+    "kode": "CABAI_RAWIT",
+    "nama": "Cabai Rawit",
+    "satuan": "kg",
+    "urutan": 7
+  },
+  {
+    "kode": "BAWANG_MERAH",
+    "nama": "Bawang Merah",
+    "satuan": "kg",
+    "urutan": 8
+  },
+  {
+    "kode": "BAWANG_PUTIH",
+    "nama": "Bawang Putih",
+    "satuan": "kg",
+    "urutan": 9
+  },
+  {
+    "kode": "TELUR_AYAM",
+    "nama": "Telur Ayam",
+    "satuan": "kg",
+    "urutan": 10
+  },
+  {
+    "kode": "DAGING_SAPI",
+    "nama": "Daging Sapi",
+    "satuan": "kg",
+    "urutan": 11
+  },
+  {
+    "kode": "DAGING_AYAM",
+    "nama": "Daging Ayam",
+    "satuan": "kg",
+    "urutan": 12
+  }
+]

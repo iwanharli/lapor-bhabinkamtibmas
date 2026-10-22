@@ -1,0 +1,22 @@
+[Unit]
+Description=Lapor Bhabinkamtibmas - Worker antrean
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=lapor
+Group=lapor
+WorkingDirectory=/opt/lapor/current/backend
+EnvironmentFile=/etc/lapor/api.env
+ExecStart=/usr/bin/node dist/worker.js
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/lapor /var/log/lapor
+
+[Install]
+WantedBy=multi-user.target

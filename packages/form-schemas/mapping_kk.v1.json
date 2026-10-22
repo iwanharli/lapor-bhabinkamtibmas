@@ -1,0 +1,62 @@
+{
+  "category": "MAPPING_KK",
+  "version": 1,
+  "title": "Mapping Kepala Keluarga",
+  "autoApprove": false,
+  "fields": [
+    {
+      "key": "nama_kk",
+      "label": "Nama kepala keluarga",
+      "type": "text",
+      "required": true
+    },
+    {
+      "key": "nik_kk",
+      "label": "NIK kepala keluarga",
+      "type": "nik",
+      "required": false,
+      "sensitive": true
+    },
+    {
+      "key": "jumlah_anggota",
+      "label": "Jumlah anggota keluarga",
+      "type": "number",
+      "required": true,
+      "min": 1,
+      "max": 30
+    },
+    {
+      "key": "alamat",
+      "label": "Alamat / RT-RW",
+      "type": "text",
+      "required": true
+    },
+    {
+      "key": "kondisi_hunian",
+      "label": "Kondisi hunian",
+      "type": "select",
+      "required": true,
+      "options": [
+        "Layak",
+        "Perlu Perhatian",
+        "Dalam Pemantauan"
+      ]
+    },
+    {
+      "key": "catatan",
+      "label": "Catatan lapangan",
+      "type": "textarea",
+      "required": false,
+      "maxLength": 1000
+    },
+    {
+      "key": "foto_hunian",
+      "label": "Foto hunian",
+      "type": "photo",
+      "required": false,
+      "min": 0,
+      "max": 2
+    }
+  ],
+  "rules": []
+}

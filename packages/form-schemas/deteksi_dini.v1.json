@@ -1,0 +1,73 @@
+{
+  "category": "DETEKSI_DINI",
+  "version": 1,
+  "title": "Deteksi Dini",
+  "autoApprove": false,
+  "fields": [
+    {
+      "key": "kategori_kerawanan",
+      "label": "Kategori kerawanan",
+      "type": "select",
+      "required": true,
+      "options": [
+        "Sengketa Lahan",
+        "Gesekan Antarkelompok",
+        "Radikalisme",
+        "Bencana Alam",
+        "Kriminalitas",
+        "Lainnya"
+      ]
+    },
+    {
+      "key": "urgensi",
+      "label": "Tingkat urgensi",
+      "type": "select",
+      "required": true,
+      "options": [
+        "Rendah",
+        "Sedang",
+        "Tinggi"
+      ]
+    },
+    {
+      "key": "uraian",
+      "label": "Uraian singkat kejadian",
+      "type": "textarea",
+      "required": true,
+      "maxLength": 500
+    },
+    {
+      "key": "perkiraan_massa",
+      "label": "Perkiraan jumlah orang terlibat",
+      "type": "number",
+      "required": false,
+      "min": 0
+    },
+    {
+      "key": "tindakan_awal",
+      "label": "Tindakan awal yang dilakukan",
+      "type": "textarea",
+      "required": false,
+      "maxLength": 500
+    },
+    {
+      "key": "foto_lapangan",
+      "label": "Foto kondisi lapangan",
+      "type": "photo",
+      "required": true,
+      "min": 1,
+      "max": 5
+    }
+  ],
+  "rules": [
+    {
+      "when": {
+        "field": "urgensi",
+        "equals": "Tinggi"
+      },
+      "then": {
+        "flag": "PRIORITY"
+      }
+    }
+  ]
+}

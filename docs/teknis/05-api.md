@@ -1,0 +1,185 @@
+# 05 — Spesifikasi API
+
+Base URL: `https://<host-internal>/api/v1` · Format: JSON (UTF-8) · Dokumentasi interaktif: OpenAPI/Swagger di `/api/docs` (hanya lingkungan dev/staging).
+
+## 1. Konvensi
+
+| Hal | Aturan |
+|---|---|
+| Autentikasi | Header `Authorization: Bearer <access_token>` |
+| Waktu | ISO 8601 dengan zona, mis. `2026-10-22T08:15:00+07:00` |
+| Koordinat | `{ "lat": -6.595, "lng": 106.816 }` |
+| Paginasi | `?page=1&limit=20` → respons `{ data: [], meta: { page, limit, total } }` |
+| Pengurutan | `?sort=-occurred_at` (minus = menurun) |
+| Idempotensi | Header `Idempotency-Key: <uuid>` untuk POST dari mobile; atau `client_uuid` di body |
+| Versi aplikasi | Header `X-App-Version: 1.0.3`, `X-Device-Id: <id>` |
+
+### Format error
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "Isian tidak valid",
+    "details": [ { "field": "data.uraian", "rule": "maxLength", "message": "Maksimal 500 karakter" } ]
+  }
+}
+```
+
+| HTTP | Kode | Arti |
+|---|---|---|
+| 400 | `VALIDATION_FAILED` | Isian tidak sesuai skema |
+| 401 | `UNAUTHENTICATED` / `TOKEN_EXPIRED` | Belum login / token kedaluwarsa |
+| 403 | `FORBIDDEN` / `OUT_OF_SCOPE` | Peran tidak berhak / di luar wilayah |
+| 404 | `NOT_FOUND` | Data tidak ada (juga dipakai untuk data di luar cakupan, agar tidak membocorkan keberadaan) |
+| 409 | `INVALID_TRANSITION` / `DUPLICATE` | Perubahan status tidak sah / duplikat |
+| 413 | `FILE_TOO_LARGE` | Lampiran melebihi batas |
+| 426 | `APP_UPDATE_REQUIRED` | Versi aplikasi terlalu lama |
+| 429 | `RATE_LIMITED` | Terlalu banyak permintaan |
+
+## 2. Autentikasi
+
+### `POST /auth/login`
+```json
+// request
+{ "nrp": "87010123", "password": "******", "device": { "deviceId": "a1b2...", "platform": "android", "model": "SM-A155F", "appVersion": "1.0.0" } }
+// response 200
+{ "accessToken": "eyJ...", "refreshToken": "rt_...", "expiresIn": 900,
+  "user": { "id": "…", "nrp": "87010123", "nama": "Bripka Contoh", "role": "BHABIN",
+            "unit": { "id": "…", "nama": "Polsek Contoh" }, "mustChangePassword": false } }
+```
+- Access token 15 menit. Refresh token 30 hari (mobile) atau 12 jam (web), dirotasi setiap kali dipakai.
+- Login gagal 5× dalam 15 menit → akun dikunci 15 menit.
+- Mobile hanya menerima akun `BHABIN`.
+
+### `POST /auth/refresh`
+`{ "refreshToken": "rt_..." }` → token baru. Refresh token lama langsung dicabut. Jika token yang sudah dicabut dipakai lagi, semua sesi perangkat tersebut dicabut (deteksi pencurian token).
+
+### `POST /auth/logout` · `POST /auth/change-password` · `GET /auth/me`
+
+## 3. Master & sinkron (mobile)
+
+### `GET /sync/master?since=2026-10-20T00:00:00Z`
+```json
+{
+  "serverTime": "2026-10-22T01:00:00Z",
+  "formSchemas": [ { "category": "DETEKSI_DINI", "version": 1, "schema": { … }, "status": "ACTIVE" } ],
+  "commodities": [ { "id": 1, "kode": "BERAS_MEDIUM", "nama": "Beras Medium", "satuan": "kg" } ],
+  "villages": [ { "id": "…", "nama": "Sukamaju", "kecamatan": "…", "centroid": { "lat": …, "lng": … } } ],
+  "minAppVersion": "1.0.0"
+}
+```
+Hanya mengembalikan data yang berubah sejak `since`. Poligon desa diunduh terpisah: `GET /sync/villages/:id/geometry` (GeoJSON, disederhanakan).
+
+### `GET /sync/reports?since=…`
+Perubahan status laporan milik Bhabin (mis. `NEEDS_REVISION` + catatan) sejak waktu tertentu.
+
+## 4. Laporan
+
+### `POST /reports` — buat / perbarui draft di server (idempoten)
+```json
+{
+  "clientUuid": "5f1c…",
+  "category": "HARGA_PANGAN",
+  "schemaVersion": 1,
+  "villageId": "…",
+  "occurredAt": "2026-10-22T07:40:00+07:00",
+  "location": { "lat": -6.5951, "lng": 106.8162 },
+  "gpsAccuracyM": 8.5,
+  "isMockLocation": false,
+  "data": {
+    "jenis_lokasi": "Pasar Tradisional",
+    "nama_pasar": "Pasar Harapan",
+    "items": [
+      { "commodityId": 1, "harga": 13500, "satuan": "kg", "stok": "AMAN" },
+      { "commodityId": 6, "harga": 52000, "satuan": "kg", "stok": "MENIPIS" }
+    ]
+  }
+}
+```
+Respons `201` (atau `200` jika `clientUuid` sudah ada):
+```json
+{ "id": "…", "nomor": "HP-POLRESBGR-2610-00042", "status": "DRAFT",
+  "requiredAttachments": [ { "fieldKey": "foto_etalase", "min": 1, "max": 3, "uploaded": 0 } ] }
+```
+
+### `POST /reports/:id/attachments` — unggah lampiran
+`multipart/form-data`: `file`, `fieldKey`, `clientUuid`, `sha256`, `capturedAt`, `lat`, `lng`, `source`, `watermarked`.
+- Server menghitung ulang SHA-256. Jika berbeda, unggahan ditolak (`400 CHECKSUM_MISMATCH`).
+- Mengirim ulang `clientUuid` yang sama akan mengembalikan lampiran yang sudah ada.
+- Untuk koneksi lambat tersedia unggahan terpotong (fase 2): `POST /uploads` (init) → `PUT /uploads/:id/parts/:n` → `POST /uploads/:id/complete`.
+
+### `POST /reports/:id/submit`
+Validasi skema + kelengkapan lampiran → status `SUBMITTED` (atau `APPROVED` jika kategori `auto_approve`). Error `400 VALIDATION_FAILED` berisi daftar field.
+
+### `PATCH /reports/:id`
+Ubah `data`/`villageId`/`occurredAt`. Hanya oleh pemilik, hanya untuk status `DRAFT` atau `NEEDS_REVISION`.
+
+### `GET /reports`
+Filter: `category`, `status`, `unitId`, `villageId`, `userId`, `from`, `to`, `priority`, `q` (teks), `bbox` (`minLng,minLat,maxLng,maxLat`). Hasil otomatis dibatasi cakupan wilayah.
+
+### `GET /reports/:id`
+Detail laporan + lampiran (URL presigned berlaku 10 menit) + riwayat status. Field sensitif ditampilkan tersamar (`3201********0003`).
+
+### `POST /reports/:id/reveal-sensitive`
+Mengembalikan field sensitif asli. Wajib `reason` (teks). Dicatat `SENSITIVE_READ`.
+
+### `POST /reports/:id/transition` — verifikasi
+```json
+{ "to": "NEEDS_REVISION", "note": "Foto etalase buram, mohon diulang." }
+```
+Transisi yang sah dijelaskan di [03-modul-laporan §6](03-modul-laporan.md#6-alur-status-laporan). Transisi lain → `409 INVALID_TRANSITION`.
+
+## 5. Absensi
+
+### `POST /attendances`
+`multipart/form-data`: `clientUuid`, `type`, `clientTime`, `lat`, `lng`, `gpsAccuracyM`, `isMockLocation`, `selfie` (file).
+Respons berisi `insideVillage`, `villageName`, `lateSync`.
+
+### `GET /attendances?userId=&from=&to=` · `GET /attendances/summary?unitId=&month=2026-10`
+
+## 6. Analitik (web)
+
+| Endpoint | Isi |
+|---|---|
+| `GET /analytics/overview?unitId=&from=&to=` | Jumlah laporan per kategori/status, laporan prioritas terbuka, tingkat kehadiran |
+| `GET /analytics/map?category=&from=&to=&bbox=` | Titik laporan (GeoJSON), dengan clustering di sisi klien |
+| `GET /analytics/prices?commodityId=&level=kabupaten&from=&to=` | Tren harga (rata-rata/min/maks/sampel) |
+| `GET /analytics/prices/latest?unitId=` | Harga terbaru per komoditas + perubahan vs 7 hari lalu |
+| `GET /analytics/bhabin-performance?unitId=&month=` | Jumlah kegiatan per Bhabin per kategori + kehadiran |
+| `GET /analytics/hotspots?category=DETEKSI_DINI&from=&to=` | Agregat kerawanan per desa/kecamatan |
+
+## 7. Administrasi (web)
+
+| Endpoint | Fungsi |
+|---|---|
+| `GET/POST/PATCH /admin/users` | Kelola pengguna (`POST /admin/users/import` untuk impor CSV) |
+| `POST /admin/users/:id/reset-password` | Reset sandi (sandi sementara) |
+| `GET/DELETE /admin/users/:id/devices/:deviceId` | Lihat/cabut perangkat |
+| `GET/POST/PATCH /admin/units` | Kelola unit |
+| `GET/POST/PATCH /admin/villages` | Kelola desa, unggah GeoJSON batas |
+| `PUT /admin/users/:id/villages` | Atur desa binaan Bhabin |
+| `GET/POST/PATCH /admin/commodities` | Master komoditas |
+| `GET/POST /admin/form-schemas` · `POST /admin/form-schemas/:id/retire` | Kelola skema form |
+| `GET /audit-logs?actorId=&action=&from=&to=` | Audit log |
+
+## 8. Ekspor
+
+`POST /exports` `{ "type": "reports", "format": "xlsx", "filters": { … } }` → `{ "jobId": "…" }`. Ekspor diproses worker.
+`GET /exports/:jobId` → status + URL unduh (presigned, 1 jam). Setiap ekspor dicatat di audit log.
+
+## 9. Integrasi Command Center (fase 5)
+
+- Autentikasi: akun `INTEGRASI` dengan *client credentials* (`POST /auth/token`) + allowlist IP.
+- `GET /integration/reports?updatedSince=&category=`: data teragregasi/teranonimkan (tanpa NIK dan nama warga).
+- `GET /integration/prices?date=`: rekap harga harian per kabupaten.
+- Opsional: webhook `report.priority_created` untuk Deteksi Dini urgensi tinggi.
+
+## 10. Rate limit (default)
+
+| Kelompok | Batas |
+|---|---|
+| `/auth/login` | 10/menit per IP, 5 gagal/15 menit per NRP |
+| Endpoint tulis mobile | 120/menit per pengguna |
+| Unggah lampiran | 60/menit per pengguna |
+| Analitik & ekspor | 30/menit per pengguna |

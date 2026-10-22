@@ -1,0 +1,65 @@
+{
+  "category": "PENYULUHAN",
+  "version": 1,
+  "title": "Penyuluhan & Pembinaan",
+  "autoApprove": false,
+  "fields": [
+    {
+      "key": "jenis",
+      "label": "Jenis kegiatan",
+      "type": "select",
+      "required": true,
+      "options": [
+        "Pembinaan Siskamling",
+        "Penyuluhan Tematik"
+      ]
+    },
+    {
+      "key": "tema",
+      "label": "Tema",
+      "type": "select",
+      "required": false,
+      "options": [
+        "Antinarkoba",
+        "Kenakalan Remaja",
+        "Bijak Bermedsos",
+        "Karhutla",
+        "Lainnya"
+      ],
+      "requiredIf": {
+        "field": "jenis",
+        "equals": "Penyuluhan Tematik"
+      }
+    },
+    {
+      "key": "lokasi",
+      "label": "Lokasi (poskamling/balai desa)",
+      "type": "text",
+      "required": true
+    },
+    {
+      "key": "jumlah_peserta",
+      "label": "Jumlah peserta",
+      "type": "number",
+      "required": true,
+      "min": 1
+    },
+    {
+      "key": "foto_stiker",
+      "label": "Foto bukti penempelan stiker verifikasi",
+      "type": "photo",
+      "required": true,
+      "min": 1,
+      "max": 3
+    },
+    {
+      "key": "foto_kegiatan",
+      "label": "Foto kegiatan",
+      "type": "photo",
+      "required": false,
+      "min": 0,
+      "max": 3
+    }
+  ],
+  "rules": []
+}

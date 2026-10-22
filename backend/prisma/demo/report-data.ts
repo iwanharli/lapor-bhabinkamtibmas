@@ -55,11 +55,25 @@ export function dataFor(cat: C, day: number): { data: Prisma.InputJsonObject; pr
         jenis: pick(['Pembinaan Siskamling', 'Penyuluhan Tematik']), tema: pick(['Antinarkoba', 'Bijak Bermedsos', 'Kenakalan Remaja']),
         lokasi: pick(['Poskamling RW 02', 'Balai Desa', 'Aula SMPN 1']), jumlah_peserta: int(10, 120),
       } };
-    case C.MAPPING_KK:
+    case C.MAPPING_KK: {
+      // Skema v2 (bertahap): KK & alamat, hunian, kepala keluarga, anggota keluarga. NIK/No KK tidak diisi di data contoh.
+      const kerja = () => pick(['Petani/Pekebun', 'Pedagang', 'Wiraswasta', 'Buruh Harian Lepas', 'Karyawan Swasta', 'Mengurus Rumah Tangga', 'Pegawai Negeri Sipil (PNS)']);
+      const ket: Record<string, string> = { Pedagang: 'Sayur di pasar desa', Wiraswasta: 'Bengkel motor', 'Karyawan Swasta': 'PT Sumber Makmur', 'Pegawai Negeri Sipil (PNS)': 'Dinas Pendidikan' };
+      const job = (p: string) => ({ [`${p}pekerjaan`]: kerja() });
+      const withKet = (o: Record<string, string>, p: string): Record<string, string> => ({ ...o, ...(ket[o[`${p}pekerjaan`] as string] ? { [`${p}pekerjaan_ket`]: ket[o[`${p}pekerjaan`] as string] } : {}) });
+      const kk = withKet({ kk_nama: pick(WARGA), kk_jenis_kelamin: 'Laki-laki', kk_pendidikan: pick(['Tamat SD/Sederajat', 'SLTP/Sederajat', 'SLTA/Sederajat']), ...job('kk_') }, 'kk_');
+      const anggota = Array.from({ length: int(0, 4) }, (_, i) => withKet({
+        nama: pick(WARGA), hubungan: i === 0 ? 'Istri' : 'Anak', jenis_kelamin: i === 0 ? 'Perempuan' : pick(['Laki-laki', 'Perempuan']),
+        ...(i === 0 ? { pekerjaan: 'Mengurus Rumah Tangga' } : { pekerjaan: pick(['Pelajar/Mahasiswa', 'Belum/Tidak Bekerja', 'Pedagang']) }),
+      }, ''));
       return { data: {
-        nama_kk: pick(WARGA), jumlah_anggota: int(1, 7), alamat: `RT 0${int(1, 9)} / RW 0${int(1, 5)}`,
-        kondisi_hunian: pick(['Layak', 'Layak', 'Perlu Perhatian', 'Dalam Pemantauan']),
+        alamat: `Jl. ${pick(['Melati', 'Mawar', 'Kenanga', 'Flamboyan'])} No. ${int(1, 120)}`, satuan_wilayah: 'RT/RW', rt: `0${int(1, 9)}`, rw: `0${int(1, 5)}`,
+        status_kepemilikan: pick(['Milik sendiri', 'Milik sendiri', 'Sewa/Kontrak', 'Menumpang']),
+        jenis_bangunan: pick(['Permanen', 'Permanen', 'Semi permanen', 'Tidak permanen']),
+        kondisi_hunian: pick(['Layak', 'Layak', 'Perlu Perhatian', 'Tidak Layak']),
+        ...kk, anggota: anggota as Prisma.InputJsonObject[],
       } };
+    }
     case C.KETAHANAN_PANGAN:
       return { data: {
         jenis_usaha: pick(['Padi', 'Jagung', 'Hortikultura', 'Pekarangan Pangan', 'Perikanan']),

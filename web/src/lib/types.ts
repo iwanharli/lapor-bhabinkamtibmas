@@ -32,6 +32,9 @@ export interface SchemaField {
   label: string;
   type: string;
   sensitive?: boolean;
+  source?: string;
+  requiredIf?: { field: string; equals?: unknown; in?: unknown[] };
+  fields?: SchemaField[];
 }
 
 export interface ReportPriceItem {
@@ -68,7 +71,7 @@ export interface ReportDetail extends ReportListItem {
   gpsAccuracyM: number | null;
   data: Record<string, unknown>;
   schemaVersion: number;
-  schema: { title: string; fields: SchemaField[] } | null;
+  schema: { title: string; fields: SchemaField[]; steps?: { title: string; fields: string[] }[] } | null;
   items: ReportPriceItem[];
   attachments: ReportAttachment[];
   history: StatusHistoryEntry[];

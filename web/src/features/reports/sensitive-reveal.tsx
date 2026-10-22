@@ -36,7 +36,15 @@ export function SensitiveReveal({ reportId, fields }: { reportId: string; fields
               {fields.map((f) => (
                 <div key={f.key}>
                   <dt className="text-xs uppercase tracking-wide text-muted">{f.label}</dt>
-                  <dd className="font-mono text-lg">{String(values[f.key] ?? '—')}</dd>
+                  <dd className="font-mono text-lg">
+                    {Array.isArray(values[f.key]) ? (
+                      <ol className="space-y-1 text-base">
+                        {(values[f.key] as Record<string, unknown>[]).map((row, i) => (
+                          <li key={i}><span className="mr-2 text-xs text-muted">#{i + 1}</span>{Object.values(row ?? {}).map(String).join(' · ') || '—'}</li>
+                        ))}
+                      </ol>
+                    ) : String(values[f.key] ?? '—')}
+                  </dd>
                 </div>
               ))}
             </dl>

@@ -1,0 +1,475 @@
+{
+  "category": "MAPPING_KK",
+  "version": 2,
+  "title": "Mapping Data Keluarga",
+  "autoApprove": false,
+  "fields": [
+    {
+      "key": "no_kk",
+      "label": "Nomor Kartu Keluarga (KK)",
+      "type": "nik",
+      "required": true,
+      "sensitive": true
+    },
+    {
+      "key": "alamat",
+      "label": "Alamat lengkap",
+      "type": "textarea",
+      "required": true,
+      "maxLength": 300
+    },
+    {
+      "key": "satuan_wilayah",
+      "label": "Satuan wilayah terkecil",
+      "type": "select",
+      "required": true,
+      "options": [
+        "RT/RW",
+        "Dusun/Dukuh",
+        "Banjar",
+        "Jorong",
+        "Lingkungan",
+        "Kampung",
+        "Lainnya"
+      ]
+    },
+    {
+      "key": "rt",
+      "label": "RT",
+      "type": "text",
+      "maxLength": 3,
+      "requiredIf": {
+        "field": "satuan_wilayah",
+        "in": [
+          "RT/RW"
+        ]
+      }
+    },
+    {
+      "key": "rw",
+      "label": "RW",
+      "type": "text",
+      "maxLength": 3,
+      "requiredIf": {
+        "field": "satuan_wilayah",
+        "in": [
+          "RT/RW"
+        ]
+      }
+    },
+    {
+      "key": "nama_lingkungan",
+      "label": "Nama wilayah",
+      "type": "text",
+      "maxLength": 100,
+      "requiredIf": {
+        "field": "satuan_wilayah",
+        "in": [
+          "Dusun/Dukuh",
+          "Banjar",
+          "Jorong",
+          "Lingkungan",
+          "Kampung",
+          "Lainnya"
+        ]
+      },
+      "placeholders": {
+        "Dusun/Dukuh": "Nama dusun/dukuh, mis. Dusun Krajan",
+        "Banjar": "Nama banjar, mis. Banjar Tegal",
+        "Jorong": "Nama jorong",
+        "Lingkungan": "Nama lingkungan",
+        "Kampung": "Nama kampung",
+        "Lainnya": "Sebutkan satuan & namanya"
+      }
+    },
+    {
+      "key": "status_kepemilikan",
+      "label": "Status kepemilikan rumah",
+      "type": "select",
+      "required": true,
+      "options": [
+        "Milik sendiri",
+        "Sewa/Kontrak",
+        "Menumpang",
+        "Rumah dinas",
+        "Lainnya"
+      ]
+    },
+    {
+      "key": "jenis_bangunan",
+      "label": "Jenis bangunan",
+      "type": "select",
+      "required": true,
+      "options": [
+        "Permanen",
+        "Semi permanen",
+        "Tidak permanen"
+      ]
+    },
+    {
+      "key": "kondisi_hunian",
+      "label": "Kondisi hunian",
+      "type": "select",
+      "required": true,
+      "options": [
+        "Layak",
+        "Perlu Perhatian",
+        "Tidak Layak"
+      ]
+    },
+    {
+      "key": "foto_hunian",
+      "label": "Foto hunian",
+      "type": "photo",
+      "required": true,
+      "min": 1,
+      "max": 3
+    },
+    {
+      "key": "kk_nama",
+      "label": "Nama lengkap",
+      "type": "text",
+      "required": true,
+      "maxLength": 120
+    },
+    {
+      "key": "kk_nik",
+      "label": "NIK",
+      "type": "nik",
+      "required": false,
+      "sensitive": true
+    },
+    {
+      "key": "kk_jenis_kelamin",
+      "label": "Jenis kelamin",
+      "type": "select",
+      "required": true,
+      "options": [
+        "Laki-laki",
+        "Perempuan"
+      ]
+    },
+    {
+      "key": "kk_tanggal_lahir",
+      "label": "Tanggal lahir",
+      "type": "date",
+      "required": false
+    },
+    {
+      "key": "kk_pendidikan",
+      "label": "Pendidikan terakhir",
+      "type": "select",
+      "required": false,
+      "options": [
+        "Tidak/Belum Sekolah",
+        "Belum Tamat SD/Sederajat",
+        "Tamat SD/Sederajat",
+        "SLTP/Sederajat",
+        "SLTA/Sederajat",
+        "Diploma I/II",
+        "Akademi/Diploma III/Sarjana Muda",
+        "Diploma IV/Strata I",
+        "Strata II",
+        "Strata III"
+      ]
+    },
+    {
+      "key": "kk_pekerjaan",
+      "label": "Pekerjaan",
+      "type": "select",
+      "required": true,
+      "options": [
+        "Belum/Tidak Bekerja",
+        "Mengurus Rumah Tangga",
+        "Pelajar/Mahasiswa",
+        "Pensiunan",
+        "Pegawai Negeri Sipil (PNS)",
+        "TNI",
+        "POLRI",
+        "Karyawan BUMN/BUMD",
+        "Karyawan Swasta",
+        "Karyawan Honorer",
+        "Wiraswasta",
+        "Pedagang",
+        "Petani/Pekebun",
+        "Peternak",
+        "Nelayan/Perikanan",
+        "Buruh Harian Lepas",
+        "Buruh Tani/Perkebunan",
+        "Buruh Nelayan/Perikanan",
+        "Tukang (Batu/Kayu/Las/Jahit/dll)",
+        "Sopir/Pengemudi",
+        "Industri/Pengrajin",
+        "Pembantu Rumah Tangga",
+        "Guru",
+        "Dosen",
+        "Tenaga Kesehatan (Dokter/Bidan/Perawat)",
+        "Pemuka Agama",
+        "Kepala Desa/Perangkat Desa",
+        "Anggota Legislatif",
+        "Seniman",
+        "Wartawan",
+        "Lainnya"
+      ]
+    },
+    {
+      "key": "kk_pekerjaan_ket",
+      "label": "Keterangan pekerjaan",
+      "type": "text",
+      "maxLength": 150,
+      "requiredIf": {
+        "field": "kk_pekerjaan",
+        "in": [
+          "Pegawai Negeri Sipil (PNS)",
+          "TNI",
+          "POLRI",
+          "Karyawan BUMN/BUMD",
+          "Karyawan Swasta",
+          "Karyawan Honorer",
+          "Wiraswasta",
+          "Pedagang",
+          "Tukang (Batu/Kayu/Las/Jahit/dll)",
+          "Industri/Pengrajin",
+          "Tenaga Kesehatan (Dokter/Bidan/Perawat)",
+          "Pemuka Agama",
+          "Lainnya"
+        ]
+      },
+      "placeholders": {
+        "Pegawai Negeri Sipil (PNS)": "Instansi tempat bekerja, mis. Dinas Pendidikan Kab. Bogor",
+        "TNI": "Kesatuan, mis. Kodim 0621",
+        "POLRI": "Kesatuan, mis. Polres Bogor",
+        "Karyawan BUMN/BUMD": "Nama perusahaan, mis. PT PLN",
+        "Karyawan Swasta": "Nama perusahaan / tempat kerja",
+        "Karyawan Honorer": "Instansi tempat bekerja",
+        "Wiraswasta": "Bidang usaha, mis. bengkel motor",
+        "Pedagang": "Jenis dagangan, mis. sayur di pasar",
+        "Tukang (Batu/Kayu/Las/Jahit/dll)": "Jenis keahlian, mis. tukang las",
+        "Industri/Pengrajin": "Jenis produk/kerajinan",
+        "Tenaga Kesehatan (Dokter/Bidan/Perawat)": "Profesi & tempat kerja, mis. bidan Puskesmas",
+        "Pemuka Agama": "Peran, mis. ustadz / pendeta / pemangku",
+        "Lainnya": "Sebutkan pekerjaan"
+      }
+    },
+    {
+      "key": "kk_no_hp",
+      "label": "No. HP",
+      "type": "text",
+      "required": false,
+      "maxLength": 20
+    },
+    {
+      "key": "anggota",
+      "label": "Anggota keluarga",
+      "type": "repeater",
+      "required": false,
+      "min": 0,
+      "max": 20,
+      "fields": [
+        {
+          "key": "nama",
+          "label": "Nama lengkap",
+          "type": "text",
+          "required": true,
+          "maxLength": 120
+        },
+        {
+          "key": "nik",
+          "label": "NIK",
+          "type": "nik",
+          "required": false,
+          "sensitive": true
+        },
+        {
+          "key": "hubungan",
+          "label": "Hubungan dengan kepala keluarga",
+          "type": "select",
+          "required": true,
+          "options": [
+            "Istri",
+            "Suami",
+            "Anak",
+            "Menantu",
+            "Cucu",
+            "Orang Tua",
+            "Mertua",
+            "Famili Lain",
+            "Lainnya"
+          ]
+        },
+        {
+          "key": "jenis_kelamin",
+          "label": "Jenis kelamin",
+          "type": "select",
+          "required": true,
+          "options": [
+            "Laki-laki",
+            "Perempuan"
+          ]
+        },
+        {
+          "key": "tanggal_lahir",
+          "label": "Tanggal lahir",
+          "type": "date",
+          "required": false
+        },
+        {
+          "key": "pendidikan",
+          "label": "Pendidikan terakhir",
+          "type": "select",
+          "required": false,
+          "options": [
+            "Tidak/Belum Sekolah",
+            "Belum Tamat SD/Sederajat",
+            "Tamat SD/Sederajat",
+            "SLTP/Sederajat",
+            "SLTA/Sederajat",
+            "Diploma I/II",
+            "Akademi/Diploma III/Sarjana Muda",
+            "Diploma IV/Strata I",
+            "Strata II",
+            "Strata III"
+          ]
+        },
+        {
+          "key": "pekerjaan",
+          "label": "Pekerjaan",
+          "type": "select",
+          "required": true,
+          "options": [
+            "Belum/Tidak Bekerja",
+            "Mengurus Rumah Tangga",
+            "Pelajar/Mahasiswa",
+            "Pensiunan",
+            "Pegawai Negeri Sipil (PNS)",
+            "TNI",
+            "POLRI",
+            "Karyawan BUMN/BUMD",
+            "Karyawan Swasta",
+            "Karyawan Honorer",
+            "Wiraswasta",
+            "Pedagang",
+            "Petani/Pekebun",
+            "Peternak",
+            "Nelayan/Perikanan",
+            "Buruh Harian Lepas",
+            "Buruh Tani/Perkebunan",
+            "Buruh Nelayan/Perikanan",
+            "Tukang (Batu/Kayu/Las/Jahit/dll)",
+            "Sopir/Pengemudi",
+            "Industri/Pengrajin",
+            "Pembantu Rumah Tangga",
+            "Guru",
+            "Dosen",
+            "Tenaga Kesehatan (Dokter/Bidan/Perawat)",
+            "Pemuka Agama",
+            "Kepala Desa/Perangkat Desa",
+            "Anggota Legislatif",
+            "Seniman",
+            "Wartawan",
+            "Lainnya"
+          ]
+        },
+        {
+          "key": "pekerjaan_ket",
+          "label": "Keterangan pekerjaan",
+          "type": "text",
+          "maxLength": 150,
+          "requiredIf": {
+            "field": "pekerjaan",
+            "in": [
+              "Pegawai Negeri Sipil (PNS)",
+              "TNI",
+              "POLRI",
+              "Karyawan BUMN/BUMD",
+              "Karyawan Swasta",
+              "Karyawan Honorer",
+              "Wiraswasta",
+              "Pedagang",
+              "Tukang (Batu/Kayu/Las/Jahit/dll)",
+              "Industri/Pengrajin",
+              "Tenaga Kesehatan (Dokter/Bidan/Perawat)",
+              "Pemuka Agama",
+              "Lainnya"
+            ]
+          },
+          "placeholders": {
+            "Pegawai Negeri Sipil (PNS)": "Instansi tempat bekerja, mis. Dinas Pendidikan Kab. Bogor",
+            "TNI": "Kesatuan, mis. Kodim 0621",
+            "POLRI": "Kesatuan, mis. Polres Bogor",
+            "Karyawan BUMN/BUMD": "Nama perusahaan, mis. PT PLN",
+            "Karyawan Swasta": "Nama perusahaan / tempat kerja",
+            "Karyawan Honorer": "Instansi tempat bekerja",
+            "Wiraswasta": "Bidang usaha, mis. bengkel motor",
+            "Pedagang": "Jenis dagangan, mis. sayur di pasar",
+            "Tukang (Batu/Kayu/Las/Jahit/dll)": "Jenis keahlian, mis. tukang las",
+            "Industri/Pengrajin": "Jenis produk/kerajinan",
+            "Tenaga Kesehatan (Dokter/Bidan/Perawat)": "Profesi & tempat kerja, mis. bidan Puskesmas",
+            "Pemuka Agama": "Peran, mis. ustadz / pendeta / pemangku",
+            "Lainnya": "Sebutkan pekerjaan"
+          }
+        }
+      ]
+    },
+    {
+      "key": "catatan",
+      "label": "Catatan lapangan",
+      "type": "textarea",
+      "required": false,
+      "maxLength": 1000
+    }
+  ],
+  "steps": [
+    {
+      "title": "Nomor KK & alamat",
+      "description": "Identitas kartu keluarga dan alamat tempat tinggal (RT/RW atau dusun/banjar/jorong/lingkungan)",
+      "fields": [
+        "no_kk",
+        "alamat",
+        "satuan_wilayah",
+        "rt",
+        "rw",
+        "nama_lingkungan"
+      ]
+    },
+    {
+      "title": "Kondisi hunian",
+      "description": "Status, jenis bangunan, kondisi, dan foto rumah",
+      "fields": [
+        "status_kepemilikan",
+        "jenis_bangunan",
+        "kondisi_hunian",
+        "foto_hunian"
+      ]
+    },
+    {
+      "title": "Kepala keluarga",
+      "description": "Data kepala keluarga",
+      "fields": [
+        "kk_nama",
+        "kk_nik",
+        "kk_jenis_kelamin",
+        "kk_tanggal_lahir",
+        "kk_pendidikan",
+        "kk_pekerjaan",
+        "kk_pekerjaan_ket",
+        "kk_no_hp"
+      ]
+    },
+    {
+      "title": "Anggota keluarga",
+      "description": "Satu kartu per anggota keluarga; tekan + untuk menambah",
+      "fields": [
+        "anggota"
+      ]
+    },
+    {
+      "title": "Catatan lapangan",
+      "description": "Hal yang perlu diketahui pimpinan",
+      "fields": [
+        "catatan"
+      ]
+    }
+  ],
+  "rules": []
+}

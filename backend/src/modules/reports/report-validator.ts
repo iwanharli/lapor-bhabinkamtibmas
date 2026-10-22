@@ -8,7 +8,10 @@ export interface SchemaField {
   label: string;
   type: 'text' | 'textarea' | 'number' | 'currency' | 'date' | 'select' | 'multiselect' | 'nik' | 'photo' | 'file' | 'repeater';
   required?: boolean;
-  requiredIf?: { field: string; equals: unknown };
+  /** Wajib (dan ditampilkan) hanya bila field lain bernilai `equals` atau salah satu `in`. Di repeater, field acuannya di baris yang sama. */
+  requiredIf?: { field: string; equals?: unknown; in?: unknown[] };
+  /** Petunjuk isian per nilai field acuan requiredIf (hanya untuk tampilan). */
+  placeholders?: Record<string, string>;
   options?: string[];
   source?: 'commodities';
   min?: number;
@@ -24,6 +27,8 @@ export interface FormSchemaJson {
   version: number;
   title: string;
   fields: SchemaField[];
+  /** Formulir bertahap: judul langkah & field yang tampil di tiap langkah. */
+  steps?: { title: string; description?: string; fields: string[] }[];
   rules?: { when: { field: string; equals: unknown }; then: { flag: 'PRIORITY' } }[];
 }
 
@@ -35,8 +40,15 @@ export interface FieldError {
 const MEDIA = ['photo', 'file'];
 const empty = (v: unknown) => v == null || v === '' || (Array.isArray(v) && v.length === 0);
 
+/** Field bersyarat aktif? (tanpa requiredIf selalu aktif) */
+export function conditionMet(f: SchemaField, data: Record<string, unknown>) {
+  if (!f.requiredIf) return true;
+  const v = data[f.requiredIf.field];
+  return f.requiredIf.in ? f.requiredIf.in.includes(v) : v === f.requiredIf.equals;
+}
+
 export function isRequired(f: SchemaField, data: Record<string, unknown>) {
-  return !!f.required || (!!f.requiredIf && data[f.requiredIf.field] === f.requiredIf.equals);
+  return !!f.required || (!!f.requiredIf && conditionMet(f, data));
 }
 
 function checkValue(f: SchemaField, v: unknown, path: string, ctx: { commodityIds: Set<number> }): string | null {
@@ -106,7 +118,7 @@ export function validateReportData(
         for (const sub of f.fields ?? []) {
           const sv = (row as Record<string, unknown>)?.[sub.key];
           if (empty(sv)) {
-            if (sub.required) errors.push({ field: `${f.key}[${i}].${sub.key}`, message: `${f.label} baris ${i + 1}, ${sub.label}: wajib diisi` });
+            if (isRequired(sub, (row ?? {}) as Record<string, unknown>)) errors.push({ field: `${f.key}[${i}].${sub.key}`, message: `${f.label} baris ${i + 1}, ${sub.label}: wajib diisi` });
             continue;
           }
           const msg = checkValue(sub, sv, `${f.key}[${i}].${sub.key}`, ctx);
@@ -126,11 +138,46 @@ export function isPriority(schema: FormSchemaJson, data: Record<string, unknown>
   return (schema.rules ?? []).some((r) => r.then.flag === 'PRIORITY' && data[r.when.field] === r.when.equals);
 }
 
-/** Pisahkan field sensitif (dienkripsi) dari data biasa. */
+/**
+ * Pisahkan field sensitif (dienkripsi) dari data biasa. Sub-field sensitif di repeater (mis. NIK anggota keluarga)
+ * disimpan per baris: secret[repeaterKey] = [{ nik }, …] sejajar dengan baris di data biasa.
+ */
 export function splitSensitive(schema: FormSchemaJson, data: Record<string, unknown>) {
   const sensitiveKeys = new Set(schema.fields.filter((f) => f.sensitive).map((f) => f.key));
+  const nested = new Map(schema.fields.filter((f) => f.type === 'repeater' && f.fields?.some((x) => x.sensitive))
+    .map((f) => [f.key, new Set(f.fields!.filter((x) => x.sensitive).map((x) => x.key))]));
   const plain: Record<string, unknown> = {};
   const secret: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(data)) (sensitiveKeys.has(k) ? secret : plain)[k] = v;
+  for (const [k, v] of Object.entries(data)) {
+    const subs = nested.get(k);
+    if (subs && Array.isArray(v)) {
+      const rows = v as Record<string, unknown>[];
+      plain[k] = rows.map((r) => Object.fromEntries(Object.entries(r ?? {}).filter(([sk]) => !subs.has(sk))));
+      const hidden = rows.map((r) => Object.fromEntries(Object.entries(r ?? {}).filter(([sk, sv]) => subs.has(sk) && !empty(sv))));
+      if (hidden.some((h) => Object.keys(h).length)) secret[k] = hidden;
+    } else (sensitiveKeys.has(k) ? secret : plain)[k] = v;
+  }
   return { plain, secret };
+}
+
+/** Gabungkan data biasa + data sensitif (hasil dekripsi) menjadi isian utuh, termasuk sub-field repeater per baris. */
+export function mergeSensitive(plain: Record<string, unknown>, secret: Record<string, unknown>) {
+  const out: Record<string, unknown> = { ...plain };
+  for (const [k, v] of Object.entries(secret)) {
+    if (Array.isArray(v) && Array.isArray(plain[k])) {
+      out[k] = (plain[k] as Record<string, unknown>[]).map((row, i) => ({ ...row, ...((v[i] as Record<string, unknown>) ?? {}) }));
+    } else out[k] = v;
+  }
+  return out;
+}
+
+/** Gabungkan rahasia lama + baru (ralat): nilai baru menimpa; baris repeater kosong di data baru mempertahankan nilai lama. */
+export function mergeSecret(existing: Record<string, unknown>, next: Record<string, unknown>) {
+  const out: Record<string, unknown> = { ...existing };
+  for (const [k, v] of Object.entries(next)) {
+    if (Array.isArray(v) && Array.isArray(existing[k])) {
+      out[k] = v.map((row, i) => ({ ...((existing[k] as Record<string, unknown>[])[i] ?? {}), ...(row as Record<string, unknown>) }));
+    } else out[k] = v;
+  }
+  return out;
 }

@@ -1,4 +1,4 @@
-import { FormSchemaJson, isPriority, splitSensitive, validateReportData } from './report-validator';
+import { FormSchemaJson, isPriority, mergeSecret, mergeSensitive, splitSensitive, validateReportData } from './report-validator';
 
 const schema: FormSchemaJson = {
   category: 'DETEKSI_DINI',
@@ -56,5 +56,42 @@ describe('isPriority & splitSensitive', () => {
 
   it('memisahkan field sensitif', () => {
     expect(splitSensitive(schema, { nik: '1234567890123456', urgensi: 'Rendah' })).toEqual({ plain: { urgensi: 'Rendah' }, secret: { nik: '1234567890123456' } });
+  });
+});
+
+describe('isian bersyarat & sensitif bertingkat (Mapping Data Keluarga v2)', () => {
+  const schema = {
+    category: 'MAPPING_KK', version: 2, title: 'Uji',
+    fields: [
+      { key: 'no_kk', label: 'Nomor KK', type: 'nik', required: true, sensitive: true },
+      { key: 'kk_pekerjaan', label: 'Pekerjaan', type: 'select', required: true, options: ['PNS', 'Petani'] },
+      { key: 'kk_pekerjaan_ket', label: 'Keterangan', type: 'text', requiredIf: { field: 'kk_pekerjaan', in: ['PNS'] } },
+      {
+        key: 'anggota', label: 'Anggota', type: 'repeater', fields: [
+          { key: 'nama', label: 'Nama', type: 'text', required: true },
+          { key: 'nik', label: 'NIK', type: 'nik', sensitive: true },
+          { key: 'pekerjaan', label: 'Pekerjaan', type: 'select', required: true, options: ['PNS', 'Petani'] },
+          { key: 'pekerjaan_ket', label: 'Keterangan', type: 'text', requiredIf: { field: 'pekerjaan', in: ['PNS'] } },
+        ],
+      },
+    ],
+  } as unknown as FormSchemaJson;
+  const ctx = { commodityIds: new Set<number>(), attachmentCounts: null };
+
+  it('keterangan pekerjaan wajib hanya untuk pekerjaan tertentu, juga di baris anggota', () => {
+    const errs = validateReportData(schema, {
+      no_kk: '3201010101010001', kk_pekerjaan: 'PNS',
+      anggota: [{ nama: 'A', pekerjaan: 'PNS' }, { nama: 'B', pekerjaan: 'Petani' }],
+    }, ctx).map((e) => e.field);
+    expect(errs).toEqual(['kk_pekerjaan_ket', 'anggota[0].pekerjaan_ket']);
+  });
+
+  it('NIK anggota dipisah per baris lalu digabung kembali; NIK kosong saat ralat mempertahankan yang lama', () => {
+    const { plain, secret } = splitSensitive(schema, { no_kk: '3201010101010001', anggota: [{ nama: 'A', nik: '3201010101010002' }, { nama: 'B' }] });
+    expect(plain).toEqual({ anggota: [{ nama: 'A' }, { nama: 'B' }] });
+    expect(secret).toEqual({ no_kk: '3201010101010001', anggota: [{ nik: '3201010101010002' }, {}] });
+    expect(mergeSensitive(plain, secret)).toEqual({ no_kk: '3201010101010001', anggota: [{ nama: 'A', nik: '3201010101010002' }, { nama: 'B' }] });
+    const ralat = splitSensitive(schema, { anggota: [{ nama: 'A2' }, { nama: 'B', nik: '3201010101010003' }] }).secret;
+    expect(mergeSecret(secret, ralat)).toEqual({ no_kk: '3201010101010001', anggota: [{ nik: '3201010101010002' }, { nik: '3201010101010003' }] });
   });
 });

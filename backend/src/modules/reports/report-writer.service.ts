@@ -6,7 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { localDate } from '../../common/time';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { FormSchemaJson, isPriority, splitSensitive, validateReportData } from './report-validator';
+import { FormSchemaJson, isPriority, mergeSecret, mergeSensitive, splitSensitive, validateReportData } from './report-validator';
 import { UpdateReportDto, UpsertReportDto } from './reports.dto';
 
 const PREFIX: Record<ReportCategory, string> = {
@@ -36,10 +36,11 @@ export class ReportWriterService {
     private notifications: NotificationsService,
   ) {}
 
-  private async schemaOf(category: ReportCategory, version: number) {
+  /** `existing`: laporan yang sudah dibuat (draft/ralat) tetap boleh memakai versi skema lamanya. */
+  private async schemaOf(category: ReportCategory, version: number, existing = false) {
     const row = await this.prisma.formSchema.findUnique({ where: { category_version: { category, version } } });
     if (!row) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: `Formulir ${category} versi ${version} tidak dikenal` });
-    if (row.status === 'RETIRED') {
+    if (row.status === 'RETIRED' && !existing) {
       // Bedakan modul yang ditunda (tak ada versi aktif) dari versi lama yang sudah diganti.
       const active = await this.prisma.formSchema.count({ where: { category, status: 'ACTIVE' } });
       throw new BadRequestException({
@@ -69,7 +70,7 @@ export class ReportWriterService {
   }
 
   private encryptSecret(existing: Buffer | null, secret: Record<string, unknown>) {
-    const merged = { ...(existing ? this.crypto.decrypt(existing) : {}), ...secret };
+    const merged = mergeSecret(existing ? this.crypto.decrypt(existing) : {}, secret);
     return Object.keys(merged).length ? Buffer.from(this.crypto.encrypt(merged)) : null;
   }
 
@@ -126,7 +127,7 @@ export class ReportWriterService {
 
   async update(me: AuthUser, id: string, dto: UpdateReportDto) {
     const r = await this.ownedEditable(me, id);
-    const schema = await this.schemaOf(r.category, r.schemaVersion);
+    const schema = await this.schemaOf(r.category, r.schemaVersion, true);
     if (dto.villageId) await this.assertVillage(me, dto.villageId);
     if (dto.occurredAt) this.assertOccurredAt(dto.occurredAt);
 
@@ -140,7 +141,7 @@ export class ReportWriterService {
     }
     // Ralat laporan terkirim: isian baru harus tetap lengkap; prioritas, item harga & cek lokasi dihitung ulang.
     const ralat = r.status === ReportStatus.SUBMITTED;
-    const full = ralat ? (dto.data ?? { ...(r.data as Record<string, unknown>), ...(r.sensitive ? this.crypto.decrypt(Buffer.from(r.sensitive)) : {}) }) : null;
+    const full = ralat ? (dto.data ?? mergeSensitive(r.data as Record<string, unknown>, r.sensitive ? this.crypto.decrypt(Buffer.from(r.sensitive)) : {})) : null;
     const commodities = ralat ? await this.assertComplete(id, schema, full!) : [];
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -201,9 +202,9 @@ export class ReportWriterService {
   async submit(me: AuthUser, id: string) {
     const r = await this.ownedEditable(me, id);
     if (r.status !== ReportStatus.DRAFT) return this.summary(r);
-    const schema = await this.schemaOf(r.category, r.schemaVersion);
+    const schema = await this.schemaOf(r.category, r.schemaVersion, true);
     const secret = r.sensitive ? this.crypto.decrypt(Buffer.from(r.sensitive)) : {};
-    const data = { ...(r.data as Record<string, unknown>), ...secret };
+    const data = mergeSensitive(r.data as Record<string, unknown>, secret);
     const commodities = await this.assertComplete(id, schema, data);
 
     await this.prisma.$transaction(async (tx) => {

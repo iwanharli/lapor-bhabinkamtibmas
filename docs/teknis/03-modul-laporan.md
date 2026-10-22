@@ -131,17 +131,19 @@ Master komoditas awal:
 | Daging Sapi | kg |
 | Daging Ayam | kg |
 
-### 3.6 MAPPING_KK — Mapping Data Keluarga
+### 3.6 MAPPING_KK — Mapping Data Keluarga (v2, bertahap)
 
-| Key | Label | Tipe | Wajib |
-|---|---|---|---|
-| `nama_kk` | Nama kepala keluarga | text | ✔ |
-| `nik_kk` | NIK kepala keluarga | nik | ✖ |
-| `jumlah_anggota` | Jumlah anggota keluarga | number (1–30) | ✔ |
-| `alamat` | Alamat / RT-RW | text | ✔ |
-| `kondisi_hunian` | Kondisi hunian | select[Layak, Perlu Perhatian, Dalam Pemantauan] | ✔ |
-| `catatan` | Catatan lapangan | textarea(1000) | ✖ |
-| `foto_hunian` | Foto hunian | photo (0–2) | ✖ |
+Formulir 5 langkah (`steps` di skema). Versi 1 (tanpa langkah) tidak dipakai untuk laporan baru; laporan lama tetap tampil dengan versi 1.
+
+| Langkah | Isian |
+|---|---|
+| 1. Nomor KK & alamat | No. KK (16 digit, **terenkripsi**), alamat lengkap, satuan wilayah terkecil (RT/RW · Dusun/Dukuh · Banjar · Jorong · Lingkungan · Kampung · Lainnya) → RT & RW **atau** nama wilayah |
+| 2. Kondisi hunian | Status kepemilikan, jenis bangunan, kondisi hunian (Layak/Perlu Perhatian/Tidak Layak), foto hunian 1–3 |
+| 3. Kepala keluarga | Nama, NIK (terenkripsi), jenis kelamin, tanggal lahir, pendidikan (daftar KTP), pekerjaan (daftar KTP) + keterangan untuk pekerjaan tertentu, no. HP |
+| 4. Anggota keluarga | Kartu per anggota (+ tambah, maks. 20): nama, NIK (terenkripsi per baris), hubungan, jenis kelamin, tanggal lahir, pendidikan, pekerjaan + keterangan |
+| 5. Catatan lapangan | Teks bebas |
+
+Keterangan pekerjaan wajib untuk: PNS (instansi), TNI/POLRI (kesatuan), karyawan BUMN/BUMD/swasta/honorer (tempat kerja), wiraswasta (bidang usaha), pedagang (jenis dagangan), tukang & industri (jenis), tenaga kesehatan, pemuka agama, dan Lainnya. Skema memakai `requiredIf: { field, in: [...] }` (berlaku juga di dalam baris repeater) dan `placeholders` untuk petunjuk per pilihan.
 
 ### 3.7 KETAHANAN_PANGAN — Ketahanan Pangan
 

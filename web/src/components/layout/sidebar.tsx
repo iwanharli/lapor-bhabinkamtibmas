@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Bell,
   Building2,
   ChevronDown,
   ClipboardList,
@@ -23,6 +24,7 @@ import { useState } from 'react';
 /** Nama ikon dikirim dari Server Component sebagai string, dipetakan di sini. */
 const ICONS = {
   dashboard: LayoutDashboard,
+  notifications: Bell,
   reports: ClipboardList,
   prices: ShoppingBasket,
   users: Users,

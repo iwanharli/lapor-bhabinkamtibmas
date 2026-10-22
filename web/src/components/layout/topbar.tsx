@@ -4,6 +4,7 @@ import { ChevronDown, KeyRound, LogOut, Menu, PanelLeft } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { NotificationBell } from '@/features/notifications/notification-bell';
 import { isActive, NavSection } from './sidebar';
 
 export interface ShellUser {
@@ -103,7 +104,10 @@ export function Topbar({ sections, user, onToggleSidebar, onOpenMobile }: { sect
           ))}
         </nav>
       </div>
-      <UserMenu user={user} />
+      <div className="flex shrink-0 items-center gap-1.5">
+        <NotificationBell href="/notifikasi" />
+        <UserMenu user={user} />
+      </div>
     </header>
   );
 }

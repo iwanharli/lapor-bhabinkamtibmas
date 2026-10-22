@@ -113,6 +113,7 @@ model User {
   refreshTokens RefreshToken[]
   exportJobs    ExportJob[]
   attendances   Attendance[]
+  notifications Notification[]
   auditLogs     AuditLog[]
   reports       Report[]              @relation("ReportAuthor")
   reviewed      Report[]              @relation("ReportReviewer")
@@ -515,4 +516,24 @@ model Attendance {
   @@unique([userId, workDate, type])
   @@index([unitId, workDate])
   @@map("attendances")
+}
+
+/// Notifikasi dalam aplikasi: laporan prioritas, lokasi perlu dicek, perubahan desa binaan.
+model Notification {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  /// REPORT_PRIORITY | REPORT_LOCATION | VILLAGES_UPDATED
+  type      String    @db.VarChar(40)
+  title     String    @db.VarChar(160)
+  body      String?   @db.VarChar(500)
+  link      String?   @db.VarChar(300)
+  entityId  String?   @map("entity_id") @db.Uuid
+  readAt    DateTime? @map("read_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, entityId], map: "notifications_user_type_entity_key")
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notifications")
 }

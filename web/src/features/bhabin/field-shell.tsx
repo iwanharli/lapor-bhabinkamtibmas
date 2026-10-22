@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/components/ui';
+import { NotificationBell } from '@/features/notifications/notification-bell';
 
 const TABS = [
   { href: '/bhabin', label: 'Beranda', icon: Home, exact: true },
@@ -45,6 +46,7 @@ export function FieldShell({ user, children }: { user: { nama: string; pangkat?:
             <p className="truncate text-sm font-semibold">Lapor Bhabinkamtibmas</p>
             <p className="truncate text-[11px] text-white/70">{user.unit.nama}</p>
           </div>
+          <NotificationBell href="/bhabin/notifikasi" dark />
           <div ref={menu} className="relative">
             <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label="Menu akun"
               className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-primary-2 to-accent text-xs font-bold ring-2 ring-white/20">

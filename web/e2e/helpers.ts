@@ -36,8 +36,8 @@ export async function apiLogin(nrp: string, opts: { mobile?: boolean; password?:
   return (await api<{ accessToken: string }>('/auth/login', { method: 'POST', body })).accessToken;
 }
 
-/** Buat & kirim laporan Sambang sebagai Bhabin lewat API (seperti aplikasi mobile). */
-export async function createSubmittedReport(note = 'E2E') {
+/** Buat & kirim laporan sebagai Bhabin lewat API (seperti aplikasi mobile). Default: Sambang. */
+export async function createSubmittedReport(note = 'E2E', opts: { category?: string; data?: Record<string, unknown>; photoField?: string } = {}) {
   const token = await apiLogin(ACCOUNTS.bhabin, { mobile: true });
   const me = await api<{ villages: { village: { id: string } }[] }>('/auth/me', { token });
   const villageId = me.villages[0].village.id;
@@ -46,13 +46,13 @@ export async function createSubmittedReport(note = 'E2E') {
     token,
     body: {
       clientUuid: randomUUID(),
-      category: 'SAMBANG',
+      category: opts.category ?? 'SAMBANG',
       schemaVersion: 1,
       villageId,
       occurredAt: new Date(Date.now() - 30 * 60_000).toISOString(),
       location: { lat: -6.5951, lng: 106.8162 },
       gpsAccuracyM: 8,
-      data: {
+      data: opts.data ?? {
         jenis_sasaran: 'Tokoh Masyarakat',
         nama_sasaran: `Warga ${note}`,
         alamat: 'RT 01 / RW 01',
@@ -65,7 +65,7 @@ export async function createSubmittedReport(note = 'E2E') {
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
   const form = new FormData();
   form.set('file', new Blob([png], { type: 'image/png' }), 'foto.png');
-  form.set('fieldKey', 'foto_bersama');
+  form.set('fieldKey', opts.photoField ?? 'foto_bersama');
   const up = await fetch(`${API}/reports/${report.id}/attachments`, { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: form });
   expect(up.ok, await up.text()).toBeTruthy();
   await api(`/reports/${report.id}/submit`, { method: 'POST', token });

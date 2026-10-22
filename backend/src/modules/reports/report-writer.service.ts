@@ -5,6 +5,7 @@ import { SensitiveDataService } from '../../common/crypto/sensitive-data.service
 import { PrismaService } from '../../prisma/prisma.service';
 import { localDate } from '../../common/time';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { FormSchemaJson, isPriority, splitSensitive, validateReportData } from './report-validator';
 import { UpdateReportDto, UpsertReportDto } from './reports.dto';
 
@@ -28,7 +29,12 @@ export const canEdit = (r: { status: ReportStatus; submittedAt: Date | null }) =
 /** Pembuatan, perubahan, dan pengiriman laporan oleh Bhabin (aplikasi mobile). */
 @Injectable()
 export class ReportWriterService {
-  constructor(private prisma: PrismaService, private crypto: SensitiveDataService, private audit: AuditService) {}
+  constructor(
+    private prisma: PrismaService,
+    private crypto: SensitiveDataService,
+    private audit: AuditService,
+    private notifications: NotificationsService,
+  ) {}
 
   private async schemaOf(category: ReportCategory, version: number) {
     const row = await this.prisma.formSchema.findUnique({ where: { category_version: { category, version } } });
@@ -154,6 +160,7 @@ export class ReportWriterService {
       await this.audit.log({ actorId: me.id, action: 'REPORT_UPDATE', entity: 'report', entityId: id, meta: { ralat } }, tx);
       return tx.report.findUniqueOrThrow({ where: { id } });
     });
+    if (ralat) void this.notifications.onReportsSubmitted([id]);
     return this.summary(updated);
   }
 
@@ -209,6 +216,8 @@ export class ReportWriterService {
       await tx.reportStatusHistory.create({ data: { reportId: id, fromStatus: ReportStatus.DRAFT, toStatus: ReportStatus.SUBMITTED, actorId: me.id } });
       await this.audit.log({ actorId: me.id, action: 'REPORT_SUBMIT', entity: 'report', entityId: id }, tx);
     });
+    // Notifikasi prioritas / lokasi perlu dicek ke pimpinan (tidak menahan respons).
+    void this.notifications.onReportsSubmitted([id]);
     return this.summary(await this.prisma.report.findUniqueOrThrow({ where: { id } }));
   }
 

@@ -18,7 +18,8 @@
     "storage:compress": "ts-node prisma/compress-attachments.ts",
     "seed:demo-nasional": "ts-node prisma/seed-demo-nasional.ts",
     "seed:demo-absensi": "ts-node prisma/seed-demo-absensi.ts",
-    "seed:semua": "ts-node prisma/seed-semua.ts"
+    "seed:semua": "ts-node prisma/seed-semua.ts",
+    "notifications:isi": "ts-node prisma/backfill-notifications.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

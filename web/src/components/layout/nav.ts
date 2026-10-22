@@ -21,6 +21,7 @@ export function navFor(role: string): NavSection[] {
         { href: '/peta', label: 'Peta Sebaran', icon: 'map' },
         { href: '/kinerja', label: 'Kinerja Bhabin', icon: 'performance' },
         { href: '/absensi', label: 'Absensi', icon: 'users' },
+        { href: '/notifikasi', label: 'Notifikasi', icon: 'notifications' },
       ],
     },
     {

@@ -195,6 +195,16 @@ Jumlah per kategori, lokasi janggal, dan 8 laporan prioritas terbaru untuk panel
 ### `GET /units/search?q=&level=POLSEK,POLRES&ids=&limit=` · `GET /units/children?parentId=` · `GET /units/summary`
 Pencarian unit dalam cakupan (dengan `path` rantai induk), anak satu cabang untuk pohon bertahap (`childCount`, `counts`), dan ringkasan cakupan. `GET /admin/users` dan `/admin/users/role-counts` menerima `unitId`.
 
+## 6e. Notifikasi
+
+### `GET /notifications?unread=true&page=&limit=` · `GET /notifications/unread-count` · `POST /notifications/:id/read` · `POST /notifications/read-all`
+Notifikasi milik pengguna yang login (`{ data, meta, unread }`). Dibuat otomatis:
+- `REPORT_PRIORITY` — laporan prioritas terkirim → Pimpinan & Admin Unit di Polsek/Polres/Polda pelapor (bukan Mabes).
+- `REPORT_LOCATION` — lokasi palsu / di luar desa binaan → Pimpinan & Admin Unit di Polsek/Polres pelapor.
+- `VILLAGES_UPDATED` — desa binaan Bhabin diubah admin.
+
+Satu notifikasi per jenis per laporan per penerima (ralat tidak menggandakan). Isi ulang dari data lama: `npm run notifications:isi`.
+
 ## 7. Administrasi (web)
 
 | Endpoint | Fungsi |

@@ -5,6 +5,7 @@ import { randomBytes } from 'crypto';
 import { AuthUser } from '../../common/decorators/auth.decorators';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { UnitsService } from '../units/units.service';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 
@@ -18,7 +19,12 @@ const tempPassword = () => 'Lapor-' + randomBytes(6).toString('base64url');
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService, private units: UnitsService, private audit: AuditService) {}
+  constructor(
+    private prisma: PrismaService,
+    private units: UnitsService,
+    private audit: AuditService,
+    private notifications: NotificationsService,
+  ) {}
 
   private assertCanAssignRole(me: AuthUser, role: UserRole) {
     if (me.role !== UserRole.SUPERADMIN && (role === UserRole.SUPERADMIN || role === UserRole.INTEGRASI)) {
@@ -140,6 +146,9 @@ export class UsersService {
       if (add.length) await tx.userVillage.createMany({ data: add.map((villageId) => ({ userId: id, villageId, since: today })), skipDuplicates: true });
       await this.audit.log({ actorId: me.id, action: 'USER_SET_VILLAGES', entity: 'user', entityId: id, meta: { villageIds } }, tx);
     });
+    // Beri tahu Bhabin bahwa desa binaannya berubah.
+    const names = await this.prisma.village.findMany({ where: { id: { in: villageIds } }, select: { nama: true }, orderBy: { nama: 'asc' } });
+    void this.notifications.onVillagesUpdated(id, names.map((v) => v.nama));
     return { villageIds };
   }
 

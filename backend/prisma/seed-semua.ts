@@ -22,6 +22,7 @@ const steps: [string, string][] = [
   ['Laporan contoh nasional', `npm run -s seed:demo-nasional -- ${nasional}`],
   ['Agregat dashboard', 'npm run -s aggregates:rebuild'],
   ['Absensi contoh', 'npm run -s seed:demo-absensi'],
+  ['Notifikasi dari laporan 7 hari terakhir', 'npm run -s notifications:isi'],
 ];
 
 const t0 = Date.now();

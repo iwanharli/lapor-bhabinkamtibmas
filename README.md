@@ -62,6 +62,10 @@ docs/teknis/             Dokumentasi teknis (arsitektur, API, database, keamanan
   - unit (pohon bertahap, zona waktu),
   - desa (tetapkan desa Kemendagri ke Polsek, impor GeoJSON),
   - audit log.
+- **Notifikasi:** lonceng di topbar (dan header tampilan Bhabin) dengan angka belum dibaca, menu & halaman Notifikasi.
+  - Deteksi Dini urgensi tinggi → Pimpinan & Admin Unit di Polsek, Polres, dan Polda pelapor (Mabes tidak, agar tidak banjir).
+  - Lokasi palsu / di luar desa binaan → Pimpinan & Admin Unit di Polsek dan Polres pelapor.
+  - Bhabin diberi tahu saat desa binaannya diubah.
 - **Ekspor CSV** lewat antrean (`export_jobs`): diunduh otomatis saat selesai, berkas disimpan 24 jam.
 
 **Peran:** Bhabinkamtibmas (web `/bhabin` & mobile), Pimpinan, Admin Unit, Superadmin, Auditor. Peran Verifikator **tidak dipakai lagi**. Akses dibatasi cakupan unit (Polda → Polres → Polsek). Rincian: [docs/teknis/02-peran-hak-akses.md](docs/teknis/02-peran-hak-akses.md).
@@ -120,6 +124,7 @@ Urutan yang dijalankan `seed:semua`:
 | 6 | `npm run seed:demo-nasional` | ±135 ribu laporan di seluruh kecamatan, desa asli | 15 dtk |
 | 7 | `npm run aggregates:rebuild` | Hitung ulang data ringkasan/kinerja | 10 dtk |
 | 8 | `npm run seed:demo-absensi` | ±185 ribu absensi 15 hari untuk semua Bhabin | 30 dtk |
+| 9 | `npm run notifications:isi` | Notifikasi dari laporan prioritas/lokasi 7 hari terakhir (`--hari=`) | 2 dtk |
 
 ### Satu per satu
 
@@ -236,7 +241,7 @@ Deployment server (systemd + Nginx, tanpa Docker): [docs/teknis/09-deployment.md
 
 **Belum dikerjakan**
 - Aplikasi mobile Flutter (baru kerangka; sementara Bhabin memakai tampilan web `/bhabin`).
-- Notifikasi laporan prioritas ke pimpinan.
+- Notifikasi push ke HP (notifikasi dalam aplikasi web sudah ada).
 - API Command Center & tampilan korelasi.
 - Rekap absensi per Bhabin/bulanan & ekspor absensi.
 - Filter wilayah (provinsi/kab/kec) di halaman Laporan & Kinerja.

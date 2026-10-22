@@ -23,12 +23,17 @@ export function navFor(role: string): NavSection[] {
       ],
     },
     {
-      title: 'Laporan & Wilayah',
+      title: 'Data Laporan',
       items: [
         { href: '/laporan', label: 'Laporan', icon: 'reports', children: REPORT_CATEGORIES },
-        { href: '/peta', label: 'Peta Sebaran', icon: 'map' },
         { href: '/harga-pangan', label: 'Harga Pangan', icon: 'prices' },
         { href: '/keluarga', label: 'Keluarga & Stunting', icon: 'family' },
+      ],
+    },
+    {
+      title: 'Peta',
+      items: [
+        { href: '/peta', label: 'Peta Sebaran', icon: 'map' },
         { href: '/peta-stunting', label: 'Peta Stunting', icon: 'stuntingMap' },
       ],
     },

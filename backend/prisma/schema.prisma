@@ -72,6 +72,8 @@ model Village {
   kecamatan   String                                       @db.VarChar(120)
   kabupaten   String                                       @db.VarChar(120)
   provinsi    String                                       @db.VarChar(120)
+  /// Kode kecamatan Kemendagri (regions.kode, level 3); diisi seeder wilayah.
+  kecamatanKode String?                                    @map("kecamatan_kode") @db.VarChar(13)
   polsekId    String?                                      @map("polsek_id") @db.Uuid
   geom        Unsupported("geometry(MultiPolygon, 4326)")?
   centroid    Unsupported("geography(Point, 4326)")?
@@ -81,6 +83,7 @@ model Village {
   reports      Report[]
 
   @@index([polsekId])
+  @@index([kecamatanKode])
   @@map("villages")
 }
 
@@ -409,4 +412,28 @@ model AggState {
   value DateTime @db.Timestamptz
 
   @@map("agg_state")
+}
+
+/// Batas wilayah administrasi berkode Kemendagri: 1 provinsi, 2 kabupaten/kota, 3 kecamatan.
+/// Desa/kelurahan ada di tabel villages. Diisi `npm run seed:wilayah`.
+model Region {
+  kode       String                                       @id @db.VarChar(13)
+  nama       String                                       @db.VarChar(120)
+  level      Int                                          @db.SmallInt
+  parentKode String?                                      @map("parent_kode") @db.VarChar(13)
+  /// Rantai nama induk, mis. "Jawa Tengah › Kabupaten Semarang".
+  chain      String                                       @db.VarChar(400)
+  lat        Float?
+  lng        Float?
+  geom       Unsupported("geometry(MultiPolygon, 4326)")?
+  /// Geometri disederhanakan untuk tampilan peta.
+  geomS      Unsupported("geometry(MultiPolygon, 4326)")? @map("geom_s")
+  updatedAt  DateTime                                     @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  parent   Region?  @relation("RegionTree", fields: [parentKode], references: [kode], onDelete: Cascade)
+  children Region[] @relation("RegionTree")
+
+  @@index([parentKode])
+  @@index([level])
+  @@map("regions")
 }

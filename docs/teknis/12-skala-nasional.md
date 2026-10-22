@@ -104,7 +104,7 @@ Query dashboard saat ini menghitung langsung dari tabel `reports`. Untuk tingkat
 - Retensi & arsip: audit log > 5 tahun dipindah ke arsip dingin; foto > 1 tahun ke kelas penyimpanan murah.
 
 ### 4.6 Data master
-- Impor ±83.000 desa + batas wilayah dari Kemendagri/BIG: impor GeoJSON berjenjang per provinsi/kabupaten (batch > 2.000 fitur, tanpa batas satu Polsek).
+- Batas wilayah: `npm run seed:wilayah` memuat 38 provinsi, 514 kabupaten/kota, 7.285 kecamatan, dan desa/kelurahan per provinsi (`--desa=all` untuk ±83.000 desa) dari data komunitas berbasis Kepmendagri 2025. Untuk produksi, ganti dengan data resmi BIG/Kemendagri bila tersedia (format sama: kode Kemendagri + poligon).
 - Impor akun Bhabin per Polda (CSV, sudah ada; batas 1.000 baris per file dinaikkan atau dipecah otomatis).
 - Pemetaan desa ↔ Polsek dari data Polri.
 
@@ -140,6 +140,7 @@ Angka divalidasi lewat uji beban (k6) pada tahap pilot Polda sebelum pengadaan f
 | Antarmuka penyimpanan (`StorageService`) | 🟡 driver `local`; `s3` belum |
 | Zona waktu per unit | ✅ siap (`units.timezone`, nomor laporan, rekap, ekspor) |
 | Analitik dari agregat | ✅ siap (`agg_unit_daily`, `agg_user_daily`, `agg_price_daily`; refresh inkremental tiap `AGG_REFRESH_SECONDS`) |
+| Batas wilayah provinsi → desa di peta | ✅ siap (`regions` + `villages`, tingkat mengikuti zoom) |
 | Peta ter-cluster | ❌ batas 5.000 titik |
 | Paginasi kinerja, pencarian unit | 🟡 kinerja: paginasi + cari + filter unit; pencarian unit belum |
 | Ekspor sebagai job, thumbnail di worker | ❌ |

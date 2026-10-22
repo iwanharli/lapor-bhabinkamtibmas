@@ -1,19 +1,22 @@
 'use client';
 
 import 'leaflet/dist/leaflet.css';
-import type { Map as LeafletMap } from 'leaflet';
+import type { FeatureGroup, Map as LeafletMap } from 'leaflet';
 import { useEffect, useRef } from 'react';
 import { CATEGORY_LABEL, STATUS_LABEL, tanggalJam } from '@/lib/format';
+import { attachBoundaries } from './boundary-layer';
 import { CATEGORY_COLOR, type MapPoint } from './categories';
 
 /** Ubin peta; untuk server internal arahkan ke tile server sendiri lewat NEXT_PUBLIC_TILE_URL. */
 const TILE_URL = process.env.NEXT_PUBLIC_TILE_URL ?? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
-/** Peta Leaflet titik laporan. Dimuat hanya di browser. */
+/** Peta Leaflet titik laporan di atas batas wilayah Kemendagri. Dimuat hanya di browser. */
 export function ReportMap({ points }: { points: MapPoint[] }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<LeafletMap | null>(null);
+  const pointsLayer = useRef<FeatureGroup | null>(null);
+  const detach = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -21,14 +24,19 @@ export function ReportMap({ points }: { points: MapPoint[] }) {
       const L = (await import('leaflet')).default;
       if (cancelled || !el.current) return;
       if (!map.current) {
-        map.current = L.map(el.current, { zoomControl: true, attributionControl: true }).setView([-2.5, 118], 5);
-        L.tileLayer(TILE_URL, { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map.current);
+        map.current = L.map(el.current, {
+          zoomControl: true,
+          attributionControl: true,
+          minZoom: 4,
+          maxBounds: [[-16, 88], [12, 148]], // sekitar wilayah Indonesia
+          maxBoundsViscosity: 0.8,
+        }).setView([-2.5, 118], 5);
+        L.tileLayer(TILE_URL, { maxZoom: 19, attribution: '&copy; OpenStreetMap · Batas: Kemendagri 2025' }).addTo(map.current);
+        detach.current = attachBoundaries(L, map.current);
       }
       const m = map.current;
-      m.eachLayer((l) => {
-        if (!(l instanceof L.TileLayer)) m.removeLayer(l);
-      });
-      const layer = L.featureGroup();
+      pointsLayer.current?.remove();
+      const layer = (pointsLayer.current = L.featureGroup());
       // Prioritas digambar terakhir agar berada di atas.
       for (const p of [...points].sort((a, b) => Number(a.priority) - Number(b.priority))) {
         const color = CATEGORY_COLOR[p.category] ?? '#1d4ed8';
@@ -59,6 +67,7 @@ export function ReportMap({ points }: { points: MapPoint[] }) {
   }, [points]);
 
   useEffect(() => () => {
+    detach.current?.();
     map.current?.remove();
     map.current = null;
   }, []);

@@ -32,6 +32,8 @@ npx prisma migrate dev
 npx prisma db seed
 npm run seed:demo              # ±250 laporan contoh (dev)
 npm run seed:demo-attachments  # foto contoh untuk laporan (dev, disimpan di backend/storage)
+npm run seed:wilayah           # batas provinsi, kab/kota, kecamatan se-Indonesia (Kepmendagri 2025)
+npm run seed:wilayah -- --desa=32,34   # + desa/kelurahan provinsi tertentu (--desa=all untuk semua, --timpa untuk menimpa geometri)
 npm run start:dev
 
 # 3. Web → http://localhost:3001

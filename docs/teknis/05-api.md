@@ -170,6 +170,16 @@ Respons berisi `insideVillage`, `villageName`, `lateSync`.
 | `GET /analytics/bhabin-performance?from=&to=` | Rekap kinerja per Bhabin |
 | `GET /exports/{reports,prices,users,performance}.csv` | Ekspor CSV (`;` + BOM UTF-8), tercatat di audit |
 
+## 6c. Batas wilayah
+
+Sumber: [cahyadsn/wilayah_boundaries](https://github.com/cahyadsn/wilayah_boundaries) (Kepmendagri No 300.2.2-2430 Tahun 2025, MIT), dimuat dengan `npm run seed:wilayah`. Provinsi, kabupaten/kota, dan kecamatan disimpan di tabel `regions`; desa/kelurahan di `villages` (kode Kemendagri, Polsek pembina tidak diubah).
+
+### `GET /regions/boundaries?level=1..4&bbox=w,s,e,n&parent=kode`
+GeoJSON FeatureCollection (`properties: kode, nama, chain, level`), maksimal 3.000 fitur (`truncated: true` bila lebih). Level 1 provinsi, 2 kabupaten/kota, 3 kecamatan, 4 desa (wajib `bbox` atau `parent` = kode kecamatan). Geometri disederhanakan untuk tampilan. Semua peran.
+
+### `GET /regions/at?lat=&lng=`
+Rantai wilayah pada satu titik: `[{kode, nama, level}]` dari provinsi sampai desa.
+
 ## 7. Administrasi (web)
 
 | Endpoint | Fungsi |

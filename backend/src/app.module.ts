@@ -21,6 +21,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { UnitsModule } from './modules/units/units.module';
 import { UsersModule } from './modules/users/users.module';
 import { VillagesModule } from './modules/villages/villages.module';
+import { RegionsModule } from './modules/regions/regions.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { VillagesModule } from './modules/villages/villages.module';
     UnitsModule,
     UsersModule,
     VillagesModule,
+    RegionsModule,
     MasterModule,
     FormSchemasModule,
     ReportsModule,

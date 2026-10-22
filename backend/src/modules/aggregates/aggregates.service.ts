@@ -61,12 +61,17 @@ export class AggregatesService implements OnApplicationBootstrap {
       if (pairs.length) await this.recompute(tx, pairs);
       this.logger.log(`Agregat dibangun ulang: ${pairs.length} pasangan unit-hari`);
       return pairs.length;
-    }, 600_000);
+    }, 600_000, true);
   }
 
-  private async withLock<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>, timeout = 120_000): Promise<T> {
+  /** `wait`: tunggu kunci (bangun ulang tidak boleh terlewat diam-diam); tanpa itu, lewati bila instance lain sedang menyegarkan. */
+  private async withLock<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>, timeout = 120_000, wait = false): Promise<T> {
     return this.prisma.$transaction(
       async (tx) => {
+        if (wait) {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(${LOCK_KEY})`;
+          return fn(tx);
+        }
         const [{ locked }] = await tx.$queryRaw<{ locked: boolean }[]>`SELECT pg_try_advisory_xact_lock(${LOCK_KEY}) AS locked`;
         if (!locked) return 0 as T; // instance lain sedang menyegarkan
         return fn(tx);

@@ -305,14 +305,16 @@ export class AnalyticsService {
   /**
    * Rekap keluarga & stunting dari laporan Mapping Data Keluarga v2 terkirim, per desa.
    * Angka kesehatan dari kolom ringkasan `health` (dihitung saat kirim, umur pada waktu kegiatan) sehingga isian per orang tetap terenkripsi.
-   * Satu laporan = satu KK (laporan ganda KK yang sama ikut terhitung).
+   * KK yang dilaporkan lebih dari sekali (No. KK sama, lewat sidik `kk_hash`) hanya dihitung dari laporan terbarunya.
    */
   async stunting(me: AuthUser, unitId?: string) {
     const scope = await this.scopeSql(me, unitId);
     const rows = await this.prisma.$queryRaw<Record<string, number | string>[]>`
       WITH k AS (
-        SELECT r.village_id, r.data, r.health FROM reports r
+        -- Satu KK dihitung sekali: laporan terbaru per sidik No. KK (laporan tanpa No. KK berdiri sendiri).
+        SELECT DISTINCT ON (coalesce(r.kk_hash, r.id::text)) r.village_id, r.data, r.health FROM reports r
         WHERE ${scope} AND r.category = 'MAPPING_KK' AND r.status = 'SUBMITTED' AND r.schema_version = 2
+        ORDER BY coalesce(r.kk_hash, r.id::text), r.submitted_at DESC
       ), kv AS (
         SELECT village_id, count(*)::int AS kk,
           coalesce(sum((health->>'balita')::int), 0)::int AS balita,
@@ -336,6 +338,8 @@ export class AnalyticsService {
       ORDER BY kv.belum_ditangani DESC, kv.stunting + kv.berisiko DESC, kv.kk DESC`;
     const keys = ['kk', 'kk_sanitasi', 'balita', 'stunting', 'berisiko', 'belum_ditangani', 'belum_diketahui', 'ibu_hamil', 'ibu_kek', 'remaja_anemia', 'catin', 'jamban_tidak_layak', 'bab_sembarangan', 'air_tidak_layak', 'perokok'] as const;
     const total = Object.fromEntries(keys.map((k) => [k, rows.reduce((n, r) => n + Number(r[k] ?? 0), 0)]));
-    return { total, desa: rows.length, villages: rows.slice(0, 300) };
+    const [{ laporan }] = await this.prisma.$queryRaw<{ laporan: number }[]>`
+      SELECT count(*)::int AS laporan FROM reports r WHERE ${scope} AND r.category = 'MAPPING_KK' AND r.status = 'SUBMITTED' AND r.schema_version = 2`;
+    return { total, desa: rows.length, laporan, villages: rows.slice(0, 300) };
   }
 }

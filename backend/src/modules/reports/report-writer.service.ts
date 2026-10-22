@@ -136,19 +136,20 @@ export class ReportWriterService {
 
     let data: Prisma.InputJsonObject | undefined;
     let sensitive: Buffer | null | undefined;
+    // Rahasia gabungan (lama + baru) dihitung sekali: _id baris baru dibuat saat split dan harus sama di data & rahasia.
+    const oldSecret = r.sensitive ? this.crypto.decrypt(Buffer.from(r.sensitive)) : {};
+    let mergedSecret = oldSecret;
     if (dto.data) {
       await this.validateDraft(schema, dto.data);
       const { plain, secret } = splitSensitive(schema, dto.data);
       data = plain as Prisma.InputJsonObject;
-      sensitive = this.encryptSecret(r.sensitive ? Buffer.from(r.sensitive) : null, secret);
+      mergedSecret = mergeSecret(oldSecret, secret);
+      sensitive = Object.keys(mergedSecret).length ? Buffer.from(this.crypto.encrypt(mergedSecret)) : null;
     }
     // Ralat laporan terkirim: isian baru harus tetap lengkap; prioritas, item harga & cek lokasi dihitung ulang.
     const ralat = r.status === ReportStatus.SUBMITTED;
     // Isian lengkap = data biasa + rahasia gabungan (rahasia kosong di formulir = nilai lama dipakai).
-    const oldSecret = r.sensitive ? this.crypto.decrypt(Buffer.from(r.sensitive)) : {};
-    const full = ralat
-      ? mergeSensitive((data ?? r.data) as Record<string, unknown>, dto.data ? mergeSecret(oldSecret, splitSensitive(schema, dto.data).secret) : oldSecret)
-      : null;
+    const full = ralat ? mergeSensitive((data ?? r.data) as Record<string, unknown>, mergedSecret) : null;
     const commodities = ralat ? await this.assertComplete(id, schema, full!) : [];
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -207,7 +208,10 @@ export class ReportWriterService {
       where: { id: r.id },
       data: {
         priority: isPriority(schema, data), distanceM: distance, insideVillage: distance == null ? null : distance <= VILLAGE_TOLERANCE_M,
-        ...(r.category === ReportCategory.MAPPING_KK && { health: healthSummary(data, r.occurredAt) as unknown as Prisma.InputJsonObject }),
+        ...(r.category === ReportCategory.MAPPING_KK && {
+          health: healthSummary(data, r.occurredAt) as unknown as Prisma.InputJsonObject,
+          kkHash: typeof data.no_kk === 'string' && data.no_kk ? this.crypto.blindIndex('no_kk', data.no_kk) : null,
+        }),
       },
     });
   }

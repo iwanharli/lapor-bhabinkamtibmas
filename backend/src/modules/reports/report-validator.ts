@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 /**
  * Validasi isian laporan terhadap skema form (packages/form-schemas, docs/teknis/03 §4).
  * Mengembalikan daftar galat per field; field media (photo/file) divalidasi terpisah lewat jumlah lampiran.
@@ -197,10 +198,11 @@ export function splitSensitive(schema: FormSchemaJson, data: Record<string, unkn
   for (const [k, v] of Object.entries(data)) {
     const subs = nested.get(k);
     if (subs && Array.isArray(v)) {
-      const rows = v as Record<string, unknown>[];
-      plain[k] = rows.map((r) => Object.fromEntries(Object.entries(r ?? {}).filter(([sk]) => !subs.has(sk))));
-      const hidden = rows.map((r) => Object.fromEntries(Object.entries(r ?? {}).filter(([sk, sv]) => subs.has(sk) && !empty(sv))));
-      if (hidden.some((h) => Object.keys(h).length)) secret[k] = hidden;
+      // Tiap baris diberi _id tetap; bagian rahasia dicocokkan lewat _id (bukan urutan) agar tidak tertukar
+      // saat anggota dihapus/diurutkan ulang. Larik rahasia selalu dikirim agar baris yang dihapus ikut terbuang.
+      const rows = (v as Record<string, unknown>[]).map((r) => ({ ...(r ?? {}), _id: typeof r?._id === 'string' && r._id ? r._id : randomUUID() }));
+      plain[k] = rows.map((r) => Object.fromEntries(Object.entries(r).filter(([sk]) => !subs.has(sk))));
+      secret[k] = rows.map((r) => Object.fromEntries(Object.entries(r).filter(([sk, sv]) => sk === '_id' || (subs.has(sk) && !empty(sv)))));
     } else (sensitiveKeys.has(k) ? secret : plain)[k] = v;
   }
   return { plain, secret };
@@ -211,7 +213,8 @@ export function mergeSensitive(plain: Record<string, unknown>, secret: Record<st
   const out: Record<string, unknown> = { ...plain };
   for (const [k, v] of Object.entries(secret)) {
     if (Array.isArray(v) && Array.isArray(plain[k])) {
-      out[k] = (plain[k] as Record<string, unknown>[]).map((row, i) => ({ ...row, ...((v[i] as Record<string, unknown>) ?? {}) }));
+      const find = matcher(v as Record<string, unknown>[]);
+      out[k] = (plain[k] as Record<string, unknown>[]).map((row, i) => ({ ...row, ...(find(row, i) ?? {}) }));
     } else out[k] = v;
   }
   return out;
@@ -221,9 +224,21 @@ export function mergeSensitive(plain: Record<string, unknown>, secret: Record<st
 export function mergeSecret(existing: Record<string, unknown>, next: Record<string, unknown>) {
   const out: Record<string, unknown> = { ...existing };
   for (const [k, v] of Object.entries(next)) {
-    if (Array.isArray(v) && Array.isArray(existing[k])) {
-      out[k] = v.map((row, i) => ({ ...((existing[k] as Record<string, unknown>[])[i] ?? {}), ...(row as Record<string, unknown>) }));
+    if (Array.isArray(v)) {
+      const find = matcher(Array.isArray(existing[k]) ? (existing[k] as Record<string, unknown>[]) : []);
+      // Isian rahasia kosong di formulir = nilai lama baris yang sama tetap dipakai; baris yang tidak dikirim terbuang.
+      const rows = (v as Record<string, unknown>[]).map((row, i) => ({ ...(find(row, i) ?? {}), ...row }))
+        .filter((row) => Object.keys(row).some((rk) => rk !== '_id'));
+      if (rows.length) out[k] = rows;
+      else delete out[k];
     } else out[k] = v;
   }
   return out;
+}
+
+/** Cocokkan baris dengan baris rahasia: lewat _id bila tersedia, selain itu urutan (data lama tanpa _id). */
+function matcher(rows: Record<string, unknown>[]) {
+  const byId = new Map(rows.filter((r) => r?._id).map((r) => [r._id, r]));
+  const legacy = rows.every((r) => !r?._id);
+  return (row: Record<string, unknown>, i: number) => (row?._id && byId.has(row._id) ? byId.get(row._id) : legacy ? rows[i] : undefined);
 }

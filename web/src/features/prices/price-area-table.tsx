@@ -1,10 +1,12 @@
 'use client';
 
 import { MapPin, Search, SearchX } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { cn, EmptyState } from '@/components/ui';
 import { rupiah, tanggal } from '@/lib/format';
 import type { PriceAreaRow } from '@/lib/types';
+
+const PAGE = 100;
 
 const SORTS = [
   { key: 'mahal', label: 'Termahal' },
@@ -20,6 +22,10 @@ export function PriceAreaTable({ rows, average, tz, filter }: { rows: PriceAreaR
   const [q, setQ] = useState('');
   const [kec, setKec] = useState('');
   const [sort, setSort] = useState<(typeof SORTS)[number]['key']>('mahal');
+  // Ribuan desa (akun nasional): tampilkan bertahap per PAGE baris saat daftar digulir.
+  const [limit, setLimit] = useState(PAGE);
+  const list = useRef<HTMLUListElement>(null);
+  const sentinel = useRef<HTMLLIElement>(null);
 
   const kecamatan = useMemo(() => [...new Set(rows.map((r) => r.kecamatan))].sort(), [rows]);
   const shown = useMemo(() => {
@@ -27,7 +33,18 @@ export function PriceAreaTable({ rows, average, tz, filter }: { rows: PriceAreaR
     const list = rows.filter((r) => (!kec || r.kecamatan === kec) && (!needle || `${r.desa} ${r.kecamatan} ${r.kabupaten ?? ''}`.toLowerCase().includes(needle)));
     return list.sort((a, b) => (sort === 'mahal' ? b.rata2 - a.rata2 : sort === 'murah' ? a.rata2 - b.rata2 : a.desa.localeCompare(b.desa, 'id')));
   }, [rows, q, kec, sort]);
-  const max = Math.max(...rows.map((r) => r.rata2), 1);
+  const max = useMemo(() => rows.reduce((m, r) => Math.max(m, r.rata2), 1), [rows]);
+  useEffect(() => {
+    setLimit(PAGE);
+    list.current?.scrollTo({ top: 0 });
+  }, [q, kec, sort]);
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el || limit >= shown.length) return;
+    const io = new IntersectionObserver(([e]) => e.isIntersecting && setLimit((l) => l + PAGE), { root: list.current, rootMargin: '200px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [limit, shown.length]);
   const naik = average ? rows.filter((r) => ((r.rata2 - average) / average) * 100 >= 10).length : 0;
 
   return (
@@ -66,8 +83,8 @@ export function PriceAreaTable({ rows, average, tz, filter }: { rows: PriceAreaR
       ) : shown.length === 0 ? (
         <EmptyState icon={<SearchX size={22} />} tone="neutral" title="Tidak ada desa yang cocok" className="py-10">Ubah kata kunci atau kecamatan.</EmptyState>
       ) : (
-        <ul className="max-h-[22rem] divide-y divide-line/60 scroll-thin overflow-y-auto">
-          {shown.map((a) => {
+        <ul ref={list} className="max-h-[22rem] divide-y divide-line/60 scroll-thin overflow-y-auto">
+          {shown.slice(0, limit).map((a) => {
             const dev = average ? ((a.rata2 - average) / average) * 100 : 0;
             return (
               <li key={a.id ?? `${a.kabupaten}-${a.kecamatan}-${a.desa}-${a.rata2}`} className="px-4 py-2.5">
@@ -91,6 +108,7 @@ export function PriceAreaTable({ rows, average, tz, filter }: { rows: PriceAreaR
               </li>
             );
           })}
+          {limit < shown.length && <li ref={sentinel} className="px-4 py-2 text-center text-xs text-muted">Memuat desa berikutnya…</li>}
         </ul>
       )}
     </div>

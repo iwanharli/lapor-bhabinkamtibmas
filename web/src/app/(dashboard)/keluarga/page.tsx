@@ -7,7 +7,7 @@ import { withParams } from '@/lib/url';
 
 type Counts = Record<'kk' | 'kk_sanitasi' | 'balita' | 'stunting' | 'berisiko' | 'belum_ditangani' | 'belum_diketahui' | 'ibu_hamil' | 'ibu_kek' | 'remaja_anemia' | 'catin' | 'jamban_tidak_layak' | 'bab_sembarangan' | 'air_tidak_layak' | 'perokok', number>;
 type VillageRow = Counts & { id: string; desa: string; kecamatan: string; kabupaten: string };
-type Rekap = { total: Counts; desa: number; villages: VillageRow[] };
+type Rekap = { total: Counts; desa: number; laporan: number; villages: VillageRow[] };
 
 const n = (x: number) => x.toLocaleString('id-ID');
 const pct = (a: number, b: number) => (b ? (a / b) * 100 : 0);
@@ -43,7 +43,7 @@ export default async function KeluargaPage({ searchParams }: { searchParams: Pro
       ) : (
         <div className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:h-full">
-            <StatCard title="Keluarga terdata" description={`${n(r.desa)} desa`} icon={<Home size={20} />} value={n(t.kk)} footer={`${n(t.kk_sanitasi)} dengan data sanitasi`} />
+            <StatCard title="Keluarga terdata" description={`${n(r.desa)} desa`} icon={<Home size={20} />} value={n(t.kk)} footer={r.laporan > t.kk ? `${n(r.laporan - t.kk)} laporan ulang KK yang sama dihitung sekali` : `${n(t.kk_sanitasi)} dengan data sanitasi`} />
             <StatCard title="Balita" description="Umur di bawah 5 tahun" icon={<Baby size={20} />} tone="info" value={n(t.balita)}
               footer={`${pctLabel(t.stunting + t.berisiko, t.balita)} stunting / berisiko`} />
             <StatCard alert={t.belum_ditangani > 0} title="Stunting belum ditangani" description="Stunting/berisiko, belum ke Posyandu/Puskesmas" icon={<Siren size={20} />} tone="danger"

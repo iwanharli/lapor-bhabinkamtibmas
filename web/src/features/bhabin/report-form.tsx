@@ -69,6 +69,8 @@ const active = (f: FormField, v: Values) => {
   return f.requiredIf.in ? f.requiredIf.in.includes(x) : x === f.requiredIf.equals;
 };
 const isRequired = (f: FormField, v: Values) => !!f.required || (!!f.requiredIf && active(f, v));
+/** Baris repeater dianggap terisi bila ada isian selain _id. */
+const rowFilled = (row: Row) => Object.entries(row).some(([k, x]) => k !== '_id' && x !== '');
 const empty = (v: unknown) => v == null || v === '' || (Array.isArray(v) && v.length === 0);
 
 /** Siapkan isian untuk API: angka sebagai number, kosong dibuang, NIK kosong tidak dikirim (nilai lama tetap dipakai saat ralat). */
@@ -81,10 +83,14 @@ function cleanData(schema: FormSchema, values: Values) {
     if (f.type === 'number' || f.type === 'currency') out[f.key] = Number(v);
     else if (f.type === 'repeater') {
       out[f.key] = (v as Row[])
-        .filter((row) => Object.values(row).some((x) => x !== ''))
-        .map((row) => Object.fromEntries((f.fields ?? []).filter((s) => row[s.key] !== '' && row[s.key] != null && active(s, row)).map((s) => [
-          s.key, s.type === 'number' || s.type === 'currency' || s.source === 'commodities' ? Number(row[s.key]) : row[s.key],
-        ])));
+        .filter(rowFilled)
+        .map((row) => ({
+          // _id baris dipertahankan agar data terenkripsi (NIK, kesehatan) tetap melekat ke orang yang sama saat ralat.
+          ...(row._id && { _id: row._id }),
+          ...Object.fromEntries((f.fields ?? []).filter((s) => row[s.key] !== '' && row[s.key] != null && active(s, row)).map((s) => [
+            s.key, s.type === 'number' || s.type === 'currency' || s.source === 'commodities' ? Number(row[s.key]) : row[s.key],
+          ])),
+        }));
     } else out[f.key] = typeof v === 'string' ? v.trim() : v;
   }
   return out;
@@ -191,7 +197,7 @@ export function ReportForm({
 
   useEffect(() => {
     if (!backupKey || !backupReady.current || restore) return;
-    const filled = Object.values(values).some((v) => !empty(v) && !(Array.isArray(v) && v.every((r) => !Object.values(r as Row).some(Boolean))));
+    const filled = Object.values(values).some((v) => !empty(v) && !(Array.isArray(v) && v.every((r) => !rowFilled(r as Row))));
     try {
       if (filled) localStorage.setItem(backupKey, JSON.stringify({ values: stripSensitive(values), step, at: Date.now() }));
     } catch { /* abaikan */ }
@@ -225,7 +231,7 @@ export function ReportForm({
       }
       if (f.sensitive && saved.has(f.key) && empty(values[f.key])) continue; // nilai terenkripsi tersimpan tetap dipakai
       if (f.type === 'repeater') {
-        const rows = ((values[f.key] as Row[]) ?? []).filter((row) => Object.values(row).some((x) => x !== ''));
+        const rows = ((values[f.key] as Row[]) ?? []).filter(rowFilled);
         if (req && !rows.length) errs.push(`${f.label} wajib diisi.`);
         rows.forEach((row, i) => {
           for (const sub of f.fields ?? []) {
@@ -696,7 +702,7 @@ function CardRepeater({ f, rows, set, keep }: { f: FormField; rows: Row[]; set: 
         </div>
       ))}
       {rows.length < max && (
-        <button type="button" onClick={() => set([...rows, {}])} className="flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-[var(--brand)]/40 bg-[var(--brand)]/5 py-3 text-sm font-semibold text-[var(--brand)] hover:bg-[var(--brand)]/10">
+        <button type="button" onClick={() => set([...rows, { _id: newUuid() }])} className="flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-[var(--brand)]/40 bg-[var(--brand)]/5 py-3 text-sm font-semibold text-[var(--brand)] hover:bg-[var(--brand)]/10">
           <Plus size={17} /> Tambah {noun}
         </button>
       )}

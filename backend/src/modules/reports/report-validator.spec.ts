@@ -86,13 +86,32 @@ describe('isian bersyarat & sensitif bertingkat (Mapping Data Keluarga v2)', () 
     expect(errs).toEqual(['kk_pekerjaan_ket', 'anggota[0].pekerjaan_ket']);
   });
 
-  it('NIK anggota dipisah per baris lalu digabung kembali; NIK kosong saat ralat mempertahankan yang lama', () => {
-    const { plain, secret } = splitSensitive(schema, { no_kk: '3201010101010001', anggota: [{ nama: 'A', nik: '3201010101010002' }, { nama: 'B' }] });
-    expect(plain).toEqual({ anggota: [{ nama: 'A' }, { nama: 'B' }] });
-    expect(secret).toEqual({ no_kk: '3201010101010001', anggota: [{ nik: '3201010101010002' }, {}] });
-    expect(mergeSensitive(plain, secret)).toEqual({ no_kk: '3201010101010001', anggota: [{ nama: 'A', nik: '3201010101010002' }, { nama: 'B' }] });
-    const ralat = splitSensitive(schema, { anggota: [{ nama: 'A2' }, { nama: 'B', nik: '3201010101010003' }] }).secret;
-    expect(mergeSecret(secret, ralat)).toEqual({ no_kk: '3201010101010001', anggota: [{ nik: '3201010101010002' }, { nik: '3201010101010003' }] });
+  it('NIK anggota dipisah per baris (dengan _id) lalu digabung kembali; NIK kosong saat ralat mempertahankan yang lama', () => {
+    const { plain, secret } = splitSensitive(schema, { no_kk: '3201010101010001', anggota: [{ _id: 'a', nama: 'A', nik: '3201010101010002' }, { _id: 'b', nama: 'B' }] });
+    expect(plain).toEqual({ anggota: [{ _id: 'a', nama: 'A' }, { _id: 'b', nama: 'B' }] });
+    const stored = mergeSecret({}, secret);
+    expect(stored).toEqual({ no_kk: '3201010101010001', anggota: [{ _id: 'a', nik: '3201010101010002' }] });
+    expect(mergeSensitive(plain, stored)).toEqual({ no_kk: '3201010101010001', anggota: [{ _id: 'a', nama: 'A', nik: '3201010101010002' }, { _id: 'b', nama: 'B' }] });
+    const ralat = splitSensitive(schema, { anggota: [{ _id: 'a', nama: 'A2' }, { _id: 'b', nama: 'B', nik: '3201010101010003' }] }).secret;
+    expect(mergeSecret(stored, ralat)).toEqual({ no_kk: '3201010101010001', anggota: [{ _id: 'a', nik: '3201010101010002' }, { _id: 'b', nik: '3201010101010003' }] });
+  });
+
+  it('menghapus anggota di tengah saat ralat tidak menggeser NIK ke anggota lain', () => {
+    const first = splitSensitive(schema, { anggota: [{ _id: 'a', nama: 'A', nik: '1111111111111111' }, { _id: 'b', nama: 'B', nik: '2222222222222222' }, { _id: 'c', nama: 'C', nik: '3333333333333333' }] });
+    const stored = mergeSecret({}, first.secret);
+    // B dihapus; NIK dikosongkan (tidak diubah) untuk A & C.
+    const ralat = splitSensitive(schema, { anggota: [{ _id: 'a', nama: 'A' }, { _id: 'c', nama: 'C' }] });
+    const merged = mergeSecret(stored, ralat.secret);
+    expect(mergeSensitive(ralat.plain, merged).anggota).toEqual([{ _id: 'a', nama: 'A', nik: '1111111111111111' }, { _id: 'c', nama: 'C', nik: '3333333333333333' }]);
+  });
+
+  it('data lama tanpa _id dicocokkan menurut urutan lalu mendapat _id', () => {
+    const legacy = { anggota: [{ nik: '1111111111111111' }, { nik: '2222222222222222' }] };
+    const next = splitSensitive(schema, { anggota: [{ nama: 'A' }, { nama: 'B' }] });
+    const merged = mergeSecret(legacy, next.secret) as { anggota: { _id: string; nik: string }[] };
+    expect(merged.anggota.map((r) => r.nik)).toEqual(['1111111111111111', '2222222222222222']);
+    expect(merged.anggota.every((r) => r._id)).toBe(true);
+    expect((next.plain.anggota as { _id: string }[]).map((r) => r._id)).toEqual(merged.anggota.map((r) => r._id));
   });
 });
 

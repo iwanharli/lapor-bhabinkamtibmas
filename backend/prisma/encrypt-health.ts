@@ -1,6 +1,7 @@
 /**
  * Pindahkan isian kesehatan Mapping Data Keluarga (status stunting, risiko ibu, dst.) yang masih tersimpan
- * sebagai data biasa ke bagian terenkripsi, dan isi kolom ringkasan `health`. Aman diulang.
+ * sebagai data biasa ke bagian terenkripsi, beri _id tetap pada tiap baris anggota (pencocokan data rahasia),
+ * isi kolom ringkasan `health` dan sidik No. KK (`kk_hash`; jalankan ulang setelah rotasi kunci). Aman diulang.
  *
  *   npm run mapping:enkripsi-kesehatan
  */
@@ -42,6 +43,7 @@ async function main() {
           data: plain as Prisma.InputJsonObject,
           sensitive: Object.keys(merged).length ? Buffer.from(crypto.encrypt(merged)) : null,
           health: r.status === 'SUBMITTED' ? (healthSummary(full, r.occurredAt) as unknown as Prisma.InputJsonObject) : Prisma.DbNull,
+          kkHash: typeof full.no_kk === 'string' && full.no_kk ? crypto.blindIndex('no_kk', full.no_kk) : null,
         },
       });
     }));

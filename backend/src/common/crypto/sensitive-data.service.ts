@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
+import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'crypto';
 
 /**
  * Enkripsi field sensitif (NIK, identitas pihak) dengan AES-256-GCM.
@@ -29,6 +29,15 @@ export class SensitiveDataService {
     const ct = Buffer.concat([cipher.update(JSON.stringify(value), 'utf8'), cipher.final()]);
     const id = Buffer.from(this.activeId);
     return Buffer.concat([Buffer.from([id.length]), id, iv, cipher.getAuthTag(), ct]);
+  }
+
+  /**
+   * Sidik buta (blind index) untuk mencocokkan nilai rahasia tanpa membukanya, mis. No. KK yang sama di dua laporan.
+   * HMAC-SHA256 dengan kunci turunan kunci aktif; setelah rotasi kunci jalankan ulang `mapping:enkripsi-kesehatan`.
+   */
+  blindIndex(purpose: string, value: string): string {
+    const key = createHmac('sha256', this.keys.get(this.activeId)!).update(`blind-index:${purpose}`).digest();
+    return createHmac('sha256', key).update(value.trim()).digest('hex');
   }
 
   decrypt(blob: Buffer): Record<string, unknown> {

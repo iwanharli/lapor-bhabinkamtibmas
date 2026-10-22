@@ -19,6 +19,8 @@ MABES (Baharkam)
 | Kode | Nama | Platform | Unit tipikal |
 |---|---|---|---|
 | `BHABIN` | Bhabinkamtibmas | Mobile (web hanya baca) | Polsek |
+> Bhabinkamtibmas dapat memakai aplikasi mobile atau tampilan web lapangan `/bhabin` (laporan, ralat, absensi). Peran lain hanya dashboard web; login dengan data perangkat (mobile) khusus Bhabin.
+
 | ~~`VERIFIKATOR`~~ | Tidak dipakai lagi — laporan tanpa verifikasi; akun lama menjadi `PIMPINAN` | — | — |
 | `PIMPINAN` | Pimpinan / analis | Web | Polres / Polda / Mabes |
 | `ADMIN_UNIT` | Admin unit | Web | Polres / Polda |

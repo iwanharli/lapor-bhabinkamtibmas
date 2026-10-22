@@ -41,6 +41,12 @@ docs/teknis/             Dokumentasi teknis (arsitektur, API, database, keamanan
 - Penomoran `{KAT}-{KODE_POLRES}-{YYMM}-{URUT}` mengikuti zona waktu unit (WIB/WITA/WIT).
 - Foto dikompres saat unggah (maks. 1920 px, JPEG q78); foto kamera ±4–5 MB menjadi ±0,2–0,4 MB.
 
+**Tampilan lapangan Bhabin (web/HP)** — `/bhabin`, pengganti sementara aplikasi mobile
+- Mobile-first dengan tab bawah: Beranda, Laporan, **Lapor**, Absensi; tetap nyaman di laptop.
+- Formulir laporan dibangun otomatis dari skema JSON: GPS browser, foto langsung dari kamera (diperkecil di HP sebelum diunggah), simpan draft, kirim, dan ralat ≤ 3×24 jam.
+- Absen masuk/pulang dengan GPS + swafoto kamera depan, riwayat 14 hari.
+- Bhabin otomatis diarahkan ke `/bhabin` setelah login; peran lain tidak dapat membukanya. Lokasi kamera/GPS butuh HTTPS (atau `localhost`).
+
 **Dashboard web**
 - **Ringkasan:** total laporan, tren harian, sesuai desa binaan, partisipasi Bhabin, deteksi dini prioritas, lonjakan harga.
 - **Peta sebaran:**
@@ -58,7 +64,7 @@ docs/teknis/             Dokumentasi teknis (arsitektur, API, database, keamanan
   - audit log.
 - **Ekspor CSV** lewat antrean (`export_jobs`): diunduh otomatis saat selesai, berkas disimpan 24 jam.
 
-**Peran:** Bhabinkamtibmas (mobile), Pimpinan, Admin Unit, Superadmin, Auditor. Peran Verifikator **tidak dipakai lagi**. Akses dibatasi cakupan unit (Polda → Polres → Polsek). Rincian: [docs/teknis/02-peran-hak-akses.md](docs/teknis/02-peran-hak-akses.md).
+**Peran:** Bhabinkamtibmas (web `/bhabin` & mobile), Pimpinan, Admin Unit, Superadmin, Auditor. Peran Verifikator **tidak dipakai lagi**. Akses dibatasi cakupan unit (Polda → Polres → Polsek). Rincian: [docs/teknis/02-peran-hak-akses.md](docs/teknis/02-peran-hak-akses.md).
 
 ## Menjalankan di lokal
 
@@ -140,7 +146,7 @@ Sandi semua akun contoh: `Demo#12345`.
 
 | NRP | Peran | Unit |
 |---|---|---|
-| 90000001 | Bhabinkamtibmas (hanya mobile) | Polsek Contoh |
+| 90000001 | Bhabinkamtibmas (web `/bhabin` & mobile) | Polsek Contoh |
 | 90000002 | Pimpinan | Polsek Contoh |
 | 90000003 | Pimpinan | Polres Contoh |
 | 90000004 | Admin Unit | Polres Contoh |
@@ -149,13 +155,12 @@ Sandi semua akun contoh: `Demo#12345`.
 | 00000001 | Superadmin | Mabes (sandi dari `SEED_SUPERADMIN_PASSWORD`, wajib diganti) |
 | `99` + kode provinsi, mis. 99000035 | Pimpinan Polda (data nasional) | Polda Jawa Timur |
 | `97` + kode kab/kota, mis. 97003314 | Pimpinan Polres (data nasional) | Polres Sragen |
-| `98` + kode kecamatan, mis. 98331409 | Bhabinkamtibmas (data nasional, mobile) | Polsek Karangmalang |
+| `98` + kode kecamatan, mis. 98331409 | Bhabinkamtibmas (data nasional) | Polsek Karangmalang |
 
 **Login cepat (hanya lokal):**
 - Saat `npm run dev`, halaman login menampilkan tombol akun percobaan per peran. Sandinya tetap di server dan tidak dikirim ke browser.
 - Untuk build lokal (`next start`), aktifkan dengan `DEV_LOGIN=true`.
 - Tombol Superadmin muncul bila `DEV_SUPERADMIN_NRP` dan `DEV_SUPERADMIN_PASSWORD` diisi di `web/.env.local`.
-- Bhabin tidak punya tombol karena hanya boleh login lewat aplikasi mobile.
 
 ## Konfigurasi
 
@@ -230,7 +235,7 @@ Deployment server (systemd + Nginx, tanpa Docker): [docs/teknis/09-deployment.md
 - Data contoh nasional dan test E2E.
 
 **Belum dikerjakan**
-- Aplikasi mobile Flutter (baru kerangka; API sudah siap).
+- Aplikasi mobile Flutter (baru kerangka; sementara Bhabin memakai tampilan web `/bhabin`).
 - Notifikasi laporan prioritas ke pimpinan.
 - API Command Center & tampilan korelasi.
 - Rekap absensi per Bhabin/bulanan & ekspor absensi.

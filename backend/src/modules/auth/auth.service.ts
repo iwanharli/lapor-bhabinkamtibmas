@@ -51,10 +51,10 @@ export class AuthService {
       return fail('bad_password');
     }
 
-    // Aplikasi mobile hanya untuk Bhabin; dashboard web untuk peran lainnya.
+    // Aplikasi mobile hanya untuk Bhabin; Bhabin juga boleh memakai versi web (/bhabin), peran lain hanya web.
     const isMobile = !!dto.device;
-    if (isMobile !== (user.role === UserRole.BHABIN)) {
-      throw new ForbiddenException({ code: 'WRONG_CLIENT', message: isMobile ? 'Gunakan dashboard web' : 'Gunakan aplikasi mobile' });
+    if (isMobile && user.role !== UserRole.BHABIN) {
+      throw new ForbiddenException({ code: 'WRONG_CLIENT', message: 'Gunakan dashboard web' });
     }
 
     let deviceRowId: string | undefined;

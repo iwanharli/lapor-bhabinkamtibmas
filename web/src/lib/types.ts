@@ -67,6 +67,7 @@ export interface ReportDetail extends ReportListItem {
   lng: number;
   gpsAccuracyM: number | null;
   data: Record<string, unknown>;
+  schemaVersion: number;
   schema: { title: string; fields: SchemaField[] } | null;
   items: ReportPriceItem[];
   attachments: ReportAttachment[];

@@ -49,7 +49,7 @@ function DevLogin({ onError }: { onError: (m: string) => void }) {
           </button>
         ))}
       </div>
-      <p className="mt-3 text-xs leading-5 text-muted">Bhabinkamtibmas masuk melalui aplikasi mobile.</p>
+      <p className="mt-3 text-xs leading-5 text-muted">Bhabinkamtibmas juga dapat masuk di sini (web/HP) untuk membuat laporan dan absensi.</p>
     </div>
   );
 }

@@ -3,12 +3,22 @@ import { COOKIE, refreshTokens, tokenCookies } from '@/lib/api/session-cookies';
 
 const isApi = (req: NextRequest) => req.nextUrl.pathname.startsWith('/api/');
 
-function mustChangePassword(req: NextRequest) {
+function sessionUser(req: NextRequest): { role?: string; mustChangePassword?: boolean } {
   try {
-    return !!JSON.parse(req.cookies.get(COOKIE.user)?.value ?? '{}').mustChangePassword;
+    return JSON.parse(req.cookies.get(COOKIE.user)?.value ?? '{}');
   } catch {
-    return false;
+    return {};
   }
+}
+
+/** Bhabin memakai tampilan lapangan (/bhabin); peran lain memakai dashboard. */
+function roleRedirect(req: NextRequest, role?: string) {
+  const path = req.nextUrl.pathname;
+  if (isApi(req) || path.startsWith('/ganti-sandi') || path.startsWith('/akses-ditolak')) return null;
+  const inField = path === '/bhabin' || path.startsWith('/bhabin/');
+  if (role === 'BHABIN' && !inField) return NextResponse.redirect(new URL('/bhabin', req.url));
+  if (role && role !== 'BHABIN' && inField) return NextResponse.redirect(new URL('/', req.url));
+  return null;
 }
 
 function toLogin(req: NextRequest, expired: boolean) {
@@ -29,9 +39,12 @@ export async function middleware(req: NextRequest) {
   if (!rt || !req.cookies.has(COOKIE.user)) return toLogin(req, false);
 
   // Sandi sementara: hanya halaman ganti sandi yang boleh dibuka (API juga menolak di sisi backend).
-  if (mustChangePassword(req) && !req.nextUrl.pathname.startsWith('/ganti-sandi') && !isApi(req)) {
+  const user = sessionUser(req);
+  if (user.mustChangePassword && !req.nextUrl.pathname.startsWith('/ganti-sandi') && !isApi(req)) {
     return NextResponse.redirect(new URL('/ganti-sandi', req.url));
   }
+  const redirect = roleRedirect(req, user.role);
+  if (redirect) return redirect;
   if (req.cookies.has(COOKIE.access)) return NextResponse.next();
 
   const tokens = await refreshTokens(rt);

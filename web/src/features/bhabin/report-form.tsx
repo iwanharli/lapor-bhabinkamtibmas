@@ -1,8 +1,8 @@
 'use client';
 
-import { Camera, Check, Clock, Lock, TriangleAlert, ChevronLeft, ChevronRight, Crosshair, ImagePlus, Loader2, MapPin, Plus, Save, Send, Trash2, UserRound, X } from 'lucide-react';
+import { Camera, Check, Clock, History, Lock, TriangleAlert, ChevronLeft, ChevronRight, Crosshair, ImagePlus, Loader2, MapPin, Plus, Save, Send, Trash2, UserRound, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, cn, Input, Select, Textarea } from '@/components/ui';
 import { callApi } from '@/lib/api/client';
 import type { ReportDetail } from '@/lib/types';
@@ -99,6 +99,30 @@ export function ReportForm({
     return init;
   });
   const [files, setFiles] = useState<Record<string, File[]>>({});
+
+  // Cadangan otomatis di perangkat (laporan baru): pulih bila halaman tertutup/ditinggalkan sebelum disimpan.
+  // NIK/No KK dan foto tidak dicadangkan (data sensitif & ukuran besar).
+  const backupKey = report ? null : `lapor:form:${schema.category}:v${schema.version}`;
+  const [restore, setRestore] = useState<{ values: Values; step: number; at: number } | null>(null);
+  const backupReady = useRef(false);
+  useEffect(() => {
+    if (!backupKey) return;
+    try {
+      const raw = localStorage.getItem(backupKey);
+      const b = raw ? JSON.parse(raw) : null;
+      if (b?.values && Date.now() - b.at < 3 * 86_400_000) setRestore(b);
+    } catch { /* penyimpanan tidak tersedia */ }
+    backupReady.current = true;
+  }, [backupKey]);
+  const stripSensitive = (v: Values): Values => Object.fromEntries(Object.entries(v).map(([k, x]) => {
+    const fdef = schema.fields.find((y) => y.key === k);
+    if (fdef?.sensitive) return [k, ''];
+    if (fdef?.type === 'repeater' && Array.isArray(x)) {
+      const subs = new Set(fdef.fields?.filter((y) => y.sensitive).map((y) => y.key));
+      return [k, (x as Row[]).map((r) => Object.fromEntries(Object.entries(r).filter(([sk]) => !subs.has(sk))))];
+    }
+    return [k, x];
+  }));
   const [busy, setBusy] = useState<'' | 'draft' | 'send'>('');
   const [progress, setProgress] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
@@ -127,6 +151,25 @@ export function ReportForm({
     setValues((p) => ({ ...p, [key]: v }));
     setErrors([]);
   };
+
+  useEffect(() => {
+    if (!backupKey || !backupReady.current || restore) return;
+    const filled = Object.values(values).some((v) => !empty(v) && !(Array.isArray(v) && v.every((r) => !Object.values(r as Row).some(Boolean))));
+    try {
+      if (filled) localStorage.setItem(backupKey, JSON.stringify({ values: stripSensitive(values), step, at: Date.now() }));
+    } catch { /* abaikan */ }
+  }, [values, step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Peringatan bawaan browser bila menutup/memuat ulang halaman dengan isian belum disimpan.
+  useEffect(() => {
+    const dirty = Object.values(values).some((v) => !empty(v)) || Object.values(files).some((l) => l.length);
+    if (!dirty || busy) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [values, files, busy]);
+
+  const clearBackup = () => { try { if (backupKey) localStorage.removeItem(backupKey); } catch { /* abaikan */ } };
 
   /** `only`: validasi sebagian field (satu langkah); `withPlace`: ikut periksa desa/waktu/lokasi. */
   function validate(send: boolean, only?: Set<string>, withPlace = true) {
@@ -210,6 +253,7 @@ export function ReportForm({
         setProgress('Mengirim laporan…');
         await callApi(`/reports/${saved.id}/submit`, { method: 'POST' });
       }
+      clearBackup();
       router.replace(`/bhabin/laporan/${saved.id}?${ralat ? 'diralat' : send ? 'terkirim' : 'tersimpan'}=1`);
       router.refresh();
     } catch (e) {
@@ -223,6 +267,19 @@ export function ReportForm({
   return (
     <form onSubmit={(e) => { e.preventDefault(); void save(true); }} className="space-y-4" noValidate>
       <ErrorPopup errors={errors} onClose={() => setErrors([])} />
+      {restore && (
+        <div className="flex items-start gap-3 rounded-2xl border border-[var(--brand)]/25 bg-primary-soft/50 p-3.5">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--brand)]/10 text-[var(--brand)]"><History size={18} /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">Ada isian yang belum disimpan</p>
+            <p className="text-xs text-muted">Dari {new Date(restore.at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}. NIK/No. KK dan foto perlu diisi ulang.</p>
+            <div className="mt-2 flex gap-2">
+              <Button size="sm" onClick={() => { setValues((p) => ({ ...p, ...restore.values })); if (steps) setStep(Math.min(restore.step ?? 0, steps.length - 1)); setRestore(null); }}>Lanjutkan isian</Button>
+              <Button size="sm" variant="secondary" onClick={() => { clearBackup(); setRestore(null); }}>Mulai baru</Button>
+            </div>
+          </div>
+        </div>
+      )}
       {ralat && report?.editableUntil && (
         <Alert tone="info">Ralat laporan terkirim. Perubahan menggantikan isian lama; foto lama tetap tersimpan.</Alert>
       )}

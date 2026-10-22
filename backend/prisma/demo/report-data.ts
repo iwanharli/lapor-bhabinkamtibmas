@@ -62,18 +62,46 @@ export function dataFor(cat: C, day: number): { data: Prisma.InputJsonObject; pr
       const job = (p: string) => ({ [`${p}pekerjaan`]: kerja() });
       const withKet = (o: Record<string, string>, p: string): Record<string, string> => ({ ...o, ...(ket[o[`${p}pekerjaan`] as string] ? { [`${p}pekerjaan_ket`]: ket[o[`${p}pekerjaan`] as string] } : {}) });
       const kk = withKet({ kk_nama: pick(WARGA), kk_jenis_kelamin: 'Laki-laki', kk_agama: 'Islam', kk_status_perkawinan: 'Kawin Tercatat', kk_pendidikan: pick(['Tamat SD/Sederajat', 'SLTP/Sederajat', 'SLTA/Sederajat']), ...job('kk_') }, 'kk_');
-      const anggota = Array.from({ length: int(0, 4) }, (_, i) => withKet({
-        nama: pick(WARGA), hubungan: i === 0 ? 'Istri' : 'Anak', jenis_kelamin: i === 0 ? 'Perempuan' : pick(['Laki-laki', 'Perempuan']),
-        agama: 'Islam', status_perkawinan: i === 0 ? 'Kawin Tercatat' : 'Belum Kawin',
-        ...(i === 0 ? { pekerjaan: 'Mengurus Rumah Tangga' } : { pekerjaan: pick(['Pelajar/Mahasiswa', 'Belum/Tidak Bekerja', 'Pedagang']) }),
-      }, ''));
+      // Tanggal lahir mundur dari hari laporan; anak bungsu kadang balita agar rekap stunting berisi.
+      const now = new Date(Date.now() - day * 86_400_000);
+      const dob = (years: number) => new Date(now.getTime() - (years * 365 + int(0, 300)) * 86_400_000).toISOString().slice(0, 10);
+      const anggota = Array.from({ length: int(0, 4) }, (_, i) => {
+        if (i === 0) {
+          const hamil = rnd() < 0.12;
+          return withKet({
+            nama: pick(WARGA), hubungan: 'Istri', jenis_kelamin: 'Perempuan', tanggal_lahir: dob(int(22, 45)), agama: 'Islam', status_perkawinan: 'Kawin Tercatat',
+            pekerjaan: 'Mengurus Rumah Tangga', risiko_ibu: hamil ? pick(['Ibu hamil', 'Ibu hamil', 'Ibu hamil KEK/anemia']) : 'Tidak ada',
+          }, '');
+        }
+        const umur = rnd() < 0.35 ? int(0, 4) : int(5, 20);
+        const jk = pick(['Laki-laki', 'Perempuan']);
+        if (umur < 5) {
+          const st = pick(['Normal', 'Normal', 'Normal', 'Normal', 'Berisiko stunting', 'Stunting', 'Belum diketahui']);
+          const risk = st === 'Berisiko stunting' || st === 'Stunting';
+          return {
+            nama: pick(WARGA), hubungan: 'Anak', jenis_kelamin: jk, tanggal_lahir: dob(umur), agama: 'Islam',
+            status_perkawinan: 'Belum Kawin', pendidikan: 'Tidak/Belum Sekolah', pekerjaan: 'Belum/Tidak Bekerja', status_stunting: st,
+            ...(risk && { stunting_ditangani: pick(['Ya, rutin ke Posyandu/Puskesmas', 'Ya, rutin ke Posyandu/Puskesmas', 'Belum']) }),
+          };
+        }
+        return withKet({
+          nama: pick(WARGA), hubungan: 'Anak', jenis_kelamin: jk, tanggal_lahir: dob(umur), agama: 'Islam', status_perkawinan: 'Belum Kawin',
+          pekerjaan: pick(['Pelajar/Mahasiswa', 'Belum/Tidak Bekerja', 'Pedagang']),
+          ...(jk === 'Perempuan' && umur >= 10 && { risiko_ibu: rnd() < 0.15 ? 'Remaja putri anemia' : 'Tidak ada' }),
+          ...(umur >= 16 && { calon_pengantin: rnd() < 0.1 ? 'Ya' : 'Tidak' }),
+        }, '');
+      });
+      const priority = anggota.some((a) => (a as Record<string, unknown>).stunting_ditangani === 'Belum');
       return { data: {
         alamat: `Jl. ${pick(['Melati', 'Mawar', 'Kenanga', 'Flamboyan'])} No. ${int(1, 120)}`, satuan_wilayah: 'RT/RW', status_domisili: pick(['Penduduk tetap', 'Penduduk tetap', 'Penduduk tetap', 'Pendatang/perantau', 'Kos/kontrak sementara']), rt: `0${int(1, 9)}`, rw: `0${int(1, 5)}`,
         status_kepemilikan: pick(['Milik sendiri', 'Milik sendiri', 'Sewa/Kontrak', 'Menumpang']),
         jenis_bangunan: pick(['Permanen', 'Permanen', 'Semi permanen', 'Tidak permanen']),
         kondisi_hunian: pick(['Layak', 'Layak', 'Perlu Perhatian', 'Tidak Layak']),
-        ...kk, anggota: anggota as Prisma.InputJsonObject[],
-      } };
+        sumber_air_minum: pick(['Air kemasan/isi ulang', 'Ledeng/PAM', 'Sumur bor/pompa', 'Sumur bor/pompa', 'Sumur/mata air terlindung', 'Sumur/mata air tidak terlindung', 'Sungai/danau/irigasi']),
+        jamban: pick(['Jamban sendiri dengan septic tank', 'Jamban sendiri dengan septic tank', 'Jamban sendiri dengan septic tank', 'Jamban sendiri tanpa septic tank', 'Jamban bersama/umum', 'Tidak ada (BAB sembarangan)']),
+        perokok_dalam_rumah: pick(['Tidak ada', 'Ada', 'Ada']),
+        ...kk, kk_tanggal_lahir: dob(int(28, 60)), anggota: anggota as Prisma.InputJsonObject[],
+      }, priority };
     }
     case C.KETAHANAN_PANGAN:
       return { data: {

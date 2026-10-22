@@ -49,7 +49,7 @@ export function ReportFilters({ value, tz }: { value: ReportSearch; tz?: string 
     <div className={cn('flex flex-col gap-3 border-b border-line p-4 lg:flex-row lg:items-center', pending && 'opacity-70')}>
       <label className="relative flex-1">
         <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari nomor laporan, nama Bhabin, atau desa…" className="pl-10" aria-label="Cari laporan" />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari nomor laporan, nama Bhabin, desa, atau kepala keluarga…" className="pl-10" aria-label="Cari laporan" />
       </label>
 
       <div className="flex flex-wrap items-center gap-2">

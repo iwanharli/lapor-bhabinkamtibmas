@@ -27,6 +27,7 @@ export function navFor(role: string): NavSection[] {
         { href: '/laporan', label: 'Laporan', icon: 'reports', children: REPORT_CATEGORIES },
         { href: '/peta', label: 'Peta Sebaran', icon: 'map' },
         { href: '/harga-pangan', label: 'Harga Pangan', icon: 'prices' },
+        { href: '/keluarga', label: 'Keluarga & Stunting', icon: 'family' },
       ],
     },
     {

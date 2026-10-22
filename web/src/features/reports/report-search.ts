@@ -8,6 +8,8 @@ export interface ReportSearch {
   from?: string;
   to?: string;
   priority?: string;
+  /** Desa tertentu (tautan dari rekap Keluarga & Stunting). */
+  villageId?: string;
   page?: string;
   limit?: string;
   /** Pilihan cepat rentang waktu bila from/to kosong: '7' (default), '30', atau 'semua'. */
@@ -33,7 +35,7 @@ export function resolveRange(sp: ReportSearch, tz?: string): { from?: string; to
 /** Ubah filter URL menjadi query API (rentang efektif, tanggal lokal di zona `tz` → ISO). */
 export function toApiQuery(sp: ReportSearch, page: number, limit: number, tz?: string) {
   const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
-  for (const k of ['category', 'status', 'q', 'priority'] as const) if (sp[k]) qs.set(k, sp[k]!);
+  for (const k of ['category', 'status', 'q', 'priority', 'villageId'] as const) if (sp[k]) qs.set(k, sp[k]!);
   const { from, to } = resolveRange(sp, tz);
   if (from) qs.set('from', localDayToIso(from, tz));
   if (to) qs.set('to', localDayToIso(to, tz, true));

@@ -75,7 +75,7 @@ export default async function LaporanSayaPage({ searchParams }: { searchParams: 
             );
           })}
         </nav>
-        <SearchInput placeholder="Cari nomor laporan atau desa…" />
+        <SearchInput placeholder="Cari nomor, desa, atau kepala keluarga…" />
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
           <Link href={href({ prioritas: prioritas ? undefined : '1' })} className={cn(chip(prioritas), prioritas && 'bg-danger')}><Flame size={13} /> Prioritas</Link>
           {PERIODS.map((p) => <Link key={p.label} href={href({ periode: p.key || undefined })} className={chip((periode ?? '') === p.key)}>{p.label}</Link>)}

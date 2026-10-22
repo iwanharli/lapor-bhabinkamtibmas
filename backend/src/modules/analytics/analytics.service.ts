@@ -302,4 +302,54 @@ export class AnalyticsService {
       WHERE ${scope} AND ${PRICE_VALID} AND i.commodity_id = ${commodityId} AND r.occurred_at >= now() - interval '7 days'
       GROUP BY 1, 2, 3 ORDER BY 4 DESC`;
   }
+
+  /**
+   * Rekap keluarga & stunting dari laporan Mapping Data Keluarga v2 terkirim, per desa.
+   * Umur dihitung dari tanggal lahir terhadap hari ini; satu laporan = satu KK (laporan ganda KK yang sama ikut terhitung).
+   */
+  async stunting(me: AuthUser, unitId?: string) {
+    const scope = await this.scopeSql(me, unitId);
+    const rows = await this.prisma.$queryRaw<Record<string, number | string>[]>`
+      WITH k AS (
+        SELECT r.id, r.village_id, r.data FROM reports r
+        WHERE ${scope} AND r.category = 'MAPPING_KK' AND r.status = 'SUBMITTED' AND r.schema_version = 2
+      ), m AS (
+        SELECT k.village_id, a,
+          CASE WHEN a->>'tanggal_lahir' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN date_part('year', age((a->>'tanggal_lahir')::date)) END AS umur
+        FROM k, jsonb_array_elements(coalesce(k.data->'anggota', '[]'::jsonb)) a
+      ), mv AS (
+        SELECT village_id,
+          count(*) FILTER (WHERE umur < 5)::int AS balita,
+          count(*) FILTER (WHERE umur < 5 AND a->>'status_stunting' = 'Stunting')::int AS stunting,
+          count(*) FILTER (WHERE umur < 5 AND a->>'status_stunting' = 'Berisiko stunting')::int AS berisiko,
+          count(*) FILTER (WHERE umur < 5 AND a->>'status_stunting' IN ('Stunting', 'Berisiko stunting') AND a->>'stunting_ditangani' = 'Belum')::int AS belum_ditangani,
+          count(*) FILTER (WHERE umur < 5 AND coalesce(a->>'status_stunting', 'Belum diketahui') = 'Belum diketahui')::int AS belum_diketahui,
+          count(*) FILTER (WHERE a->>'risiko_ibu' IN ('Ibu hamil', 'Ibu hamil KEK/anemia'))::int AS ibu_hamil,
+          count(*) FILTER (WHERE a->>'risiko_ibu' = 'Ibu hamil KEK/anemia')::int AS ibu_kek,
+          count(*) FILTER (WHERE a->>'risiko_ibu' = 'Remaja putri anemia')::int AS remaja_anemia,
+          count(*) FILTER (WHERE a->>'calon_pengantin' = 'Ya')::int AS catin
+        FROM m GROUP BY village_id
+      ), kv AS (
+        SELECT village_id, count(*)::int AS kk,
+          count(*) FILTER (WHERE data->>'kk_risiko_ibu' IN ('Ibu hamil', 'Ibu hamil KEK/anemia'))::int AS kk_hamil,
+          count(*) FILTER (WHERE data->>'kk_risiko_ibu' = 'Ibu hamil KEK/anemia')::int AS kk_kek,
+          count(*) FILTER (WHERE data ? 'jamban' AND data->>'jamban' <> 'Jamban sendiri dengan septic tank')::int AS jamban_tidak_layak,
+          count(*) FILTER (WHERE data->>'jamban' = 'Tidak ada (BAB sembarangan)')::int AS bab_sembarangan,
+          count(*) FILTER (WHERE data->>'sumber_air_minum' IN ('Sumur/mata air tidak terlindung', 'Sungai/danau/irigasi'))::int AS air_tidak_layak,
+          count(*) FILTER (WHERE data->>'perokok_dalam_rumah' = 'Ada')::int AS perokok,
+          count(*) FILTER (WHERE data ? 'sumber_air_minum')::int AS kk_sanitasi
+        FROM k GROUP BY village_id
+      )
+      SELECT v.id, v.nama AS desa, v.kecamatan, v.kabupaten, kv.kk, kv.kk_sanitasi,
+        coalesce(mv.balita, 0) AS balita, coalesce(mv.stunting, 0) AS stunting, coalesce(mv.berisiko, 0) AS berisiko,
+        coalesce(mv.belum_ditangani, 0) AS belum_ditangani, coalesce(mv.belum_diketahui, 0) AS belum_diketahui,
+        coalesce(mv.ibu_hamil, 0) + kv.kk_hamil AS ibu_hamil, coalesce(mv.ibu_kek, 0) + kv.kk_kek AS ibu_kek,
+        coalesce(mv.remaja_anemia, 0) AS remaja_anemia, coalesce(mv.catin, 0) AS catin,
+        kv.jamban_tidak_layak, kv.bab_sembarangan, kv.air_tidak_layak, kv.perokok
+      FROM kv JOIN villages v ON v.id = kv.village_id LEFT JOIN mv ON mv.village_id = kv.village_id
+      ORDER BY coalesce(mv.belum_ditangani, 0) DESC, coalesce(mv.stunting, 0) + coalesce(mv.berisiko, 0) DESC, kv.kk DESC`;
+    const keys = ['kk', 'kk_sanitasi', 'balita', 'stunting', 'berisiko', 'belum_ditangani', 'belum_diketahui', 'ibu_hamil', 'ibu_kek', 'remaja_anemia', 'catin', 'jamban_tidak_layak', 'bab_sembarangan', 'air_tidak_layak', 'perokok'] as const;
+    const total = Object.fromEntries(keys.map((k) => [k, rows.reduce((n, r) => n + Number(r[k] ?? 0), 0)]));
+    return { total, desa: rows.length, villages: rows.slice(0, 300) };
+  }
 }

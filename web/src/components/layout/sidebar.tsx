@@ -2,6 +2,7 @@
 
 import {
   CalendarCheck,
+  HeartPulse,
   Bell,
   Building2,
   ChevronDown,
@@ -35,6 +36,7 @@ const ICONS = {
   audit: History,
   villages: MapPinned,
   attendance: CalendarCheck,
+  family: HeartPulse,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

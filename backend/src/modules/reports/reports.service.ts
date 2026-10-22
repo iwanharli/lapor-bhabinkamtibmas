@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { SensitiveDataService } from '../../common/crypto/sensitive-data.service';
-import { Prisma, ReportStatus, UserRole } from '@prisma/client';
+import { Prisma, ReportCategory, ReportStatus, UserRole } from '@prisma/client';
 import { AuthUser } from '../../common/decorators/auth.decorators';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -36,6 +36,8 @@ export class ReportsService {
   async buildWhere(me: AuthUser, q: ListReportsQuery): Promise<Prisma.ReportWhereInput> {
     const scope = await this.scopeWhere(me);
     if (q.unitId) await this.units.assertInScope(me.unitId, q.unitId);
+    // Nama kepala keluarga (Mapping) ada di isian JSON: cari id-nya lewat SQL (ILIKE), lalu gabungkan ke OR.
+    const kkIds = q.q && (!q.category || q.category === ReportCategory.MAPPING_KK) ? await this.kkNameIds(me, q.q) : [];
     return {
       AND: [
         scope,
@@ -54,11 +56,20 @@ export class ReportsService {
               { nomor: { contains: q.q, mode: 'insensitive' } },
               { user: { nama: { contains: q.q, mode: 'insensitive' } } },
               { village: { nama: { contains: q.q, mode: 'insensitive' } } },
+              ...(kkIds.length ? [{ id: { in: kkIds } }] : []),
             ],
           }),
         },
       ],
     };
+  }
+
+  private async kkNameIds(me: AuthUser, text: string) {
+    const pattern = `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    const own = me.role === UserRole.BHABIN ? Prisma.sql`AND user_id = ${me.id}::uuid` : Prisma.empty;
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT id FROM reports WHERE category = 'MAPPING_KK' ${own} AND data->>'kk_nama' ILIKE ${pattern} LIMIT 2000`;
+    return rows.map((r) => r.id);
   }
 
   async list(me: AuthUser, q: ListReportsQuery) {

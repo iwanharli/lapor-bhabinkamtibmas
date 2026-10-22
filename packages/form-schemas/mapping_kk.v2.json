@@ -149,7 +149,8 @@
         "Sungai/danau/irigasi",
         "Air hujan",
         "Lainnya"
-      ]
+      ],
+      "required": true
     },
     {
       "key": "jamban",
@@ -160,7 +161,8 @@
         "Jamban sendiri tanpa septic tank",
         "Jamban bersama/umum",
         "Tidak ada (BAB sembarangan)"
-      ]
+      ],
+      "required": true
     },
     {
       "key": "perokok_dalam_rumah",
@@ -169,7 +171,8 @@
       "options": [
         "Tidak ada",
         "Ada"
-      ]
+      ],
+      "required": true
     },
     {
       "key": "kk_nama",
@@ -465,7 +468,8 @@
           "key": "tanggal_lahir",
           "label": "Tanggal lahir",
           "type": "date",
-          "required": false
+          "required": true,
+          "hint": "Dipakai untuk isian balita & stunting."
         },
         {
           "key": "agama",

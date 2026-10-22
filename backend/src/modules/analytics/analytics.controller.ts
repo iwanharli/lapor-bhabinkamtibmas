@@ -76,4 +76,9 @@ export class AnalyticsController {
   byArea(@CurrentUser() me: AuthUser, @Query('commodityId') commodityId: string, @Query('unitId') unitId?: string) {
     return this.analytics.pricesByArea(me, Number(commodityId), unitId || undefined);
   }
+
+  @Get('stunting')
+  stunting(@CurrentUser() me: AuthUser, @Query('unitId') unitId?: string) {
+    return this.analytics.stunting(me, unitId || undefined);
+  }
 }

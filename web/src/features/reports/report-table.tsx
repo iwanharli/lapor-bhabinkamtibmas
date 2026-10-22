@@ -1,14 +1,13 @@
 import { ChevronRight, FileSearch, MapPinOff, Paperclip } from 'lucide-react';
 import Link from 'next/link';
 import { EmptyState, Table, Td, Th, THead, Tr } from '@/components/ui';
-import { CATEGORY_LABEL, personName } from '@/lib/format';
+import { CATEGORY_LABEL, personName, tzLabel, tzOf } from '@/lib/format';
 import type { ReportListItem } from '@/lib/types';
 import { CategoryIcon } from './category-icon';
 import { PriorityBadge, StatusBadge } from './status-badge';
 
-const TZ = 'Asia/Jakarta';
-const dateOnly = (d: string) => new Date(d).toLocaleDateString('id-ID', { timeZone: TZ, day: '2-digit', month: 'short', year: 'numeric' });
-const timeOnly = (d: string) => new Date(d).toLocaleTimeString('id-ID', { timeZone: TZ, hour: '2-digit', minute: '2-digit' }) + ' WIB';
+const dateOnly = (d: string, tz: string) => new Date(d).toLocaleDateString('id-ID', { timeZone: tzOf(tz), day: '2-digit', month: 'short', year: 'numeric' });
+const timeOnly = (d: string, tz: string) => new Date(d).toLocaleTimeString('id-ID', { timeZone: tzOf(tz), hour: '2-digit', minute: '2-digit' }) + ' ' + tzLabel(tz);
 const initials = (nama: string) => nama.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 
 export function ReportTable({ rows }: { rows: ReportListItem[] }) {
@@ -66,8 +65,8 @@ export function ReportTable({ rows }: { rows: ReportListItem[] }) {
                 <span className="block text-xs text-muted">{r.village.kecamatan}</span>
               </Td>
               <Td nowrap>
-                <span className="block">{dateOnly(r.occurredAt)}</span>
-                <span className="block text-xs text-muted">{timeOnly(r.occurredAt)}</span>
+                <span className="block">{dateOnly(r.occurredAt, r.unit.timezone)}</span>
+                <span className="block text-xs text-muted">{timeOnly(r.occurredAt, r.unit.timezone)}</span>
               </Td>
               <Td><StatusBadge status={r.status} /></Td>
               <Td align="right" className="pr-5">
@@ -108,7 +107,7 @@ function ReportCards({ rows }: { rows: ReportListItem[] }) {
               <p className="truncate font-mono text-xs text-muted">{r.nomor}</p>
               <p className="mt-1.5 truncate text-sm">{personName(r.user)} · {r.village.nama}</p>
               <p className="flex items-center gap-1.5 text-xs text-muted">
-                {dateOnly(r.occurredAt)}, {timeOnly(r.occurredAt)}
+                {dateOnly(r.occurredAt, r.unit.timezone)}, {timeOnly(r.occurredAt, r.unit.timezone)}
                 {(r.isMockLocation || r.insideVillage === false) && <MapPinOff size={13} className="text-warn" />}
               </p>
             </div>

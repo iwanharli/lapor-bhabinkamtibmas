@@ -9,7 +9,7 @@ import { tanggalJam } from '@/lib/format';
 import type { DeviceRow } from '@/lib/types';
 import { TempPassword } from './temp-password';
 
-function DeviceList({ devices, onRevoke }: { devices: DeviceRow[]; onRevoke: (d: DeviceRow) => void }) {
+function DeviceList({ devices, onRevoke, tz }: { devices: DeviceRow[]; onRevoke: (d: DeviceRow) => void; tz?: string }) {
   if (devices.length === 0) return <p className="text-sm text-muted">Belum pernah login dari aplikasi mobile.</p>;
   return (
     <ul className="divide-y divide-line rounded-lg border border-line text-sm">
@@ -18,7 +18,7 @@ function DeviceList({ devices, onRevoke }: { devices: DeviceRow[]; onRevoke: (d:
           <Smartphone size={18} className="shrink-0 text-muted" />
           <span className="min-w-0 flex-1">
             {d.model ?? 'Perangkat'} <span className="text-muted">· {d.platform}{d.appVersion && ` · v${d.appVersion}`}</span>
-            <span className="block text-xs text-muted">{d.lastSeenAt ? `Terakhir aktif ${tanggalJam(d.lastSeenAt)}` : '—'}</span>
+            <span className="block text-xs text-muted">{d.lastSeenAt ? `Terakhir aktif ${tanggalJam(d.lastSeenAt, tz)}` : '—'}</span>
           </span>
           {d.revokedAt ? (
             <Badge tone="danger">Dicabut</Badge>
@@ -31,7 +31,7 @@ function DeviceList({ devices, onRevoke }: { devices: DeviceRow[]; onRevoke: (d:
   );
 }
 
-export function AccountActions({ userId, nrp, nama, devices }: { userId: string; nrp: string; nama: string; devices: DeviceRow[] }) {
+export function AccountActions({ userId, nrp, nama, devices, tz }: { userId: string; nrp: string; nama: string; devices: DeviceRow[]; tz?: string }) {
   const router = useRouter();
   const [confirmReset, setConfirmReset] = useState(false);
   const [password, setPassword] = useState<string | null>(null);
@@ -46,7 +46,7 @@ export function AccountActions({ userId, nrp, nama, devices }: { userId: string;
 
       <div>
         <p className="mb-2 text-sm font-medium">Perangkat terdaftar</p>
-        <DeviceList devices={devices} onRevoke={setRevokeTarget} />
+        <DeviceList devices={devices} onRevoke={setRevokeTarget} tz={tz} />
       </div>
 
       <ConfirmDialog

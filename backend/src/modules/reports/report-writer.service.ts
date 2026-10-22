@@ -3,6 +3,7 @@ import { Prisma, Report, ReportCategory, ReportStatus, UnitLevel } from '@prisma
 import { AuthUser } from '../../common/decorators/auth.decorators';
 import { SensitiveDataService } from '../../common/crypto/sensitive-data.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { localDate } from '../../common/time';
 import { AuditService } from '../audit/audit.service';
 import { FormSchemaJson, isPriority, splitSensitive, validateReportData } from './report-validator';
 import { UpdateReportDto, UpsertReportDto } from './reports.dto';
@@ -27,7 +28,14 @@ export class ReportWriterService {
   private async schemaOf(category: ReportCategory, version: number) {
     const row = await this.prisma.formSchema.findUnique({ where: { category_version: { category, version } } });
     if (!row) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: `Formulir ${category} versi ${version} tidak dikenal` });
-    if (row.status === 'RETIRED') throw new BadRequestException({ code: 'SCHEMA_RETIRED', message: 'Versi formulir sudah tidak berlaku; perbarui aplikasi' });
+    if (row.status === 'RETIRED') {
+      // Bedakan modul yang ditunda (tak ada versi aktif) dari versi lama yang sudah diganti.
+      const active = await this.prisma.formSchema.count({ where: { category, status: 'ACTIVE' } });
+      throw new BadRequestException({
+        code: 'SCHEMA_RETIRED',
+        message: active ? 'Versi formulir sudah tidak berlaku; perbarui aplikasi' : 'Kategori laporan ini sedang tidak digunakan',
+      });
+    }
     return row.schema as unknown as FormSchemaJson;
   }
 
@@ -57,8 +65,9 @@ export class ReportWriterService {
   /** Nomor laporan: {KAT}-{KODE_POLRES}-{YYMM}-{urut}, urut per Polres/kategori/bulan. */
   private async nextNumber(tx: Prisma.TransactionClient, unitId: string, category: ReportCategory, at: Date) {
     let unit = await tx.unit.findUniqueOrThrow({ where: { id: unitId } });
+    const tz = unit.timezone;
     while (unit.level !== UnitLevel.POLRES && unit.parentId) unit = await tx.unit.findUniqueOrThrow({ where: { id: unit.parentId } });
-    const period = at.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }).slice(2, 7).replace('-', '');
+    const period = localDate(at, tz).slice(2, 7).replace('-', '');
     const [row] = await tx.$queryRaw<{ last_no: number }[]>`
       INSERT INTO report_counters (unit_id, category, period, last_no) VALUES (${unit.id}::uuid, ${category}::report_category, ${period}, 1)
       ON CONFLICT (unit_id, category, period) DO UPDATE SET last_no = report_counters.last_no + 1

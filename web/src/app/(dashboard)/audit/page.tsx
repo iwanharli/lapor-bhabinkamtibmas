@@ -55,7 +55,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
               ]}
             />
           </div>
-          <AuditTable rows={data} />
+          <AuditTable rows={data} tz={me.unit.timezone} />
           <Pagination
             page={page}
             limit={limit}

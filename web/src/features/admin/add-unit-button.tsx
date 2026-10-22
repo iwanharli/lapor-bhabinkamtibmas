@@ -7,6 +7,8 @@ import { Button, ErrorText, Field, Input, Modal, ModalBody, Select } from '@/com
 import { callApi } from '@/lib/api/client';
 import type { UnitOption } from '@/lib/types';
 import { CHILD_LEVEL_LABEL, unitOptions } from '@/lib/units';
+import { tzLabel } from '@/lib/format';
+import { TIMEZONE_OPTIONS } from './timezone-button';
 
 /** Tombol + modal tambah unit. `parentId` mengunci unit induk (dipakai di baris pohon unit). */
 export function AddUnitButton({ units, parentId: fixedParent, compact }: { units: UnitOption[]; parentId?: string; compact?: boolean }) {
@@ -15,6 +17,7 @@ export function AddUnitButton({ units, parentId: fixedParent, compact }: { units
   const [parentId, setParentId] = useState('');
   const [kode, setKode] = useState('');
   const [nama, setNama] = useState('');
+  const [timezone, setTimezone] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -26,6 +29,7 @@ export function AddUnitButton({ units, parentId: fixedParent, compact }: { units
     setParentId(fixedParent ?? parents[0]?.id ?? '');
     setKode('');
     setNama('');
+    setTimezone('');
     setError('');
     setOpen(true);
   }
@@ -38,7 +42,7 @@ export function AddUnitButton({ units, parentId: fixedParent, compact }: { units
     setBusy(true);
     setError('');
     try {
-      await callApi('/units', { method: 'POST', body: { parentId, kode, nama: nama.trim() } });
+      await callApi('/units', { method: 'POST', body: { parentId, kode, nama: nama.trim(), ...(timezone && { timezone }) } });
       setOpen(false);
       router.refresh();
     } catch (err) {
@@ -89,6 +93,14 @@ export function AddUnitButton({ units, parentId: fixedParent, compact }: { units
               {(id) => (
                 <Input id={id} className="font-mono" value={kode} placeholder="mis. POLSEK-CIBINONG"
                   onChange={(e) => setKode(e.target.value.toUpperCase().replace(/\s+/g, '-'))} />
+              )}
+            </Field>
+            <Field label="Zona waktu" hint="Kosongkan untuk mengikuti unit induk">
+              {(id) => (
+                <Select id={id} value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+                  <option value="">Ikuti induk ({tzLabel(units.find((u) => u.id === parentId)?.timezone)})</option>
+                  {TIMEZONE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </Select>
               )}
             </Field>
             <ErrorText>{error}</ErrorText>

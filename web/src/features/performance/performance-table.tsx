@@ -78,8 +78,8 @@ export function PerformanceTable({ rows, days, sort, hrefFor }: { rows: BhabinPe
               </Td>
               <Td nowrap className="pr-5">
                 {b.terakhir_sepanjang ? (
-                  <span title={tanggalJam(b.terakhir_sepanjang)} className={cn(Date.now() - Date.parse(b.terakhir_sepanjang) > 7 * 86_400_000 && 'font-medium text-danger')}>
-                    {relatif(b.terakhir_sepanjang)}
+                  <span title={tanggalJam(b.terakhir_sepanjang, b.timezone)} className={cn(Date.now() - Date.parse(b.terakhir_sepanjang) > 7 * 86_400_000 && 'font-medium text-danger')}>
+                    {relatif(b.terakhir_sepanjang, b.timezone)}
                   </span>
                 ) : (
                   <span className="font-medium text-danger">Belum pernah</span>

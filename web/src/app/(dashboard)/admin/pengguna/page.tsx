@@ -63,7 +63,7 @@ export default async function PenggunaPage({ searchParams }: { searchParams: Pro
               ]}
             />
           </div>
-          <UserTable rows={data} />
+          <UserTable rows={data} tz={me?.unit.timezone} />
           <Pagination
             page={page}
             limit={limit}

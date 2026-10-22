@@ -47,7 +47,7 @@ export function LocationInfo({ report: r }: { report: ReportDetail }) {
           label="Lokasi palsu"
           value={r.isMockLocation ? <span className="text-danger">Terdeteksi</span> : 'Tidak terdeteksi'}
         />
-        <Check icon={<ServerCog size={16} />} label="Diterima" value={tanggalJam(r.receivedAt)} />
+        <Check icon={<ServerCog size={16} />} label="Diterima" value={tanggalJam(r.receivedAt, r.unit.timezone)} />
       </ul>
     </div>
   );

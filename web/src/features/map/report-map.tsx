@@ -44,7 +44,7 @@ export function ReportMap({ points }: { points: MapPoint[] }) {
               <div style="font-size:11px;color:${color};font-weight:600">${esc(CATEGORY_LABEL[p.category] ?? p.category)}${p.priority ? ' · <span style="color:#c81e3a">PRIORITAS</span>' : ''}</div>
               <div style="font-family:monospace;font-size:12px;margin:2px 0 6px">${esc(p.nomor)}</div>
               <div style="font-size:12px">${esc(p.bhabin)} · ${esc(p.desa)}</div>
-              <div style="font-size:11px;color:#64748b">${esc(tanggalJam(p.occurred_at))} · ${esc(STATUS_LABEL[p.status] ?? p.status)}${p.flagged ? ' · ⚠ lokasi perlu dicek' : ''}</div>
+              <div style="font-size:11px;color:#64748b">${esc(tanggalJam(p.occurred_at, p.timezone))} · ${esc(STATUS_LABEL[p.status] ?? p.status)}${p.flagged ? ' · ⚠ lokasi perlu dicek' : ''}</div>
               <a href="/laporan/${p.id}" style="display:inline-block;margin-top:8px;font-size:12px;font-weight:600;color:#1d4ed8">Buka laporan →</a>
             </div>`,
           )

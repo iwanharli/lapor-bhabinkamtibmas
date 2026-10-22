@@ -15,6 +15,7 @@ export interface BhabinPerformanceRow {
   nama: string;
   pangkat: string | null;
   unit: string;
+  timezone: string;
   desa: number;
   total: number;
   disetujui: number;
@@ -62,8 +63,10 @@ export class AnalyticsService {
       this.prisma.$queryRaw<{ status: string; jumlah: number }[]>`
         SELECT r.status::text, count(*)::int AS jumlah ${base} GROUP BY 1`,
       this.prisma.$queryRaw<{ hari: string; category: string; jumlah: number }[]>`
-        SELECT to_char(r.occurred_at AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') AS hari, r.category::text, count(*)::int AS jumlah
-        ${base} GROUP BY 1, 2 ORDER BY 1`,
+        SELECT to_char(r.occurred_at AT TIME ZONE ru.timezone, 'YYYY-MM-DD') AS hari, r.category::text, count(*)::int AS jumlah
+        FROM reports r JOIN units ru ON ru.id = r.unit_id
+        WHERE ${scope} AND ${COUNTED} AND r.occurred_at BETWEEN ${from} AND ${to}
+        GROUP BY 1, 2 ORDER BY 1`,
       this.prisma.$queryRaw<{ total: number; disetujui: number; menunggu: number; prioritas_terbuka: number; lokasi_janggal: number }[]>`
         SELECT count(*)::int AS total,
                count(*) FILTER (WHERE r.status = 'APPROVED')::int AS disetujui,
@@ -80,7 +83,7 @@ export class AnalyticsService {
         status: { in: ['SUBMITTED', 'IN_REVIEW'] },
         ...(me.role !== UserRole.SUPERADMIN || unitId ? { unitId: { in: await this.units.descendantIds(unitId ?? me.unitId) } } : {}),
       },
-      select: { id: true, nomor: true, occurredAt: true, data: true, village: { select: { nama: true } }, user: { select: { nama: true } } },
+      select: { id: true, nomor: true, occurredAt: true, data: true, village: { select: { nama: true } }, user: { select: { nama: true } }, unit: { select: { timezone: true } } },
       orderBy: { occurredAt: 'desc' },
       take: 8,
     });
@@ -118,7 +121,7 @@ export class AnalyticsService {
   async bhabinPerformance(me: AuthUser, { unitId, from, to }: Range) {
     const userScope = await this.scopeSql(me, unitId, Prisma.sql`u.unit_id`);
     return this.prisma.$queryRaw<BhabinPerformanceRow[]>`
-      SELECT u.id, u.nrp, u.nama, u.pangkat, un.nama AS unit,
+      SELECT u.id, u.nrp, u.nama, u.pangkat, un.nama AS unit, un.timezone,
              (SELECT count(*) FROM user_villages uv WHERE uv.user_id = u.id AND uv.until IS NULL)::int AS desa,
              count(r.id)::int AS total,
              count(r.id) FILTER (WHERE r.status = 'APPROVED')::int AS disetujui,
@@ -126,7 +129,7 @@ export class AnalyticsService {
              count(r.id) FILTER (WHERE r.status = 'NEEDS_REVISION')::int AS revisi,
              count(r.id) FILTER (WHERE r.status = 'REJECTED')::int AS ditolak,
              count(r.id) FILTER (WHERE r.is_mock_location OR r.inside_village = false)::int AS lokasi_janggal,
-             count(DISTINCT (r.occurred_at AT TIME ZONE 'Asia/Jakarta')::date)::int AS hari_aktif,
+             count(DISTINCT (r.occurred_at AT TIME ZONE un.timezone)::date)::int AS hari_aktif,
              max(r.occurred_at) AS terakhir,
              (SELECT max(r2.occurred_at) FROM reports r2 WHERE r2.user_id = u.id AND r2.status <> 'DRAFT') AS terakhir_sepanjang,
              count(r.id) FILTER (WHERE r.category = 'SAMBANG')::int AS sambang,
@@ -140,7 +143,7 @@ export class AnalyticsService {
       JOIN units un ON un.id = u.unit_id
       LEFT JOIN reports r ON r.user_id = u.id AND ${COUNTED} AND r.occurred_at BETWEEN ${from} AND ${to}
       WHERE u.role = 'BHABIN' AND u.active AND ${userScope}
-      GROUP BY u.id, un.nama
+      GROUP BY u.id, un.nama, un.timezone
       ORDER BY total DESC, u.nama`;
   }
 
@@ -151,8 +154,8 @@ export class AnalyticsService {
       { id: string; nomor: string; category: string; status: string; priority: boolean; lat: number; lng: number; occurred_at: Date; desa: string; bhabin: string; flagged: boolean }[]
     >`
       SELECT r.id, r.nomor, r.category::text, r.status::text, r.priority, r.lat, r.lng, r.occurred_at,
-             v.nama AS desa, u.nama AS bhabin, (r.is_mock_location OR r.inside_village = false) AS flagged
-      FROM reports r JOIN villages v ON v.id = r.village_id JOIN users u ON u.id = r.user_id
+             v.nama AS desa, u.nama AS bhabin, (r.is_mock_location OR r.inside_village = false) AS flagged, ru.timezone
+      FROM reports r JOIN villages v ON v.id = r.village_id JOIN users u ON u.id = r.user_id JOIN units ru ON ru.id = r.unit_id
       WHERE ${scope} AND ${COUNTED} AND r.occurred_at BETWEEN ${from} AND ${to}
         ${f.category ? Prisma.sql`AND r.category::text = ${f.category}` : Prisma.empty}
         ${f.status ? Prisma.sql`AND r.status::text = ${f.status}` : Prisma.empty}
@@ -190,9 +193,9 @@ export class AnalyticsService {
   async priceTrend(me: AuthUser, { unitId, from, to }: Range, commodityId?: number) {
     const scope = await this.scopeSql(me, unitId);
     return this.prisma.$queryRaw<{ hari: string; commodity_id: number; rata2: number; sampel: number }[]>`
-      SELECT to_char(r.occurred_at AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') AS hari, i.commodity_id,
+      SELECT to_char(r.occurred_at AT TIME ZONE ru.timezone, 'YYYY-MM-DD') AS hari, i.commodity_id,
              round(avg(i.harga))::int AS rata2, count(*)::int AS sampel
-      FROM report_items i JOIN reports r ON r.id = i.report_id
+      FROM report_items i JOIN reports r ON r.id = i.report_id JOIN units ru ON ru.id = r.unit_id
       WHERE ${scope} AND ${PRICE_VALID} AND r.occurred_at BETWEEN ${from} AND ${to}
         ${commodityId ? Prisma.sql`AND i.commodity_id = ${commodityId}` : Prisma.empty}
       GROUP BY 1, 2 ORDER BY 1`;

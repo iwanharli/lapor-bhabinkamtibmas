@@ -9,7 +9,7 @@
 | `SAMBANG` | Sambang / Door to Door System | Proposal | Harian |
 | `DETEKSI_DINI` | Deteksi Dini (Informasi Khusus) | Proposal | Insidental |
 | `PROBLEM_SOLVING` | Penyelesaian Masalah / Mediasi | Proposal | Insidental |
-| `PENYULUHAN` | Penyuluhan & Pembinaan | Proposal | Triwulanan (minimal) |
+| `PENYULUHAN` | Penyuluhan & Pembinaan | Proposal | **Ditunda** — formulir nonaktif (status skema `RETIRED`); data lama tetap tampil |
 | `HARGA_PANGAN` | Pemantauan Harga Pangan & Kios Pasar | Proposal + Demo | Harian/mingguan |
 | `MAPPING_KK` | Mapping Kepala Keluarga | Demo | Bertahap |
 | `KETAHANAN_PANGAN` | Ketahanan Pangan | Demo | Berkala |
@@ -74,7 +74,9 @@ Aturan: `urgensi = Tinggi` → notifikasi prioritas ke verifikator & pimpinan Po
 | `dokumen_kesepakatan` | Surat kesepakatan damai | file (foto/PDF) | ✔ jika `hasil = Tercapai Kesepakatan` |
 | `foto_kegiatan` | Foto kegiatan | photo (0–3) | ✖ |
 
-### 3.4 PENYULUHAN — Penyuluhan & Pembinaan
+### 3.4 PENYULUHAN — Penyuluhan & Pembinaan *(ditunda)*
+
+> Modul ini ditunda sejak 22 Okt 2026. Untuk mengaktifkan kembali: ubah `status` di `packages/form-schemas/penyuluhan.v1.json` menjadi `ACTIVE` lalu jalankan `npx prisma db seed`.
 
 | Key | Label | Tipe | Wajib |
 |---|---|---|---|

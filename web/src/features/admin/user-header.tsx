@@ -14,7 +14,7 @@ function Meta({ icon, children }: { icon: React.ReactNode; children: React.React
 }
 
 /** Kepala halaman detail pengguna. */
-export function UserHeader({ user: u }: { user: UserDetail }) {
+export function UserHeader({ user: u, tz }: { user: UserDetail; tz?: string }) {
   const locked = u.lockedUntil && new Date(u.lockedUntil) > new Date();
   return (
     <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgb(var(--shadow-tint)/0.05),0_8px_24px_-12px_rgb(var(--shadow-tint)/0.16)]">
@@ -34,9 +34,9 @@ export function UserHeader({ user: u }: { user: UserDetail }) {
             <Meta icon={<Building2 size={16} />}>{u.unit.nama}</Meta>
             {u.phone && <Meta icon={<Phone size={16} />}>{u.phone}</Meta>}
             <Meta icon={<Clock size={16} />}>
-              {u.lastLoginAt ? <span title={tanggalJam(u.lastLoginAt)}>Login {relatif(u.lastLoginAt)}</span> : 'Belum pernah login'}
+              {u.lastLoginAt ? <span title={tanggalJam(u.lastLoginAt, tz)}>Login {relatif(u.lastLoginAt, tz)}</span> : 'Belum pernah login'}
             </Meta>
-            <Meta icon={<CalendarPlus size={16} />}>Terdaftar {tanggal(u.createdAt)}</Meta>
+            <Meta icon={<CalendarPlus size={16} />}>Terdaftar {tanggal(u.createdAt, tz)}</Meta>
           </div>
         </div>
       </div>

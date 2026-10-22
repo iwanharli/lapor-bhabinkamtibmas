@@ -4,7 +4,7 @@ import { rupiah, tanggal } from '@/lib/format';
 import type { PriceAreaRow } from '@/lib/types';
 
 /** Harga per desa sebagai batang, diurutkan termahal; selisih dari rata-rata wilayah disorot. */
-export function PriceAreaTable({ rows, average }: { rows: PriceAreaRow[]; average?: number | null }) {
+export function PriceAreaTable({ rows, average, tz }: { rows: PriceAreaRow[]; average?: number | null; tz?: string }) {
   if (rows.length === 0) return <EmptyState icon={<MapPin size={22} />} tone="neutral" title="Belum ada data">Belum ada laporan harga untuk komoditas ini dalam 7 hari.</EmptyState>;
   const max = Math.max(...rows.map((r) => r.rata2));
   return (
@@ -16,7 +16,7 @@ export function PriceAreaTable({ rows, average }: { rows: PriceAreaRow[]; averag
             <div className="mb-1.5 flex items-baseline justify-between gap-3 text-sm">
               <span className="min-w-0">
                 <span className="font-medium">{a.desa}</span>
-                <span className="block text-xs text-muted">{a.kecamatan} · {a.sampel} sampel · {tanggal(a.terakhir)}</span>
+                <span className="block text-xs text-muted">{a.kecamatan} · {a.sampel} sampel · {tanggal(a.terakhir, tz)}</span>
               </span>
               <span className="shrink-0 text-right tabular-nums">
                 <strong>{rupiah(a.rata2)}</strong>

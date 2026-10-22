@@ -80,7 +80,7 @@ export default async function PetaPage({ searchParams }: { searchParams: Promise
                     <Link href={`/laporan/${p.id}`} className="block px-5 py-3 text-sm hover:bg-bg">
                       <span className="font-medium text-danger">{p.desa}</span> · {p.bhabin}
                       <span className="block font-mono text-xs text-muted">{p.nomor}</span>
-                      <span className="block text-xs text-muted">{tanggalJam(p.occurred_at)}</span>
+                      <span className="block text-xs text-muted">{tanggalJam(p.occurred_at, p.timezone)}</span>
                     </Link>
                   </li>
                 ))}

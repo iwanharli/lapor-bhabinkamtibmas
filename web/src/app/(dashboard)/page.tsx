@@ -8,9 +8,8 @@ import { CategoryBars, PriorityList } from '@/features/dashboard/lists';
 import { ParticipationCard } from '@/features/dashboard/participation';
 import { isSpike } from '@/features/prices/price-change';
 import { PriceTiles } from '@/features/prices/price-tiles';
-import { wibDate } from '@/features/reports/report-search';
 import { apiGet, getSessionUser } from '@/lib/api/server';
-import { rupiah, tanggal } from '@/lib/format';
+import { localDateStr, rupiah, tanggal, tzLabel } from '@/lib/format';
 import type { LatestPrice, Overview } from '@/lib/types';
 
 const PERIODS = [7, 30, 90];
@@ -36,13 +35,14 @@ export default async function RingkasanPage({ searchParams }: { searchParams: Pr
   const spikes = prices.filter(isSpike);
   const avgPerBhabin = t.bhabinAktif ? t.total / t.bhabinAktif : 0;
   // Tautan ke daftar laporan membawa rentang yang sama dengan periode ringkasan.
-  const reportsHref = (q: string) => `/laporan?${q}&from=${wibDate(-(days - 1))}&to=${wibDate()}`;
+  const tz = user?.unit.timezone;
+  const reportsHref = (q: string) => `/laporan?${q}&from=${localDateStr(-(days - 1), tz)}&to=${localDateStr(0, tz)}`;
 
   return (
     <>
       <PageHeader
         title="Ringkasan"
-        subtitle={`${tanggal(ov.range.from)} – ${tanggal(ov.range.to)} · ${days} hari · ${user?.unit.nama}`}
+        subtitle={`${tanggal(ov.range.from, tz)} – ${tanggal(ov.range.to, tz)} · ${days} hari · ${user?.unit.nama} (${tzLabel(tz)})`}
         actions={
           <SegmentedLinks
             active={String(days)}

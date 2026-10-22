@@ -27,8 +27,9 @@ async function seedMaster() {
     // Skema yang sudah dipublikasikan tidak ditimpa (immutable).
     await prisma.formSchema.upsert({
       where: { category_version: { category: s.category as ReportCategory, version: s.version } },
-      create: { category: s.category, version: s.version, schema: s, autoApprove: !!s.autoApprove },
-      update: {},
+      create: { category: s.category, version: s.version, schema: s, autoApprove: !!s.autoApprove, status: s.status ?? 'ACTIVE' },
+      // Isi skema immutable; hanya status aktif/ditunda yang mengikuti file.
+      update: { status: s.status ?? 'ACTIVE' },
     });
   }
 }

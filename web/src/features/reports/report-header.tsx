@@ -1,5 +1,5 @@
 import { Building2, CalendarClock, MapPin } from 'lucide-react';
-import { personName } from '@/lib/format';
+import { personName, tzLabel, tzOf } from '@/lib/format';
 import { CATEGORY_LABEL } from '@/lib/format';
 import type { ReportDetail } from '@/lib/types';
 import { CategoryIcon } from './category-icon';
@@ -7,8 +7,8 @@ import { ReviewPanel } from './review-panel';
 import { PriorityBadge, StatusBadge } from './status-badge';
 
 const initials = (nama: string) => nama.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
-const waktu = (d: string) =>
-  new Date(d).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB';
+const waktu = (d: string, tz: string) =>
+  new Date(d).toLocaleString('id-ID', { timeZone: tzOf(tz), weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' ' + tzLabel(tz);
 
 function Meta({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -44,7 +44,7 @@ export function ReportHeader({ report: r, decidable }: { report: ReportDetail; d
               </span>
               <Meta icon={<MapPin size={16} />}>{r.village.nama}, {r.village.kecamatan}</Meta>
               <Meta icon={<Building2 size={16} />}>{r.unit.nama}</Meta>
-              <Meta icon={<CalendarClock size={16} />}>{waktu(r.occurredAt)}</Meta>
+              <Meta icon={<CalendarClock size={16} />}>{waktu(r.occurredAt, r.unit.timezone)}</Meta>
             </div>
           </div>
         </div>

@@ -9,7 +9,7 @@ export interface SessionUser {
   nrp: string;
   nama: string;
   role: string;
-  unit: { id: string; nama: string; level: string };
+  unit: { id: string; nama: string; level: string; timezone?: string };
   mustChangePassword: boolean;
 }
 

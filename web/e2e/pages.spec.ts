@@ -21,6 +21,8 @@ test('halaman utama admin terbuka tanpa galat', async ({ page }) => {
   for (const p of PAGES) {
     current = p.path;
     const res = await page.goto(p.path);
+    // Tunggu hidrasi selesai sebelum pindah halaman; galat dari halaman yang ditinggal setengah jalan bukan bug aplikasi.
+    await page.waitForLoadState('networkidle');
     expect(res?.status(), p.path).toBeLessThan(400);
     await expect(page.getByRole('heading', { name: p.heading, exact: true }), p.path).toBeVisible();
     await expect(page.locator('main'), p.path).toContainText(p.expect);

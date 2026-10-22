@@ -57,12 +57,27 @@ export class UnitsService {
     return new Map(rows.map((r) => [r.unitId, r._count._all]));
   }
 
+  /** Zona waktu unit pengguna (untuk penanggalan lokal). */
+  async timezoneOf(unitId: string) {
+    return (await this.prisma.unit.findUnique({ where: { id: unitId }, select: { timezone: true } }))?.timezone ?? 'Asia/Jakarta';
+  }
+
+  /** Ubah zona waktu; turunan yang memakai zona lama ikut berubah. */
+  async setTimezone(actorUnitId: string, id: string, timezone: string) {
+    await this.assertInScope(actorUnitId, id);
+    const unit = await this.prisma.unit.findUniqueOrThrow({ where: { id } });
+    const ids = await this.descendantIds(id);
+    const res = await this.prisma.unit.updateMany({ where: { id: { in: ids }, OR: [{ id }, { timezone: unit.timezone }] }, data: { timezone } });
+    return { updated: res.count };
+  }
+
   async create(actorUnitId: string, dto: { parentId: string; kode: string; nama: string; timezone?: string }) {
     await this.assertInScope(actorUnitId, dto.parentId);
     const parent = await this.prisma.unit.findUniqueOrThrow({ where: { id: dto.parentId } });
     const level = CHILD_LEVEL[parent.level];
     if (!level) throw new ForbiddenException({ code: 'INVALID_PARENT', message: 'Polsek tidak dapat memiliki unit turunan' });
-    const unit = await this.prisma.unit.create({ data: { ...dto, level } });
+    // Tanpa zona eksplisit, unit baru mewarisi zona waktu induknya.
+    const unit = await this.prisma.unit.create({ data: { ...dto, level, timezone: dto.timezone ?? parent.timezone } });
     this.invalidate();
     return unit;
   }

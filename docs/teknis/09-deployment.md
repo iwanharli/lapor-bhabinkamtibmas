@@ -153,6 +153,8 @@ Alert minimum: API down, error 5xx > 2%, disk storage > 80%, job antrean gagal >
 
 ## 11. Kapan menambah komponen
 
+> Untuk tahap nasional, komponen di bawah bukan lagi opsional — lihat [12-skala-nasional §3](12-skala-nasional.md#3-arsitektur-target).
+
 | Gejala | Tambahan |
 |---|---|
 | Antrean > ±100 ribu job/hari atau latensi job tinggi | Redis + BullMQ untuk antrean |

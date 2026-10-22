@@ -2,7 +2,8 @@ import { Controller, Get, Query, Res } from '@nestjs/common';
 import { Prisma, UserRole } from '@prisma/client';
 import { Response } from 'express';
 import { AuthUser, CurrentUser, Roles } from '../../common/decorators/auth.decorators';
-import { exportName, toCsv, wib } from '../../common/csv';
+import { exportName, toCsv, waktu } from '../../common/csv';
+import { localDate } from '../../common/time';
 import { PrismaService } from '../../prisma/prisma.service';
 import { range } from '../analytics/analytics.controller';
 import { AnalyticsService } from '../analytics/analytics.service';
@@ -55,7 +56,7 @@ export class ExportsController {
         take: MAX_ROWS,
         include: {
           user: { select: { nama: true, pangkat: true, nrp: true } },
-          unit: { select: { nama: true } },
+          unit: { select: { nama: true, timezone: true } },
           village: { select: { nama: true, kecamatan: true, kabupaten: true } },
           reviewedBy: { select: { nama: true, pangkat: true } },
           items: { include: { commodity: { select: { nama: true } } } },
@@ -78,16 +79,16 @@ export class ExportsController {
     const person = (p?: { nama: string; pangkat: string | null } | null) => (p ? [p.pangkat, p.nama].filter(Boolean).join(' ') : '');
 
     const csv = toCsv(
-      ['Nomor', 'Kategori', 'Status', 'Prioritas', 'Waktu kegiatan (WIB)', 'Bhabin', 'NRP', 'Unit', 'Desa', 'Kecamatan', 'Kabupaten',
-        'Lintang', 'Bujur', 'Akurasi GPS (m)', 'Di dalam desa binaan', 'Lokasi palsu', 'Lampiran', 'Diverifikasi oleh', 'Waktu verifikasi (WIB)', 'Catatan verifikator', 'Isian'],
+      ['Nomor', 'Kategori', 'Status', 'Prioritas', 'Waktu kegiatan (setempat)', 'Bhabin', 'NRP', 'Unit', 'Desa', 'Kecamatan', 'Kabupaten',
+        'Lintang', 'Bujur', 'Akurasi GPS (m)', 'Di dalam desa binaan', 'Lokasi palsu', 'Lampiran', 'Diverifikasi oleh', 'Waktu verifikasi (setempat)', 'Catatan verifikator', 'Isian'],
       rows.map((r) => [
-        r.nomor, CATEGORY[r.category], STATUS[r.status], r.priority, wib(r.occurredAt), person(r.user), r.user.nrp, r.unit.nama,
+        r.nomor, CATEGORY[r.category], STATUS[r.status], r.priority, waktu(r.occurredAt, r.unit.timezone), person(r.user), r.user.nrp, r.unit.nama,
         r.village.nama, r.village.kecamatan, r.village.kabupaten, r.lat.toFixed(6), r.lng.toFixed(6), r.gpsAccuracyM != null ? Math.round(r.gpsAccuracyM) : '',
-        r.insideVillage, r.isMockLocation, r._count.attachments, person(r.reviewedBy), wib(r.reviewedAt), r.reviewNote, isian(r),
+        r.insideVillage, r.isMockLocation, r._count.attachments, person(r.reviewedBy), waktu(r.reviewedAt, r.unit.timezone), r.reviewNote, isian(r),
       ]),
     );
     await this.audit.log({ actorId: me.id, action: 'EXPORT_CREATE', entity: 'reports', meta: { rows: rows.length, filters: { ...q } } as Prisma.InputJsonValue });
-    this.send(res, exportName('laporan'), csv);
+    this.send(res, exportName('laporan', await this.units.timezoneOf(me.unitId)), csv);
   }
 
   @Get('prices.csv')
@@ -103,7 +104,7 @@ export class ExportsController {
       ]),
     );
     await this.audit.log({ actorId: me.id, action: 'EXPORT_CREATE', entity: 'prices', meta: { rows: rows.length } });
-    this.send(res, exportName('harga_pangan'), csv);
+    this.send(res, exportName('harga_pangan', await this.units.timezoneOf(me.unitId)), csv);
   }
 
   @Get('performance.csv')
@@ -111,19 +112,20 @@ export class ExportsController {
   async performanceCsv(@CurrentUser() me: AuthUser, @Query() q: { unitId?: string; from?: string; to?: string }, @Res() res: Response) {
     const r = range(q, 30);
     const rows = await this.analytics.bhabinPerformance(me, r);
-    // Jumlah tanggal kalender (WIB) yang tercakup rentang, termasuk hari pertama & terakhir.
-    const wibDay = (d: Date) => Date.parse(d.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }));
-    const days = Math.round((wibDay(r.to) - wibDay(r.from)) / 86_400_000) + 1;
+    // Jumlah tanggal kalender (zona pengekspor) yang tercakup rentang, termasuk hari pertama & terakhir.
+    const tz = await this.units.timezoneOf(me.unitId);
+    const day = (d: Date) => Date.parse(localDate(d, tz));
+    const days = Math.round((day(r.to) - day(r.from)) / 86_400_000) + 1;
     const csv = toCsv(
       ['NRP', 'Nama', 'Pangkat', 'Unit', 'Desa binaan', 'Total laporan', 'Hari aktif', `Hari aktif (%) dari ${days} hari`, 'Disetujui', 'Menunggu', 'Revisi', 'Ditolak', 'Lokasi perlu dicek',
-        'Sambang', 'Deteksi Dini', 'Problem Solving', 'Penyuluhan', 'Harga Pangan', 'Mapping KK', 'Ketahanan Pangan', 'Laporan terakhir (WIB)'],
+        'Sambang', 'Deteksi Dini', 'Problem Solving', 'Penyuluhan', 'Harga Pangan', 'Mapping KK', 'Ketahanan Pangan', 'Laporan terakhir (setempat)'],
       rows.map((b) => [
         b.nrp, b.nama, b.pangkat, b.unit, b.desa, b.total, b.hari_aktif, Math.min(Math.round((b.hari_aktif / days) * 100), 100), b.disetujui, b.menunggu, b.revisi, b.ditolak, b.lokasi_janggal,
-        b.sambang, b.deteksi_dini, b.problem_solving, b.penyuluhan, b.harga_pangan, b.mapping_kk, b.ketahanan_pangan, wib(b.terakhir_sepanjang),
+        b.sambang, b.deteksi_dini, b.problem_solving, b.penyuluhan, b.harga_pangan, b.mapping_kk, b.ketahanan_pangan, waktu(b.terakhir_sepanjang, b.timezone),
       ]),
     );
     await this.audit.log({ actorId: me.id, action: 'EXPORT_CREATE', entity: 'performance', meta: { rows: rows.length } });
-    this.send(res, exportName('kinerja_bhabin'), csv);
+    this.send(res, exportName('kinerja_bhabin', tz), csv);
   }
 
   @Get('users.csv')
@@ -137,16 +139,16 @@ export class ExportsController {
       },
       orderBy: [{ unit: { nama: 'asc' } }, { nama: 'asc' }],
       take: MAX_ROWS,
-      include: { unit: { select: { nama: true, kode: true } }, villages: { where: { until: null }, include: { village: { select: { nama: true, kodeWilayah: true } } } } },
+      include: { unit: { select: { nama: true, kode: true, timezone: true } }, villages: { where: { until: null }, include: { village: { select: { nama: true, kodeWilayah: true } } } } },
     });
     const csv = toCsv(
-      ['NRP', 'Nama', 'Pangkat', 'Jabatan', 'Peran', 'Kode unit', 'Unit', 'No. HP', 'Status', 'Login terakhir (WIB)', 'Desa binaan'],
+      ['NRP', 'Nama', 'Pangkat', 'Jabatan', 'Peran', 'Kode unit', 'Unit', 'No. HP', 'Status', 'Login terakhir (setempat)', 'Desa binaan'],
       rows.map((u) => [
-        u.nrp, u.nama, u.pangkat, u.jabatan, ROLE[u.role], u.unit.kode, u.unit.nama, u.phone, u.active ? 'Aktif' : 'Nonaktif', wib(u.lastLoginAt),
+        u.nrp, u.nama, u.pangkat, u.jabatan, ROLE[u.role], u.unit.kode, u.unit.nama, u.phone, u.active ? 'Aktif' : 'Nonaktif', waktu(u.lastLoginAt, u.unit.timezone),
         u.villages.map((v) => v.village.nama).join(', '),
       ]),
     );
     await this.audit.log({ actorId: me.id, action: 'EXPORT_CREATE', entity: 'users', meta: { rows: rows.length } });
-    this.send(res, exportName('pengguna'), csv);
+    this.send(res, exportName('pengguna', await this.units.timezoneOf(me.unitId)), csv);
   }
 }

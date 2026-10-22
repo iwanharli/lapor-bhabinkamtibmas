@@ -16,7 +16,7 @@ const LIST_SELECT = {
   insideVillage: true, isMockLocation: true, submittedAt: true,
   user: { select: { id: true, nrp: true, nama: true, pangkat: true } },
   village: { select: { id: true, nama: true, kecamatan: true } },
-  unit: { select: { id: true, nama: true } },
+  unit: { select: { id: true, nama: true, timezone: true } },
   _count: { select: { attachments: true } },
 } satisfies Prisma.ReportSelect;
 

@@ -15,7 +15,7 @@ const PRESETS: { key: Exclude<RangePreset, 'custom'>; label: string }[] = [
 ];
 
 /** Bar filter laporan: pilihan langsung diterapkan, pencarian diterapkan setelah berhenti mengetik. Semua state di URL. */
-export function ReportFilters({ value }: { value: ReportSearch }) {
+export function ReportFilters({ value, tz }: { value: ReportSearch; tz?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const [pending, start] = useTransition();
@@ -37,7 +37,7 @@ export function ReportFilters({ value }: { value: ReportSearch }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  const range = resolveRange(value);
+  const range = resolveRange(value, tz);
   // Rentang default (7 hari) tidak dihitung sebagai filter aktif.
   const active = !!(value.q || value.category || value.priority || range.preset !== '7');
   // Ubah tanggal manual → rentang kustom; pilihan cepat → hapus from/to.

@@ -7,7 +7,7 @@ export function ReviewNote({ report: r }: { report: ReportDetail }) {
   return (
     <Alert tone="warn" title="Catatan verifikator">
       <p>{r.reviewNote}</p>
-      {r.reviewedBy && <p className="mt-2 text-xs text-muted">{personName(r.reviewedBy)} · {r.reviewedAt && tanggalJam(r.reviewedAt)}</p>}
+      {r.reviewedBy && <p className="mt-2 text-xs text-muted">{personName(r.reviewedBy)} · {r.reviewedAt && tanggalJam(r.reviewedAt, r.unit.timezone)}</p>}
     </Alert>
   );
 }

@@ -6,7 +6,7 @@ import { LatestPriceTable } from '@/features/prices/latest-price-table';
 import { PriceAreaTable } from '@/features/prices/price-area-table';
 import { isSpike } from '@/features/prices/price-change';
 import { PriceTrendChart } from '@/features/prices/price-trend-chart';
-import { apiGet } from '@/lib/api/server';
+import { apiGet, getSessionUser } from '@/lib/api/server';
 import { persen } from '@/lib/format';
 import type { LatestPrice, PriceAreaRow, PriceTrendRow } from '@/lib/types';
 
@@ -18,6 +18,7 @@ export default async function HargaPanganPage({ searchParams }: { searchParams: 
   const from = new Date(Date.now() - days * 86_400_000).toISOString();
 
   // Satu panggilan tren untuk semua komoditas: dipakai sparkline & grafik komoditas terpilih.
+  const me = await getSessionUser();
   const [latest, trend] = await Promise.all([
     apiGet<LatestPrice[]>('/analytics/prices/latest'),
     apiGet<PriceTrendRow[]>(`/analytics/prices/trend?from=${from}`),
@@ -99,7 +100,7 @@ export default async function HargaPanganPage({ searchParams }: { searchParams: 
                 )}
               </Card>
               <Card title="Sebaran per desa" subtitle="Rata-rata 7 hari · % dibanding rata-rata wilayah">
-                <PriceAreaTable rows={area} average={selected.rata2} />
+                <PriceAreaTable rows={area} average={selected.rata2} tz={me?.unit.timezone} />
               </Card>
             </div>
           </Stack>

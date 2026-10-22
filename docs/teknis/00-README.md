@@ -19,6 +19,7 @@ Aplikasi terpadu untuk pelaporan kegiatan harian Bhabinkamtibmas, pemantauan har
 | 09 | [Deployment Server Internal](09-deployment.md) | Instalasi native (systemd), jaringan, backup, monitoring |
 | 10 | [Keamanan & Perlindungan Data](10-keamanan.md) | Autentikasi, enkripsi, audit, UU PDP |
 | 11 | [Pengujian & Rencana Kerja](11-pengujian-roadmap.md) | Strategi uji, fase pengembangan, isu terbuka |
+| 12 | [Skala Nasional](12-skala-nasional.md) | Asumsi beban nasional, arsitektur target, perubahan aplikasi, tahapan |
 
 Ringkasan satu halaman: [../RANCANGAN_TEKNIS.md](../RANCANGAN_TEKNIS.md).
 
@@ -33,7 +34,9 @@ Ringkasan satu halaman: [../RANCANGAN_TEKNIS.md](../RANCANGAN_TEKNIS.md).
 | Database | PostgreSQL 16 + PostGIS |
 | Penyimpanan file | Disk server (driver `local`), opsional S3/MinIO |
 | Antrean | pg-boss (di PostgreSQL, tanpa Redis) |
-| Hosting | Server internal (on-premise), instalasi native tanpa Docker (systemd + Nginx) |
+| Hosting | Pilot: server internal, instalasi native (systemd + Nginx). Nasional: klaster di pusat data Polri (lihat dok. 12) |
+| Skala | **Nasional** — seluruh Bhabinkamtibmas (±50.000, perkiraan) |
+| Zona waktu | Per unit (WIB/WITA/WIT); penyimpanan UTC |
 
 ## Dokumen sumber
 

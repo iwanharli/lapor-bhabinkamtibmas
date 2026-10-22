@@ -78,7 +78,7 @@ export class AuthService {
         nama: user.nama,
         pangkat: user.pangkat,
         role: user.role,
-        unit: { id: user.unit.id, nama: user.unit.nama, level: user.unit.level },
+        unit: { id: user.unit.id, nama: user.unit.nama, level: user.unit.level, timezone: user.unit.timezone },
         mustChangePassword: user.mustChangePassword,
       },
     };

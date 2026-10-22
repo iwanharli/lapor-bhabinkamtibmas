@@ -14,7 +14,7 @@ function Status({ active }: { active: boolean }) {
   );
 }
 
-export function UserTable({ rows }: { rows: UserListItem[] }) {
+export function UserTable({ rows, tz }: { rows: UserListItem[]; tz?: string }) {
   if (rows.length === 0) {
     return <EmptyState icon={<UserSearch size={24} />} tone="neutral" title="Tidak ada pengguna" className="py-16">Coba ubah kata kunci, peran, atau status.</EmptyState>;
   }
@@ -63,7 +63,7 @@ export function UserTable({ rows }: { rows: UserListItem[] }) {
                 <Td>{u.unit.nama}</Td>
                 <Td><Status active={u.active} /></Td>
                 <Td nowrap muted>
-                  {u.lastLoginAt ? <span title={tanggalJam(u.lastLoginAt)}>{relatif(u.lastLoginAt)}</span> : <span className="text-muted/70">Belum pernah</span>}
+                  {u.lastLoginAt ? <span title={tanggalJam(u.lastLoginAt, tz)}>{relatif(u.lastLoginAt, tz)}</span> : <span className="text-muted/70">Belum pernah</span>}
                 </Td>
                 <Td align="right" className="pr-5">
                   <ChevronRight size={18} className="inline text-muted transition group-hover:translate-x-0.5 group-hover:text-primary" />

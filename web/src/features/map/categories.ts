@@ -21,4 +21,5 @@ export interface MapPoint {
   desa: string;
   bhabin: string;
   flagged: boolean;
+  timezone: string;
 }

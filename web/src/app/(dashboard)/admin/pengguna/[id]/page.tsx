@@ -24,13 +24,13 @@ export default async function DetailPenggunaPage({ params }: { params: Promise<{
   return (
     <>
       <BackLink href="/admin/pengguna" />
-      <div className="mb-4"><UserHeader user={u} /></div>
+      <div className="mb-4"><UserHeader user={u} tz={me?.unit.timezone} /></div>
 
       <SplitLayout
         asideSticky
         aside={
           <Card title="Akun & perangkat">
-            <AccountActions userId={u.id} nrp={u.nrp} nama={personName(u)} devices={devices} />
+            <AccountActions userId={u.id} nrp={u.nrp} nama={personName(u)} devices={devices} tz={me?.unit.timezone} />
           </Card>
         }
       >

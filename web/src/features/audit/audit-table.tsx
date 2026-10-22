@@ -37,7 +37,7 @@ function metaText(a: AuditRow) {
   return '';
 }
 
-export function AuditTable({ rows }: { rows: AuditRow[] }) {
+export function AuditTable({ rows, tz }: { rows: AuditRow[]; tz?: string }) {
   if (rows.length === 0) return <EmptyState icon={<History size={22} />} tone="neutral" title="Tidak ada aktivitas" className="py-16">Coba ubah filter atau periode.</EmptyState>;
   return (
     <Table minWidth={900}>
@@ -54,8 +54,8 @@ export function AuditTable({ rows }: { rows: AuditRow[] }) {
           return (
             <Tr key={a.id}>
               <Td nowrap className="pl-5">
-                <span className="block">{relatif(a.at)}</span>
-                <span className="block text-xs text-muted">{tanggalJam(a.at)}</span>
+                <span className="block">{relatif(a.at, tz)}</span>
+                <span className="block text-xs text-muted">{tanggalJam(a.at, tz)}</span>
               </Td>
               <Td>
                 {a.actor ? (

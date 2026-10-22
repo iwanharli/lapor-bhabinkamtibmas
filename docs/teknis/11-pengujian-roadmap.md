@@ -10,7 +10,7 @@
 | Sinkron | Simulasi offline, putus di tengah unggah, kirim ganda, konflik revisi | `integration_test` Flutter + server staging |
 | E2E web | Login, verifikasi laporan, ekspor, admin pengguna | Playwright |
 | E2E mobile | Login → buat laporan per kategori → offline → sinkron | Patrol / `integration_test` di emulator & perangkat fisik |
-| Beban | 2.000 pengguna serentak, 10 laporan/detik + unggah foto | k6 |
+| Beban | Pilot: 2.000 pengguna, 10 laporan/detik. Nasional: ±400 req/detik berkelanjutan + lonjakan sinkron pagi (dok. 12 §1) | k6 |
 | Keamanan | OWASP ASVS L2, pentest independen | ZAP, pentester |
 | Lapangan | Uji di desa dengan sinyal lemah/blank spot | Pilot |
 
@@ -36,7 +36,7 @@ Estimasi untuk tim: 2 backend, 2 Flutter, 1–2 frontend web, 1 QA, 1 DevOps (pa
 | **2. MVP Laporan** | 6 minggu | 7 kategori laporan, kamera + GPS + watermark, offline + sinkron, absensi, daftar & detail laporan di mobile |
 | **3. Verifikasi & Dashboard** | 4 minggu | Alur status lengkap, dashboard ringkasan, peta, harga pangan, kinerja, ekspor, audit |
 | **4. Pengerasan & Pilot** | 4 minggu | Uji beban & keamanan, pentest, perbaikan, pilot di 1 Polres (±50–100 Bhabin), pelatihan |
-| **5. Rollout & Integrasi** | bertahap | Perluasan per Polres/Polda, API Command Center, analitik korelasi, MFA penuh |
+| **5. Rollout & Integrasi** | bertahap | Perluasan pilot → Polda → gelombang → nasional ([dok. 12 §6](12-skala-nasional.md#6-tahapan-menuju-nasional)), API Command Center, analitik korelasi, MFA penuh |
 
 Total menuju pilot: **±20 minggu**.
 
@@ -77,3 +77,5 @@ Total menuju pilot: **±20 minggu**.
 | 9 | Akun Apple untuk distribusi iOS (ABM / Enterprise) | Instansi | Ketersediaan di iOS |
 | 10 | Tile peta offline / server peta internal | TI instansi | Fitur peta |
 | 11 | Format integrasi Command Center Baharkam | Baharkam | Fase 5 |
+| 12 | Hosting nasional, object storage, orkestrasi container ([dok. 12 §8](12-skala-nasional.md#8-keputusan-yang-dibutuhkan-dari-instansi)) | TI Polri | Arsitektur nasional |
+| 13 | Jumlah resmi Bhabin & target pelaporan harian | Baharkam | Kapasitas & indikator kinerja |

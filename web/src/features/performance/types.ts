@@ -4,6 +4,7 @@ export interface BhabinPerformance {
   nama: string;
   pangkat: string | null;
   unit: string;
+  timezone: string;
   desa: number;
   total: number;
   disetujui: number;

@@ -55,7 +55,7 @@ export class AuthController {
       where: { id: me.id },
       select: {
         id: true, nrp: true, nama: true, pangkat: true, jabatan: true, role: true, mustChangePassword: true,
-        unit: { select: { id: true, nama: true, level: true } },
+        unit: { select: { id: true, nama: true, level: true, timezone: true } },
         villages: { where: { until: null }, select: { village: { select: { id: true, nama: true, kecamatan: true, kabupaten: true } } } },
       },
     });

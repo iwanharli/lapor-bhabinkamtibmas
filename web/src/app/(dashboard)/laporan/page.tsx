@@ -1,19 +1,19 @@
 import { Card, ExportButton, PageHeader, Pagination, Stack } from '@/components/ui';
 import { ReportFilters } from '@/features/reports/report-filters';
 import { ReportSearch, resolveRange, toApiQuery } from '@/features/reports/report-search';
-import { tanggal } from '@/lib/format';
+import { localDayToIso, tanggal } from '@/lib/format';
 import { ReportTable } from '@/features/reports/report-table';
 import { StatusTabs } from '@/features/reports/status-tabs';
-import { apiGet } from '@/lib/api/server';
+import { apiGet, getSessionUser } from '@/lib/api/server';
 import type { Paged, ReportListItem } from '@/lib/types';
 import { withParams } from '@/lib/url';
 
 const SIZES = [10, 20, 50];
 
-function rangeLabel(sp: ReportSearch) {
-  const r = resolveRange(sp);
+function rangeLabel(sp: ReportSearch, tz?: string) {
+  const r = resolveRange(sp, tz);
   if (r.preset === 'semua') return 'semua tanggal';
-  const fmt = (d?: string) => (d ? tanggal(`${d}T12:00:00+07:00`) : '…');
+  const fmt = (d?: string) => (d ? tanggal(localDayToIso(d, tz), tz) : '…');
   const span = `${fmt(r.from)} – ${fmt(r.to)}`;
   return r.preset === 'custom' ? span : `${r.preset} hari terakhir (${span})`;
 }
@@ -22,7 +22,8 @@ export default async function LaporanPage({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   const page = Math.max(Number(sp.page) || 1, 1);
   const limit = SIZES.includes(Number(sp.limit)) ? Number(sp.limit) : 20;
-  const query = toApiQuery(sp, page, limit);
+  const tz = (await getSessionUser())?.unit.timezone;
+  const query = toApiQuery(sp, page, limit, tz);
   // Ekspor memakai filter yang sama, tanpa paginasi.
   const exportQuery = (() => {
     const q = new URLSearchParams(query);
@@ -40,13 +41,13 @@ export default async function LaporanPage({ searchParams }: { searchParams: Prom
     <>
       <PageHeader
         title="Laporan"
-        subtitle={`Laporan kegiatan Bhabinkamtibmas dalam cakupan unit Anda · ${rangeLabel(sp)}`}
+        subtitle={`Laporan kegiatan Bhabinkamtibmas dalam cakupan unit Anda · ${rangeLabel(sp, tz)}`}
         actions={<ExportButton path={`/exports/reports.csv?${exportQuery}`} />}
       />
       <Stack>
         <StatusTabs sp={sp} total={counts.total} counts={counts.counts} />
         <Card>
-          <ReportFilters value={sp} />
+          <ReportFilters value={sp} tz={tz} />
           <ReportTable rows={data} />
           <Pagination
             page={page}

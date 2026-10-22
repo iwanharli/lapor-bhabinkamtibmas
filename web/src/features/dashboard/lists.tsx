@@ -44,7 +44,7 @@ export function PriorityList({ rows }: { rows: Overview['priority'] }) {
         <li key={r.id}>
           <Link href={`/laporan/${r.id}`} className="block px-5 py-3 text-sm hover:bg-bg">
             <span className="font-medium text-danger">{r.data.kategori_kerawanan}</span> · {r.village.nama}
-            <span className="block text-xs text-muted">{r.nomor} · {r.user.nama} · {tanggalJam(r.occurredAt)}</span>
+            <span className="block text-xs text-muted">{r.nomor} · {r.user.nama} · {tanggalJam(r.occurredAt, r.unit.timezone)}</span>
           </Link>
         </li>
       ))}

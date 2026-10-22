@@ -11,7 +11,7 @@ const size = (b: number) => (b > 1024 * 1024 ? `${(b / 1024 / 1024).toLocaleStri
 const isImage = (a: ReportAttachment) => a.mime.startsWith('image/');
 
 /** Galeri lampiran dikelompokkan per field skema, dengan lightbox (← → Esc). */
-export function AttachmentGallery({ items, fields }: { items: ReportAttachment[]; fields: SchemaField[] }) {
+export function AttachmentGallery({ items, fields, tz }: { items: ReportAttachment[]; fields: SchemaField[]; tz?: string }) {
   const [open, setOpen] = useState<number | null>(null);
   const images = items.filter(isImage);
   const label = (k: string) => fields.find((f) => f.key === k)?.label ?? k;
@@ -80,7 +80,7 @@ export function AttachmentGallery({ items, fields }: { items: ReportAttachment[]
           <div className="flex items-center justify-between gap-4 p-4 text-sm text-white" onClick={(e) => e.stopPropagation()}>
             <span>
               <strong>{label(current.fieldKey)}</strong>
-              <span className="ml-2 text-white/60">{open! + 1} / {images.length}{current.capturedAt && ` · diambil ${tanggalJam(current.capturedAt)}`}{current.watermarked && ' · bertanda air'}</span>
+              <span className="ml-2 text-white/60">{open! + 1} / {images.length}{current.capturedAt && ` · diambil ${tanggalJam(current.capturedAt, tz)}`}{current.watermarked && ' · bertanda air'}</span>
             </span>
             <span className="flex gap-2">
               <a href={fileUrl(current.id)} download className="rounded-lg p-2 hover:bg-white/10" aria-label="Unduh"><Download size={20} /></a>

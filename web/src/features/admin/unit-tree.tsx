@@ -3,6 +3,7 @@ import { cn } from '@/components/ui';
 import type { UnitOption } from '@/lib/types';
 import { flattenTree } from '@/lib/units';
 import { AddUnitButton } from './add-unit-button';
+import { TimezoneButton } from './timezone-button';
 
 const LEVEL: Record<string, { label: string; cls: string; icon: typeof Shield }> = {
   MABES: { label: 'Mabes', cls: 'bg-navy text-accent', icon: Shield },
@@ -21,7 +22,7 @@ function Count({ icon, n, label }: { icon: React.ReactNode; n: number; label: st
 }
 
 /** Pohon unit dengan garis penghubung, jumlah personel/desa, dan aksi tambah turunan. */
-export function UnitTree({ units }: { units: UnitOption[] }) {
+export function UnitTree({ units, editable = true }: { units: UnitOption[]; editable?: boolean }) {
   const flat = flattenTree(units);
   return (
     <ul>
@@ -42,10 +43,11 @@ export function UnitTree({ units }: { units: UnitOption[] }) {
                 <lv.icon size={16} />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="flex flex-wrap items-center gap-2 font-medium">
+                <div className="flex flex-wrap items-center gap-2 font-medium">
                   {u.nama}
                   <span className="rounded bg-bg px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">{lv.label}</span>
-                </p>
+                  <TimezoneButton unitId={u.id} unitName={u.nama} timezone={u.timezone} editable={editable} />
+                </div>
                 <p className="font-mono text-xs text-muted">{u.kode}</p>
               </div>
               {u.counts && (

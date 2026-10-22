@@ -35,7 +35,7 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
                 <LocationInfo report={r} />
               </Card>
               <Card title="Riwayat" subtitle={`${r.history.length} perubahan status`}>
-                <StatusTimeline history={r.history} />
+                <StatusTimeline history={r.history} tz={r.unit.timezone} />
               </Card>
             </>
           }
@@ -52,7 +52,7 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
             </Card>
           )}
           <Card title="Lampiran" subtitle={r.attachments.length ? `${r.attachments.length} berkas · klik foto untuk memperbesar` : 'Foto & dokumen bukti kegiatan'}>
-            <AttachmentGallery items={r.attachments} fields={r.schema?.fields ?? []} />
+            <AttachmentGallery items={r.attachments} fields={r.schema?.fields ?? []} tz={r.unit.timezone} />
           </Card>
         </SplitLayout>
       </Stack>

@@ -99,6 +99,8 @@ lapor-bhabinkamtibmas/
 
 ## 6. Kebutuhan server awal (estimasi pilot 1 Polda)
 
+> Arsitektur di dokumen ini adalah **tahap pilot**. Target akhir adalah skala nasional — lihat [12-skala-nasional](12-skala-nasional.md) untuk asumsi beban, arsitektur klaster, dan tahapannya.
+
 Asumsi: ±2.000 Bhabin, rata-rata 3 laporan/hari, 2 foto/laporan @ ±400 KB setelah kompresi.
 
 | Sumber daya | Kebutuhan |

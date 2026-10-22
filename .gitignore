@@ -18,3 +18,4 @@ backend/storage/
 docs/*.pdf
 docs/*.zip
 docs/Laporan_*.md
+.next-dev3/

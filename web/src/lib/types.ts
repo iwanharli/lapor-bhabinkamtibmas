@@ -23,7 +23,7 @@ export interface ReportListItem {
   isMockLocation: boolean;
   user: PersonRef & { id: string; nrp: string };
   village: { id: string; nama: string; kecamatan: string };
-  unit: { id: string; nama: string };
+  unit: { id: string; nama: string; timezone: string };
   _count: { attachments: number };
 }
 
@@ -105,6 +105,7 @@ export interface Overview {
     data: { kategori_kerawanan?: string };
     village: { nama: string };
     user: { nama: string };
+    unit: { timezone: string };
   }[];
 }
 
@@ -143,6 +144,7 @@ export interface UnitOption {
   level: string;
   kode: string;
   nama: string;
+  timezone?: string;
   /** Jumlah langsung di unit ini (bukan termasuk turunan). */
   counts?: { users: number; bhabin: number; villages: number };
 }

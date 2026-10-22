@@ -49,7 +49,7 @@ export function StatusStepper({ report: r }: { report: ReportDetail }) {
             <p className={cn('text-sm font-semibold', s.tone === 'todo' && 'text-muted')}>{s.label}</p>
             {s.entry ? (
               <p className="text-xs text-muted">
-                {tanggalJam(s.entry.at)}
+                {tanggalJam(s.entry.at, r.unit.timezone)}
                 <span className="block">{personName(s.entry.actor)}</span>
               </p>
             ) : (

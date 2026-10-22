@@ -12,6 +12,9 @@ class Me {
 
   String get nama => json['nama'] as String;
   String get nrp => json['nrp'] as String;
+  String? get pangkat => json['pangkat'] as String?;
+  String get namaLengkap => [pangkat, nama].whereType<String>().join(' ');
+  bool get mustChangePassword => json['mustChangePassword'] == true;
   String get unitNama => (json['unit'] as Map)['nama'] as String;
   List<Map<String, dynamic>> get villages =>
       ((json['villages'] as List?) ?? []).map((v) => Map<String, dynamic>.from(v['village'] as Map)).toList();
@@ -50,11 +53,29 @@ class AuthController extends AsyncNotifier<Me?> {
     state = AsyncData(Me(Map<String, dynamic>.from(me.data)));
   }
 
+  /// Ganti sandi (wajib saat login pertama). Server mengembalikan token baru; sesi lain dicabut.
+  Future<void> changePassword(String current, String next) async {
+    final dio = ref.read(dioProvider);
+    final storage = ref.read(tokenStorageProvider);
+    final res = await dio.post('/auth/change-password', data: {'currentPassword': current, 'newPassword': next});
+    await storage.save(res.data['accessToken'], res.data['refreshToken']);
+    await refreshMe();
+  }
+
+  Future<void> refreshMe() async {
+    final me = await ref.read(dioProvider).get('/auth/me');
+    state = AsyncData(Me(Map<String, dynamic>.from(me.data)));
+  }
+
   Future<void> logout() async {
     final storage = ref.read(tokenStorageProvider);
     final rt = await storage.refreshToken;
     if (rt != null) {
-      await ref.read(dioProvider).post('/auth/logout', data: {'refreshToken': rt}).catchError((_) => null);
+      try {
+        await ref.read(dioProvider).post('/auth/logout', data: {'refreshToken': rt});
+      } catch (_) {
+        // Tetap keluar walau server tak terjangkau.
+      }
     }
     await storage.clear();
     state = const AsyncData(null);

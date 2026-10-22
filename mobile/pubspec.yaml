@@ -17,7 +17,9 @@ dependencies:
   package_info_plus: ^8.1.1
   uuid: ^4.5.1
   intl: ^0.19.0
-  # Fase 2: drift, sqlcipher_flutter_libs, camera, geolocator, connectivity_plus, workmanager
+  geolocator: ^14.0.2
+  image_picker: ^1.2.4
+  # Fase 2: drift, sqlcipher_flutter_libs, connectivity_plus, workmanager (antrean offline)
 
 dev_dependencies:
   flutter_test:
@@ -26,3 +28,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/logo.png

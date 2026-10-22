@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/auth/auth_controller.dart';
 import '../../core/forms/form_schema.dart';
+import '../../core/ui/format.dart';
+import '../../core/ui/theme.dart';
+import '../reports/report_api.dart';
+import '../reports/report_tile.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -11,62 +16,115 @@ class HomePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final me = ref.watch(authControllerProvider).valueOrNull;
     final schemas = ref.watch(formSchemasProvider);
+    final recent = ref.watch(reportsProvider((status: null, q: '')));
+    final att = ref.watch(myAttendanceProvider);
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final todays = (att.valueOrNull ?? []).where((a) => a['workDate'] == today).toList();
+    final masuk = todays.where((a) => a['type'] == 'CHECK_IN').firstOrNull;
+    final pulang = todays.where((a) => a['type'] == 'CHECK_OUT').firstOrNull;
+    final desa = me?.villages.firstOrNull;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Beranda'),
-        actions: [
-          IconButton(
-            tooltip: 'Keluar',
-            icon: const Icon(Icons.logout),
-            onPressed: () => ref.read(authControllerProvider.notifier).logout(),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          if (me != null) ...[
-            Text('Selamat bertugas, ${me.nama}', style: Theme.of(context).textTheme.titleLarge),
-            Text(me.unitNama),
-            const SizedBox(height: 4),
-            Text('Desa binaan: ${me.villages.map((v) => v['nama']).join(', ').ifEmpty('—')}'),
-          ],
-          const SizedBox(height: 24),
-          Text('Buat laporan', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          schemas.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => const Text('Gagal memuat kategori laporan'),
-            data: (list) => GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.6,
-              children: [
-                for (final s in list)
-                  Card(
-                    child: InkWell(
-                      // Form dinamis & mode offline: fase 2.
-                      onTap: () => ScaffoldMessenger.of(context)
-                          .showSnackBar(SnackBar(content: Text('Form ${s.title} tersedia di fase 2'))),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Align(alignment: Alignment.bottomLeft, child: Text(s.title, style: const TextStyle(fontWeight: FontWeight.w600))),
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(myAttendanceProvider);
+        ref.invalidate(reportsProvider);
+        await ref.read(myAttendanceProvider.future);
+      },
+      child: ListView(padding: EdgeInsets.zero, children: [
+        Container(
+          padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 18, 20, 24),
+          decoration: const BoxDecoration(gradient: LinearGradient(colors: [brandDeep, brand], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Image.asset('assets/logo.png', height: 40),
+              const SizedBox(width: 10),
+              Expanded(child: Text(me?.unitNama ?? '', style: const TextStyle(color: Colors.white70, fontSize: 12), overflow: TextOverflow.ellipsis)),
+            ]),
+            const SizedBox(height: 16),
+            Text('Selamat bertugas,', style: TextStyle(color: Colors.white.withValues(alpha: 0.8))),
+            Text(me?.namaLengkap ?? '', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700)),
+            if (desa != null) ...[
+              const SizedBox(height: 6),
+              Row(children: [
+                const Icon(Icons.place_outlined, size: 16, color: Colors.white70),
+                const SizedBox(width: 4),
+                Expanded(child: Text('Desa ${desa['nama']}, ${desa['kecamatan']}', style: const TextStyle(color: Colors.white70), overflow: TextOverflow.ellipsis)),
+              ]),
+            ],
+          ]),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Card(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => context.go('/absensi'),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(children: [
+                    CircleAvatar(
+                      backgroundColor: (masuk != null ? success : warn).withValues(alpha: 0.12),
+                      child: Icon(masuk != null ? Icons.check_circle_rounded : Icons.schedule_rounded, color: masuk != null ? success : warn),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(masuk == null ? 'Belum absen masuk' : pulang == null ? 'Sudah absen masuk ${jam(masuk['clientTime'])}' : 'Absen lengkap hari ini',
+                            style: const TextStyle(fontWeight: FontWeight.w600)),
+                        Text(masuk == null ? 'Ketuk untuk absen dengan swafoto & GPS' : pulang == null ? 'Jangan lupa absen pulang' : 'Masuk ${jam(masuk['clientTime'])} · pulang ${jam(pulang['clientTime'])}',
+                            style: const TextStyle(color: muted, fontSize: 12)),
+                      ]),
+                    ),
+                    const Icon(Icons.chevron_right, color: muted),
+                  ]),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text('Buat laporan', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            const SizedBox(height: 10),
+            schemas.when(
+              loading: () => const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
+              error: (e, _) => Text('Gagal memuat formulir: $e', style: const TextStyle(color: danger)),
+              data: (list) => GridView.count(
+                crossAxisCount: 3, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 0.95,
+                children: [
+                  for (final c in categories.where((c) => list.any((s) => s.category == c.key)))
+                    Card(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () => context.push('/lapor/${c.key}'),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            CircleAvatar(radius: 22, backgroundColor: c.color.withValues(alpha: 0.12), child: Icon(c.icon, color: c.color)),
+                            const SizedBox(height: 8),
+                            Text(c.label, textAlign: TextAlign.center, maxLines: 2, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          ]),
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
+            const SizedBox(height: 20),
+            Row(children: [
+              const Expanded(child: Text('Laporan terbaru', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16))),
+              TextButton(onPressed: () => context.go('/laporan'), child: const Text('Semua')),
+            ]),
+            recent.when(
+              loading: () => const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
+              error: (e, _) => Text('Gagal memuat laporan', style: const TextStyle(color: danger)),
+              data: (list) => list.isEmpty
+                  ? const Padding(padding: EdgeInsets.all(16), child: Text('Belum ada laporan.', style: TextStyle(color: muted)))
+                  : Column(children: [for (final r in list.take(5)) Padding(padding: const EdgeInsets.only(bottom: 8), child: ReportTile(r))]),
+            ),
+            const SizedBox(height: 80),
+          ]),
+        ),
+      ]),
     );
   }
-}
-
-extension on String {
-  String ifEmpty(String fallback) => isEmpty ? fallback : this;
 }

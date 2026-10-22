@@ -18,7 +18,12 @@ export class VillagesService {
     return this.prisma.village.findMany({ where, orderBy: [{ kabupaten: 'asc' }, { kecamatan: 'asc' }, { nama: 'asc' }], take: 500 });
   }
 
-  async distance(id: string, lat: number, lng: number) {
+  async distance(me: AuthUser, id: string, lat: number, lng: number) {
+    // Bhabin hanya untuk desa binaannya; peran lain sebatas cakupan unitnya.
+    if (me.role === UserRole.BHABIN) {
+      const own = await this.prisma.userVillage.count({ where: { userId: me.id, villageId: id, until: null } });
+      if (!own) throw new NotFoundException({ code: 'NOT_FOUND' });
+    }
     if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) throw new BadRequestException('Koordinat tidak valid');
     const [row] = await this.prisma.$queryRaw<{ d: number | null }[]>`
       SELECT round(ST_Distance(geom::geography, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography))::float AS d
@@ -55,7 +60,7 @@ export class VillagesService {
   /** Cakupan desa untuk admin: desa milik Polsek dalam cakupan (superadmin: semua). */
   private async scopeSql(me: AuthUser) {
     if (me.role === UserRole.SUPERADMIN) return Prisma.sql`TRUE`;
-    return Prisma.sql`v.polsek_id = ANY(${await this.units.descendantIds(me.unitId)}::uuid[])`;
+    return Prisma.sql`v.polsek_id IN (SELECT unit_subtree(${me.unitId}::uuid))`;
   }
 
   /** Daftar desa untuk halaman admin: status batas wilayah, jumlah Bhabin, dan laporan 30 hari. */

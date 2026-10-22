@@ -1,7 +1,7 @@
 import { ChevronDown, Lock, UserRound } from 'lucide-react';
 import { cn } from '@/components/ui';
 import { displayValue } from '@/lib/format';
-import { revealableFields } from '@/features/reports/revealable';
+import { revealableFields, secretSummary } from '@/features/reports/revealable';
 import { SensitiveReveal } from '@/features/reports/sensitive-reveal';
 import type { ReportDetail, SchemaField } from '@/lib/types';
 
@@ -47,8 +47,9 @@ function Members({ f, report }: { f: SchemaField; report: ReportDetail }) {
             <span className="min-w-0 flex-1 truncate">{String(row.nama ?? `${f.label} ${i + 1}`)}</span>
             {row.hubungan != null && <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-normal text-muted ring-1 ring-line">{String(row.hubungan)}</span>}
           </p>
+          {secret && <p className="flex items-center gap-1.5 border-b border-line/70 bg-violet-500/5 px-3 py-1.5 text-[11px] font-medium text-violet-700 dark:text-violet-300"><Lock size={11} /> {secretSummary((f.fields ?? []).filter((s) => s.sensitive).map((s) => s.label))} terenkripsi</p>}
           <dl className="divide-y divide-line/70">
-            {(f.fields ?? []).filter((s) => !['nama', 'hubungan'].includes(s.key) && applies(s, row) && (s.sensitive ? secret : filled(row[s.key]))).map((s) => (
+            {(f.fields ?? []).filter((s) => !['nama', 'hubungan'].includes(s.key) && applies(s, row) && !s.sensitive && filled(row[s.key])).map((s) => (
               <Row key={s.key} label={s.label}><Value v={row[s.key]} hidden={!!s.sensitive} /></Row>
             ))}
           </dl>

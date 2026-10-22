@@ -50,8 +50,8 @@ export class VillagesController {
   /** Jarak (m) sebuah titik ke batas desa; dipakai formulir untuk peringatan sebelum kirim. */
   @Get('villages/:id/distance')
   @Roles(...ALL_ROLES)
-  distance(@Param('id', ParseUUIDPipe) id: string, @Query('lat') lat: string, @Query('lng') lng: string) {
-    return this.villages.distance(id, Number(lat), Number(lng));
+  distance(@CurrentUser() me: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Query('lat') lat: string, @Query('lng') lng: string) {
+    return this.villages.distance(me, id, Number(lat), Number(lng));
   }
 
   @Get('admin/villages')

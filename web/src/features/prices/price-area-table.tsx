@@ -70,7 +70,7 @@ export function PriceAreaTable({ rows, average, tz, filter }: { rows: PriceAreaR
           {shown.map((a) => {
             const dev = average ? ((a.rata2 - average) / average) * 100 : 0;
             return (
-              <li key={`${a.kabupaten}-${a.kecamatan}-${a.desa}`} className="px-4 py-2.5">
+              <li key={a.id ?? `${a.kabupaten}-${a.kecamatan}-${a.desa}-${a.rata2}`} className="px-4 py-2.5">
                 <div className="flex items-baseline justify-between gap-3 text-sm">
                   <span className="min-w-0 truncate font-medium">{a.desa}</span>
                   <span className="shrink-0 tabular-nums">

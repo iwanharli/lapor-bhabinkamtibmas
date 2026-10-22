@@ -7,6 +7,7 @@ import { localDate } from '../../common/time';
 import { StorageService } from '../../common/storage/storage.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { healthSummary } from './health-summary';
 import { FormSchemaJson, isPriority, mergeSecret, mergeSensitive, splitSensitive, validateReportData } from './report-validator';
 import { UpdateReportDto, UpsertReportDto } from './reports.dto';
 
@@ -143,7 +144,11 @@ export class ReportWriterService {
     }
     // Ralat laporan terkirim: isian baru harus tetap lengkap; prioritas, item harga & cek lokasi dihitung ulang.
     const ralat = r.status === ReportStatus.SUBMITTED;
-    const full = ralat ? (dto.data ?? mergeSensitive(r.data as Record<string, unknown>, r.sensitive ? this.crypto.decrypt(Buffer.from(r.sensitive)) : {})) : null;
+    // Isian lengkap = data biasa + rahasia gabungan (rahasia kosong di formulir = nilai lama dipakai).
+    const oldSecret = r.sensitive ? this.crypto.decrypt(Buffer.from(r.sensitive)) : {};
+    const full = ralat
+      ? mergeSensitive((data ?? r.data) as Record<string, unknown>, dto.data ? mergeSecret(oldSecret, splitSensitive(schema, dto.data).secret) : oldSecret)
+      : null;
     const commodities = ralat ? await this.assertComplete(id, schema, full!) : [];
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -200,7 +205,10 @@ export class ReportWriterService {
     const distance = loc?.distance ?? null;
     await tx.report.update({
       where: { id: r.id },
-      data: { priority: isPriority(schema, data), distanceM: distance, insideVillage: distance == null ? null : distance <= VILLAGE_TOLERANCE_M },
+      data: {
+        priority: isPriority(schema, data), distanceM: distance, insideVillage: distance == null ? null : distance <= VILLAGE_TOLERANCE_M,
+        ...(r.category === ReportCategory.MAPPING_KK && { health: healthSummary(data, r.occurredAt) as unknown as Prisma.InputJsonObject }),
+      },
     });
   }
 

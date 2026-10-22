@@ -6,7 +6,7 @@ set -euo pipefail
 DB_PASSWORD="${DB_PASSWORD:?Set DB_PASSWORD terlebih dahulu}"
 
 apt-get update
-apt-get install -y curl ca-certificates gnupg nginx postgresql-common
+apt-get install -y curl ca-certificates gnupg nginx postgresql-common rsync
 /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
 apt-get install -y postgresql-16 postgresql-16-postgis-3
 curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
@@ -41,15 +41,25 @@ CORS_ORIGINS=https://lapor.example.internal
 MIN_APP_VERSION=1.0.0
 STORAGE_DRIVER=local
 STORAGE_LOCAL_DIR=/var/lib/lapor/storage
+# Proksi yang boleh menentukan IP klien lewat X-Forwarded-For (nginx & web di mesin yang sama).
+TRUST_PROXY=loopback
+# Backup harian (lapor-backup.timer). BACKUP_REMOTE=user@host:/path untuk salinan di luar server.
+BACKUP_DIR=/var/backups/lapor
+BACKUP_KEEP_DAYS=14
 ENV
   echo "API_URL=http://127.0.0.1:3000/api/v1" > /etc/lapor/web.env
   chown root:lapor /etc/lapor/*.env && chmod 640 /etc/lapor/*.env
 fi
 
-cp infra/systemd/*.service /etc/systemd/system/
+cp infra/systemd/*.service infra/systemd/*.timer /etc/systemd/system/
+install -m 750 -o root -g lapor infra/scripts/backup.sh /usr/local/sbin/lapor-backup
+install -m 750 -o root -g root infra/scripts/restore.sh /usr/local/sbin/lapor-restore
+install -d -m 750 -o lapor -g lapor /var/backups/lapor
 cp infra/nginx/lapor.conf /etc/nginx/sites-available/lapor.conf
 ln -sf /etc/nginx/sites-available/lapor.conf /etc/nginx/sites-enabled/lapor.conf
 systemctl daemon-reload
 systemctl enable lapor-api lapor-worker lapor-web
+systemctl enable --now lapor-backup.timer
 
 echo "Selesai. Lengkapi sertifikat TLS & server_name di /etc/nginx/sites-available/lapor.conf, lalu jalankan deploy.sh."
+echo "PENTING: salin DATA_ENCRYPTION_KEYS dari /etc/lapor/api.env ke tempat aman terpisah (tidak ikut backup)."

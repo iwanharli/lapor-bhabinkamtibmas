@@ -223,7 +223,7 @@ export function ReportForm({
         if (n < min) errs.push(`${f.label}: minimal ${min} ${f.type === 'photo' ? 'foto' : 'berkas'}.`);
         continue;
       }
-      if (f.type === 'nik' && saved.has(f.key) && empty(values[f.key])) continue; // nilai tersimpan tetap dipakai
+      if (f.sensitive && saved.has(f.key) && empty(values[f.key])) continue; // nilai terenkripsi tersimpan tetap dipakai
       if (f.type === 'repeater') {
         const rows = ((values[f.key] as Row[]) ?? []).filter((row) => Object.values(row).some((x) => x !== ''));
         if (req && !rows.length) errs.push(`${f.label} wajib diisi.`);
@@ -232,7 +232,7 @@ export function ReportForm({
             if (!active(sub, row)) continue;
             const sv = row[sub.key];
             if (empty(sv)) {
-              if (isRequired(sub, row) && !(sub.type === 'nik' && saved.has(f.key))) errs.push(`${f.label} ${i + 1} — ${sub.label} wajib diisi.`);
+              if (isRequired(sub, row) && !(sub.sensitive && saved.has(f.key))) errs.push(`${f.label} ${i + 1} — ${sub.label} wajib diisi.`);
             } else if (sub.type === 'nik' && !/^\d{16}$/.test(sv)) errs.push(`${f.label} ${i + 1} — ${sub.label} harus 16 digit angka.`);
             else if (sub.type === 'phone' && !PHONE.test(sv)) errs.push(`${f.label} ${i + 1} — ${sub.label} tidak valid.`);
           }
@@ -544,10 +544,11 @@ function FieldInput({
   }
 
   if (f.type === 'select') {
+    const kept = f.sensitive && saved.has(f.key);
     return (
-      <Labeled label={f.label} required={req}>
+      <Labeled label={f.label} required={req && !kept} hint={f.sensitive ? (kept ? '🔒 Sudah tersimpan (terenkripsi). Biarkan bila tidak diubah.' : '🔒 Disimpan terenkripsi.') : f.hint}>
         <Select value={str} onChange={(e) => set(f.key, e.target.value)} className="h-11">
-          <option value="">— Pilih —</option>
+          <option value="">{kept ? '— Tersimpan, tidak diubah —' : '— Pilih —'}</option>
           {f.options?.map((o) => <option key={o} value={o}>{o}</option>)}
         </Select>
       </Labeled>
@@ -615,7 +616,7 @@ function SubInput({ f, row, update, keep }: { f: FormField; row: Row; update: (k
   const control =
     f.type === 'select' ? (
       <Select value={v} onChange={(e) => update(f.key, e.target.value)} className="h-11">
-        <option value="">— Pilih —</option>
+        <option value="">{keep && f.sensitive ? '— Tersimpan, tidak diubah —' : '— Pilih —'}</option>
         {f.options?.map((o) => <option key={o} value={o}>{o}</option>)}
       </Select>
     ) : f.type === 'date' ? (

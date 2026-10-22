@@ -1,0 +1,11 @@
+[Unit]
+Description=Lapor Bhabinkamtibmas - backup database & lampiran
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=lapor
+Group=lapor
+ExecStart=/usr/local/sbin/lapor-backup
+Nice=10
+IOSchedulingClass=idle

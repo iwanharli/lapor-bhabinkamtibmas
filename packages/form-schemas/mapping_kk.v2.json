@@ -399,7 +399,8 @@
         "dob": "kk_tanggal_lahir",
         "ageMin": 10,
         "ageMax": 50
-      }
+      },
+      "sensitive": true
     },
     {
       "key": "kk_no_hp",
@@ -656,7 +657,8 @@
           "showIf": {
             "dob": "tanggal_lahir",
             "ageMax": 5
-          }
+          },
+          "sensitive": true
         },
         {
           "key": "stunting_ditangani",
@@ -676,7 +678,8 @@
           "showIf": {
             "dob": "tanggal_lahir",
             "ageMax": 5
-          }
+          },
+          "sensitive": true
         },
         {
           "key": "stunting_ket",
@@ -692,7 +695,8 @@
             ],
             "dob": "tanggal_lahir",
             "ageMax": 5
-          }
+          },
+          "sensitive": true
         },
         {
           "key": "risiko_ibu",
@@ -711,7 +715,8 @@
             "dob": "tanggal_lahir",
             "ageMin": 10,
             "ageMax": 50
-          }
+          },
+          "sensitive": true
         },
         {
           "key": "calon_pengantin",

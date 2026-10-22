@@ -120,14 +120,14 @@ export class AttendancesService {
     if (q.unitId) await this.units.assertInScope(me.unitId, q.unitId);
     const date = q.date ?? localDate(new Date(), await this.units.timezoneOf(me.unitId));
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Tanggal harus YYYY-MM-DD' });
-    const scope = await this.units.descendantIds(q.unitId ?? me.unitId);
+    const scopeRoot = q.unitId ?? me.unitId;
 
     const base = Prisma.sql`
       FROM users u
       JOIN units un ON un.id = u.unit_id
       LEFT JOIN attendances ci ON ci.user_id = u.id AND ci.work_date = ${date}::date AND ci.type = 'CHECK_IN'
       LEFT JOIN attendances co ON co.user_id = u.id AND co.work_date = ${date}::date AND co.type = 'CHECK_OUT'
-      WHERE u.role = 'BHABIN' AND u.active AND u.unit_id = ANY(${scope}::uuid[])
+      WHERE u.role = 'BHABIN' AND u.active AND u.unit_id IN (SELECT unit_subtree(${scopeRoot}::uuid))
         ${q.q ? Prisma.sql`AND (u.nama ILIKE ${'%' + q.q + '%'} OR u.nrp LIKE ${q.q + '%'})` : Prisma.empty}`;
     const late = Prisma.sql`((ci.client_time AT TIME ZONE un.timezone)::time > ${LATE_AFTER}::time)`;
     const status = {
@@ -168,7 +168,7 @@ export class AttendancesService {
         WITH b AS (
           SELECT u.id, un.id AS sek_id, un.nama AS sek, p.id AS res_id, p.nama AS res
           FROM users u JOIN units un ON un.id = u.unit_id LEFT JOIN units p ON p.id = un.parent_id
-          WHERE u.role = 'BHABIN' AND u.active AND u.unit_id = ANY(${scope}::uuid[])
+          WHERE u.role = 'BHABIN' AND u.active AND u.unit_id IN (SELECT unit_subtree(${scopeRoot}::uuid))
         ), multi AS (SELECT count(DISTINCT res_id) > 1 AS by_res FROM b),
         x AS (
           SELECT CASE WHEN multi.by_res THEN b.res_id ELSE b.sek_id END AS gid,

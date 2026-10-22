@@ -10,8 +10,9 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   // Impor pengguna mengirim hingga 1.000 baris JSON.
   app.useBodyParser('json', { limit: '2mb' });
-  // BFF Next.js & reverse proxy internal: ambil IP klien asli dari X-Forwarded-For.
-  app.set('trust proxy', 'loopback, linklocal, uniquelocal');
+  // IP klien asli dari X-Forwarded-For hanya bila datang lewat proksi tepercaya (nginx/BFF Next.js di mesin yang sama).
+  // Jangan percayai seluruh jaringan internal: klien di jaringan itu bisa memalsukan IP (audit & batas login).
+  app.set('trust proxy', process.env.TRUST_PROXY ?? 'loopback');
   app.use(requestContextMiddleware);
   app.setGlobalPrefix('api/v1');
   app.enableCors({ origin: (process.env.CORS_ORIGINS ?? '').split(',').filter(Boolean), credentials: true });

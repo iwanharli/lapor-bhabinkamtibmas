@@ -19,7 +19,8 @@
     "seed:demo-nasional": "ts-node prisma/seed-demo-nasional.ts",
     "seed:demo-absensi": "ts-node prisma/seed-demo-absensi.ts",
     "seed:semua": "ts-node prisma/seed-semua.ts",
-    "notifications:isi": "ts-node prisma/backfill-notifications.ts"
+    "notifications:isi": "ts-node prisma/backfill-notifications.ts",
+    "mapping:enkripsi-kesehatan": "ts-node prisma/encrypt-health.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

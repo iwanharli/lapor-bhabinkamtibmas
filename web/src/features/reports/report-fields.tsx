@@ -1,5 +1,5 @@
 import { Lock, UserRound } from 'lucide-react';
-import { revealableFields } from './revealable';
+import { revealableFields, secretSummary } from './revealable';
 import { SensitiveReveal } from './sensitive-reveal';
 import { displayValue } from '@/lib/format';
 import type { ReportDetail, SchemaField } from '@/lib/types';
@@ -62,22 +62,19 @@ function RowCards({ f, report }: { f: SchemaField; report: ReportDetail }) {
   return (
     <ul className={`grid gap-3 px-5 py-4 ${single ? '' : 'xl:grid-cols-2'}`}>
       {rows.map((row, i) => {
-        const subs = (f.fields ?? []).filter((s) => !['nama', 'hubungan'].includes(s.key) && applies(s, row));
+        const subs = (f.fields ?? []).filter((s) => !['nama', 'hubungan'].includes(s.key) && !s.sensitive && applies(s, row));
+        const secretLabel = secretFilled ? secretSummary((f.fields ?? []).filter((s) => s.sensitive).map((s) => s.label)) : null;
         return (
           <li key={i} className="overflow-hidden rounded-xl border border-line">
             <p className="flex items-center gap-2.5 border-b border-line bg-bg/60 px-3.5 py-2.5 text-sm font-semibold">
               <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><UserRound size={15} /></span>
               <span className="min-w-0 flex-1 truncate">{String(row.nama ?? `${f.label} ${i + 1}`)}</span>
               {row.hubungan != null && <span className="shrink-0 rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium text-muted ring-1 ring-line">{String(row.hubungan)}</span>}
+              {secretLabel && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-violet-500/10 px-2 py-0.5 text-[11px] font-semibold text-violet-700 ring-1 ring-violet-500/25 dark:text-violet-300" title={`${secretLabel} terenkripsi`}><Lock size={11} /> Terenkripsi</span>}
             </p>
             <dl className={`grid grid-cols-2 gap-x-4 gap-y-2.5 p-3.5 text-sm ${single ? 'sm:grid-cols-3' : ''}`}>
               {subs.map((s) => {
                 const v = row[s.key];
-                if (s.sensitive) {
-                  return secretFilled ? (
-                    <div key={s.key}><dt className="text-xs text-muted">{s.label}</dt><dd className="mt-0.5"><span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/10 px-2.5 py-0.5 text-xs font-semibold text-violet-700 ring-1 ring-violet-500/25 dark:text-violet-300"><Lock size={11} /> Terenkripsi</span></dd></div>
-                  ) : null;
-                }
                 if (v == null || v === '') return null;
                 return (
                   <div key={s.key} className={!single && String(v).length > 22 ? 'col-span-2' : ''}>

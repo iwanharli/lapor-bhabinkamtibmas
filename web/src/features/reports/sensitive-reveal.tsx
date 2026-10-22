@@ -1,12 +1,13 @@
 'use client';
 
 import { Eye, Lock } from 'lucide-react';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Alert, Button, ErrorText, Field, Input, Modal, ModalBody } from '@/components/ui';
 import { callApi } from '@/lib/api/client';
+import type { RevealField } from './revealable';
 
 /** Tampilkan field sensitif laporan setelah pengguna menuliskan alasan (tercatat di audit log). */
-export function SensitiveReveal({ reportId, fields }: { reportId: string; fields: { key: string; label: string }[] }) {
+export function SensitiveReveal({ reportId, fields }: { reportId: string; fields: RevealField[] }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [values, setValues] = useState<Record<string, unknown> | null>(null);
@@ -41,10 +42,25 @@ export function SensitiveReveal({ reportId, fields }: { reportId: string; fields
                   <dt className="text-xs uppercase tracking-wide text-muted">{f.label}</dt>
                   <dd className="font-mono text-lg">
                     {Array.isArray(values[f.key]) ? (
-                      <ol className="space-y-1 text-base">
-                        {(values[f.key] as Record<string, unknown>[]).map((row, i) => (
-                          <li key={i}><span className="mr-2 text-xs text-muted">#{i + 1}</span>{Object.values(row ?? {}).map(String).join(' · ') || '—'}</li>
-                        ))}
+                      <ol className="mt-1 space-y-2 font-sans text-sm">
+                        {(values[f.key] as Record<string, unknown>[]).map((row, i) => {
+                          const entries = (f.subs ?? []).filter((s) => row?.[s.key] != null && row[s.key] !== '');
+                          return (
+                            <li key={i} className="rounded-lg bg-bg px-3 py-2">
+                              <p className="font-semibold">{f.rows?.[i] ?? `#${i + 1}`}</p>
+                              {entries.length ? (
+                                <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                                  {entries.map((s) => (
+                                    <Fragment key={s.key}>
+                                      <dt className="text-xs text-muted">{s.label}</dt>
+                                      <dd className={s.key === 'nik' ? 'font-mono' : ''}>{String(row[s.key])}</dd>
+                                    </Fragment>
+                                  ))}
+                                </dl>
+                              ) : <p className="text-xs text-muted">Tidak ada data sensitif.</p>}
+                            </li>
+                          );
+                        })}
                       </ol>
                     ) : String(values[f.key] ?? '—')}
                   </dd>

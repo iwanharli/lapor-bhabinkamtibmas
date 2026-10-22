@@ -20,6 +20,7 @@ const steps: [string, string][] = [
   ['Laporan Polres Contoh', 'npm run -s seed:demo -- --reset'],
   ['Foto laporan Polres Contoh', 'npm run -s seed:demo-attachments -- --reset'],
   ['Laporan contoh nasional', `npm run -s seed:demo-nasional -- ${nasional}`],
+  ['Enkripsi isian kesehatan Mapping + ringkasan', 'npm run -s mapping:enkripsi-kesehatan'],
   ['Agregat dashboard', 'npm run -s aggregates:rebuild'],
   ['Absensi contoh', 'npm run -s seed:demo-absensi'],
   ['Notifikasi dari laporan 7 hari terakhir', 'npm run -s notifications:isi'],

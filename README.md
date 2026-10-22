@@ -37,7 +37,7 @@ docs/teknis/             Dokumentasi teknis (arsitektur, API, database, keamanan
 - Pengaman kualitas data:
   - validasi isian & lampiran wajib,
   - **cek lokasi otomatis** (titik harus ≤ 200 m dari desa binaan, deteksi lokasi palsu),
-  - field sensitif (NIK dll.) terenkripsi AES-256-GCM, dibuka dengan alasan & tercatat di audit.
+  - field sensitif (NIK/No. KK, status stunting & risiko ibu) terenkripsi AES-256-GCM, dibuka dengan alasan & tercatat di audit.
 - Penomoran `{KAT}-{KODE_POLRES}-{YYMM}-{URUT}` mengikuti zona waktu unit (WIB/WITA/WIT).
 - Foto dikompres saat unggah (maks. 1920 px, JPEG q78); foto kamera ±4–5 MB menjadi ±0,2–0,4 MB.
 
@@ -57,6 +57,7 @@ docs/teknis/             Dokumentasi teknis (arsitektur, API, database, keamanan
 - **Absensi lapangan:** check-in/out harian dengan GPS & swafoto; rekap per hari (hadir, terlambat, di luar desa, lokasi palsu).
 - **Laporan:** daftar & detail dengan lampiran, harga komoditas, riwayat, dan cek lokasi.
 - **Harga pangan:** harga rata-rata, perubahan 7 hari, tren, dan sebaran per wilayah.
+- **Keluarga & Stunting:** balita, status gizi, stunting belum ditangani, ibu hamil/KEK, faktor risiko rumah tangga per desa — dari ringkasan angka (isian per orang tetap terenkripsi).
 - **Administrasi:**
   - pengguna (termasuk impor CSV),
   - unit (pohon bertahap, zona waktu),
@@ -179,6 +180,7 @@ Sandi semua akun contoh: `Demo#12345`.
 | `JWT_ACCESS_SECRET`, `JWT_ACCESS_TTL` | —, 900 | Token akses (detik) |
 | `JWT_REFRESH_TTL_MOBILE` / `_WEB` | 30 hari / 12 jam | Masa berlaku sesi |
 | `CORS_ORIGINS` | `http://localhost:3001` | Asal web yang diizinkan |
+| `TRUST_PROXY` | `loopback` | Proksi yang dipercaya menentukan IP klien (`X-Forwarded-For`); jangan isi seluruh jaringan internal |
 | `DATA_ENCRYPTION_KEYS` | — | Kunci AES-256 field sensitif (`k1:<base64 32 byte>`) |
 | `STORAGE_DRIVER`, `STORAGE_LOCAL_DIR` | `local`, `./storage` | Penyimpanan berkas (disk lokal; S3/MinIO ditunda) |
 | `PHOTO_MAX_EDGE`, `PHOTO_QUALITY` | 1920, 78 | Kompresi foto saat unggah |
@@ -190,6 +192,7 @@ Sandi semua akun contoh: `Demo#12345`.
 | `LOGIN_RATE_LIMIT` | 10 | Percobaan login per IP per menit (dev/E2E: 100+) |
 | `SEED_SUPERADMIN_NRP`, `SEED_SUPERADMIN_PASSWORD` | — | Akun superadmin awal |
 | `MIN_APP_VERSION` | 1.0.0 | Versi minimum aplikasi mobile |
+| `BACKUP_DIR`, `BACKUP_KEEP_DAYS`, `BACKUP_REMOTE` | `/var/backups/lapor`, 14, — | Backup harian (produksi); `BACKUP_REMOTE=user@host:/path` untuk salinan di luar server |
 
 ### `web/.env.local`
 
@@ -226,8 +229,21 @@ E2E_BASE_URL=http://localhost:3001 npm run e2e
 cd backend
 npm run aggregates:rebuild        # hitung ulang ringkasan/kinerja (juga otomatis tiap AGG_REFRESH_SECONDS)
 npm run storage:compress          # kompres ulang foto lama; --cek untuk perkiraan saja
+npm run mapping:enkripsi-kesehatan  # pindahkan isian kesehatan Mapping lama ke bagian terenkripsi + isi ringkasan (aman diulang)
 npx prisma migrate deploy         # terapkan migrasi baru
 ```
+
+### Produksi: keamanan, backup, dan pemulihan
+
+- **Instalasi:** `sudo bash infra/scripts/install-ubuntu.sh` memasang PostgreSQL + PostGIS, Node, Nginx (HTTPS, `infra/nginx/lapor.conf`),
+  layanan systemd, dan **backup harian 02.00** (`lapor-backup.timer`). Rilis baru: `infra/scripts/deploy.sh`.
+- **Kunci enkripsi:** `DATA_ENCRYPTION_KEYS` membuka NIK/No. KK dan data kesehatan keluarga. Kunci **tidak** ikut backup;
+  simpan minimal dua salinan di tempat terpisah. Backup tanpa kunci = data sensitif hilang permanen.
+- **Backup:** `sudo -u lapor lapor-backup` (manual). Isinya database (`pg_dump`, diverifikasi) + snapshot lampiran
+  (hardlink, hemat ruang), disimpan `BACKUP_KEEP_DAYS` hari. Isi `BACKUP_REMOTE` agar ada salinan di luar server.
+- **Pemulihan:** `sudo lapor-restore <berkas.dump> [folder-storage]`. Uji pemulihan berkala di server cadangan.
+- **IP klien:** Nginx mengirim `X-Forwarded-For`; backend hanya mempercayai proksi di mesin yang sama (`TRUST_PROXY=loopback`),
+  sehingga IP di audit log & batas percobaan login tidak bisa dipalsukan dari jaringan.
 
 Deployment server (systemd + Nginx, tanpa Docker): [docs/teknis/09-deployment.md](docs/teknis/09-deployment.md). Rencana skala nasional: [docs/teknis/12-skala-nasional.md](docs/teknis/12-skala-nasional.md).
 

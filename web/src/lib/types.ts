@@ -131,6 +131,7 @@ export interface PriceTrendRow {
 }
 
 export interface PriceAreaRow {
+  id?: string;
   kabupaten?: string;
   kecamatan: string;
   desa: string;

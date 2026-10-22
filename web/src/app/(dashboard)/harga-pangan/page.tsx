@@ -103,7 +103,7 @@ export default async function HargaPanganPage({ searchParams }: { searchParams: 
               </Card>
               <Card title="Sebaran per desa" subtitle="Rata-rata 7 hari · % dibanding rata-rata wilayah" bodyClassName="p-0">
                 <PriceAreaTable key={`${selected.commodity_id}-${sp.unitId ?? ''}`} rows={area} average={selected.rata2} tz={me?.unit.timezone}
-                  filter={<UrlUnitFilter levels={['POLDA', 'POLRES', 'POLSEK']} emptyLabel="Semua wilayah" className="sm:w-full" />} />
+                  filter={<UrlUnitFilter key="wilayah" levels={['POLDA', 'POLRES', 'POLSEK']} emptyLabel="Semua wilayah" className="sm:w-full" />} />
               </Card>
             </div>
           </Stack>

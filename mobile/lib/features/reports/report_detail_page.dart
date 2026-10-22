@@ -87,7 +87,32 @@ class _Body extends ConsumerWidget {
           icon: const Icon(Icons.edit_outlined),
           label: Text(draft ? 'Lanjutkan & kirim draft' : 'Ralat (hingga ${tanggalJam(until!)})'),
         ),
+      if (draft) ...[
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(foregroundColor: danger, side: const BorderSide(color: danger)),
+          onPressed: () => _discard(context, ref),
+          icon: const Icon(Icons.delete_outline),
+          label: const Text('Buang draft'),
+        ),
+      ],
       if (!canEdit) const Text('Laporan final — batas ralat 3×24 jam sudah lewat.', textAlign: TextAlign.center, style: TextStyle(color: muted, fontSize: 12)),
+      if (secret.isNotEmpty && r['canRevealSensitive'] == true) ...[
+        const SizedBox(height: 12),
+        Card(
+          color: const Color(0xFF7C3AED).withValues(alpha: 0.06),
+          child: ListTile(
+            leading: const Icon(Icons.lock_outline, color: Color(0xFF7C3AED)),
+            title: const Text('Data sensitif terenkripsi', style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('NIK & data kesehatan dibuka dengan alasan; tercatat di audit log.', style: TextStyle(fontSize: 12)),
+            trailing: FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF7C3AED), minimumSize: const Size(0, 40)),
+              onPressed: () => _reveal(context, ref, schema),
+              child: const Text('Tampilkan'),
+            ),
+          ),
+        ),
+      ],
       const SizedBox(height: 16),
       const Text('Isian laporan', style: TextStyle(fontWeight: FontWeight.w700)),
       const SizedBox(height: 8),
@@ -117,6 +142,87 @@ class _Body extends ConsumerWidget {
       ],
       const SizedBox(height: 32),
     ]);
+  }
+
+  Future<void> _discard(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Buang draft ini?'),
+      content: const Text('Draft dan foto yang sudah diunggah akan dihapus permanen dan tidak bisa dikembalikan.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+        FilledButton(style: FilledButton.styleFrom(backgroundColor: danger), onPressed: () => Navigator.pop(ctx, true), child: const Text('Ya, buang')),
+      ],
+    ));
+    if (ok != true) return;
+    try {
+      await ref.read(dioProvider).delete('/reports/${r['id']}');
+      ref.invalidate(reportsProvider);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Draft sudah dibuang')));
+      context.pop();
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: danger, content: Text(apiErrorMessage(e))));
+    }
+  }
+
+  /// Buka data sensitif dengan alasan (tercatat di audit log); baris repeater ditampilkan per nama.
+  Future<void> _reveal(BuildContext context, WidgetRef ref, FormSchema? schema) async {
+    final reason = TextEditingController();
+    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Data sensitif'),
+      content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Akses dicatat di audit log beserta alasannya.', style: TextStyle(color: muted, fontSize: 13)),
+        const SizedBox(height: 12),
+        TextField(controller: reason, autofocus: true, decoration: const InputDecoration(labelText: 'Alasan membuka', hintText: 'mis. Verifikasi data untuk Puskesmas')),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, reason.text.trim().length >= 5), child: const Text('Tampilkan')),
+      ],
+    ));
+    if (ok != true || !context.mounted) {
+      if (ok == false && reason.text.trim().isNotEmpty && reason.text.trim().length < 5 && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Alasan minimal 5 karakter')));
+      }
+      return;
+    }
+    try {
+      final res = await ref.read(dioProvider).post('/reports/${r['id']}/reveal-sensitive', data: {'reason': reason.text.trim()});
+      final values = Map<String, dynamic>.from(res.data as Map);
+      final data = Map<String, dynamic>.from(r['data'] as Map);
+      if (!context.mounted) return;
+      await showModalBottomSheet(
+        context: context, isScrollControlled: true,
+        builder: (ctx) => DraggableScrollableSheet(
+          expand: false, initialChildSize: 0.6,
+          builder: (_, sc) => ListView(controller: sc, padding: const EdgeInsets.all(20), children: [
+            const Text('Data sensitif', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
+            const SizedBox(height: 4),
+            const Text('Jangan menyalin atau menyebarkan data ini di luar keperluan tugas.', style: TextStyle(color: warn, fontSize: 12)),
+            const SizedBox(height: 12),
+            for (final e in values.entries) ...[
+              Text(schema?.field(e.key)?.label ?? e.key, style: const TextStyle(color: muted, fontSize: 12)),
+              const SizedBox(height: 4),
+              if (e.value is List)
+                for (final row in (e.value as List).cast<Map>())
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(((data[e.key] as List?)?.cast<Map>().where((p) => p['_id'] == row['_id']).firstOrNull?['nama'] ?? 'Baris').toString(), style: const TextStyle(fontWeight: FontWeight.w600)),
+                      for (final kv in row.entries.where((kv) => kv.key != '_id'))
+                        Text('${schema?.field(e.key)?.fields?.where((s) => s.key == kv.key).firstOrNull?.label ?? kv.key}: ${kv.value}'),
+                    ]),
+                  )
+              else
+                Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(e.value.toString(), style: const TextStyle(fontSize: 18, fontFamily: 'monospace'))),
+            ],
+          ]),
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: danger, content: Text(apiErrorMessage(e))));
+    }
   }
 
   Widget _locationChip(Map<String, dynamic> r) {

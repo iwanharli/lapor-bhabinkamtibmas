@@ -53,6 +53,8 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
   Fix? _fix;
   bool _locating = false;
   String? _locError;
+  /// Jarak (m) titik GPS ke batas desa binaan bila di luar toleransi 200 m.
+  num? _outsideM;
 
   bool get _ralat => _report?['status'] == 'SUBMITTED';
   List<FormStep> get _steps => _schema!.steps ?? [FormStep.fromJson({'title': _schema!.title, 'fields': _schema!.fields.map((f) => f.key).toList()})];
@@ -112,10 +114,23 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
     try {
       final f = await getFix();
       if (mounted) setState(() => _fix = f);
+      await _checkDistance(f);
     } catch (e) {
       if (mounted) setState(() => _locError = e.toString());
     } finally {
       if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  Future<void> _checkDistance(Fix f) async {
+    final villageId = _report?['village']?['id'] ?? ref.read(authControllerProvider).valueOrNull?.villages.firstOrNull?['id'];
+    if (villageId == null) return;
+    try {
+      final res = await ref.read(dioProvider).get('/villages/$villageId/distance', queryParameters: {'lat': f.lat, 'lng': f.lng});
+      final d = res.data as Map;
+      if (mounted) setState(() => _outsideM = d['insideVillage'] == false ? d['distanceM'] as num? : null);
+    } catch (_) {
+      // Cek jarak hanya informasi; laporan tetap bisa dikirim.
     }
   }
 
@@ -294,6 +309,18 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
                   subtitle: _fix != null ? Text('${_fix!.lat.toStringAsFixed(5)}, ${_fix!.lng.toStringAsFixed(5)}${_fix!.mocked ? ' · lokasi palsu terdeteksi!' : ''}') : null,
                   trailing: _locating ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : TextButton(onPressed: _locate, child: Text(_fix != null ? 'Ulangi' : 'Ambil lokasi')),
                 ),
+                if (_outsideM != null && desa != null)
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: warn.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Icon(Icons.warning_amber_rounded, color: warn, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text('Titik GPS ±${jarak(_outsideM!)} dari batas desa ${desa['nama']} (toleransi 200 m). Laporan tetap bisa dikirim; pimpinan diberi tahu untuk mengecek lokasinya.',
+                          style: const TextStyle(fontSize: 12))),
+                    ]),
+                  ),
               ]),
             ),
             const SizedBox(height: 12),

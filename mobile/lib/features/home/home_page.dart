@@ -23,11 +23,13 @@ class HomePage extends ConsumerWidget {
     final masuk = todays.where((a) => a['type'] == 'CHECK_IN').firstOrNull;
     final pulang = todays.where((a) => a['type'] == 'CHECK_OUT').firstOrNull;
     final desa = me?.villages.firstOrNull;
+    final unread = ref.watch(unreadNotificationsProvider).valueOrNull ?? 0;
 
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(myAttendanceProvider);
         ref.invalidate(reportsProvider);
+        ref.invalidate(unreadNotificationsProvider);
         await ref.read(myAttendanceProvider.future);
       },
       child: ListView(padding: EdgeInsets.zero, children: [
@@ -39,6 +41,17 @@ class HomePage extends ConsumerWidget {
               Image.asset('assets/logo.png', height: 40),
               const SizedBox(width: 10),
               Expanded(child: Text(me?.unitNama ?? '', style: const TextStyle(color: Colors.white70, fontSize: 12), overflow: TextOverflow.ellipsis)),
+              IconButton(
+                tooltip: 'Notifikasi',
+                onPressed: () async {
+                  await context.push('/notifikasi');
+                  ref.invalidate(unreadNotificationsProvider);
+                },
+                icon: Badge(
+                  isLabelVisible: unread > 0, label: Text(unread > 99 ? '99+' : '$unread'),
+                  child: const Icon(Icons.notifications_outlined, color: Colors.white),
+                ),
+              ),
             ]),
             const SizedBox(height: 16),
             Text('Selamat bertugas,', style: TextStyle(color: Colors.white.withValues(alpha: 0.8))),

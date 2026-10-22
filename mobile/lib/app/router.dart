@@ -6,6 +6,7 @@ import '../features/attendance/attendance_page.dart';
 import '../features/auth/change_password_page.dart';
 import '../features/auth/login_page.dart';
 import '../features/home/home_page.dart';
+import '../features/notifications/notifications_page.dart';
 import '../features/profile/profile_page.dart';
 import '../features/reports/category_picker_page.dart';
 import '../features/reports/report_detail_page.dart';
@@ -39,6 +40,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(path: '/lapor', builder: (_, __) => const CategoryPickerPage()),
+      GoRoute(path: '/notifikasi', builder: (_, __) => const NotificationsPage()),
       GoRoute(
         path: '/lapor/:category',
         builder: (_, s) => ReportFormPage(category: s.pathParameters['category']!, reportId: s.uri.queryParameters['id']),

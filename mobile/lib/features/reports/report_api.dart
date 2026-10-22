@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -24,13 +25,53 @@ class ReportItem {
 /// Filter daftar: status (null/SUBMITTED/DRAFT) & kata kunci.
 typedef ReportQuery = ({String? status, String q});
 
+/// Beberapa laporan terbaru (beranda).
 final reportsProvider = FutureProvider.autoDispose.family<List<ReportItem>, ReportQuery>((ref, q) async {
-  final res = await ref.read(dioProvider).get('/reports', queryParameters: {
-    'limit': 50,
-    if (q.status != null) 'status': q.status,
-    if (q.q.trim().isNotEmpty) 'q': q.q.trim(),
+  return (await fetchReports(ref.read(dioProvider), ReportFilter(status: q.status, q: q.q), page: 1, limit: 10)).items;
+});
+
+/// Filter lengkap Laporan saya (selaras web): status, kategori, periode (hari), prioritas, kata kunci.
+class ReportFilter {
+  const ReportFilter({this.status, this.category, this.days, this.priority = false, this.q = ''});
+  final String? status;
+  final String? category;
+  final int? days;
+  final bool priority;
+  final String q;
+
+  ReportFilter copyWith({Object? status = _keep, Object? category = _keep, Object? days = _keep, bool? priority, String? q}) => ReportFilter(
+        status: status == _keep ? this.status : status as String?,
+        category: category == _keep ? this.category : category as String?,
+        days: days == _keep ? this.days : days as int?,
+        priority: priority ?? this.priority,
+        q: q ?? this.q,
+      );
+  bool get active => category != null || days != null || priority || q.trim().isNotEmpty;
+}
+
+const _keep = Object();
+
+Future<({List<ReportItem> items, int total})> fetchReports(Dio dio, ReportFilter f, {required int page, int limit = 20}) async {
+  final res = await dio.get('/reports', queryParameters: {
+    'limit': limit, 'page': page,
+    if (f.status != null) 'status': f.status,
+    if (f.category != null) 'category': f.category,
+    if (f.priority) 'priority': 'true',
+    if (f.days != null) 'from': DateTime.now().subtract(Duration(days: f.days! - 1)).copyWith(hour: 0, minute: 0, second: 0).toUtc().toIso8601String(),
+    if (f.q.trim().isNotEmpty) 'q': f.q.trim(),
   });
-  return ((res.data as Map)['data'] as List).map((r) => ReportItem(Map<String, dynamic>.from(r))).toList();
+  final body = res.data as Map;
+  return (
+    items: (body['data'] as List).map((r) => ReportItem(Map<String, dynamic>.from(r))).toList(),
+    total: (body['meta'] as Map)['total'] as int,
+  );
+}
+
+/// Jumlah notifikasi belum dibaca (lonceng beranda).
+final unreadNotificationsProvider = FutureProvider.autoDispose<int>((ref) async {
+  final res = await ref.read(dioProvider).get('/notifications/unread-count');
+  final d = res.data;
+  return d is Map ? (d['unread'] ?? d['count'] ?? 0) as int : (d as num).toInt();
 });
 
 final reportDetailProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, id) async {

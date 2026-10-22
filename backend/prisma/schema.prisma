@@ -236,32 +236,32 @@ enum AttachmentSource {
 }
 
 model Report {
-  id             String                                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clientUuid     String                                @unique @map("client_uuid") @db.Uuid
-  nomor          String?                               @unique @db.VarChar(40)
+  id             String                                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientUuid     String                                 @unique @map("client_uuid") @db.Uuid
+  nomor          String?                                @unique @db.VarChar(40)
   category       ReportCategory
-  schemaVersion  Int                                   @map("schema_version")
-  userId         String                                @map("user_id") @db.Uuid
-  unitId         String                                @map("unit_id") @db.Uuid
-  villageId      String                                @map("village_id") @db.Uuid
-  status         ReportStatus                          @default(DRAFT)
-  priority       Boolean                               @default(false)
+  schemaVersion  Int                                    @map("schema_version")
+  userId         String                                 @map("user_id") @db.Uuid
+  unitId         String                                 @map("unit_id") @db.Uuid
+  villageId      String                                 @map("village_id") @db.Uuid
+  status         ReportStatus                           @default(DRAFT)
+  priority       Boolean                                @default(false)
   data           Json
   sensitive      Bytes?
-  occurredAt     DateTime                              @map("occurred_at") @db.Timestamptz
+  occurredAt     DateTime                               @map("occurred_at") @db.Timestamptz
   location       Unsupported("geography(Point, 4326)")? // diisi trigger dari lat/lng
   lat            Float
   lng            Float
-  gpsAccuracyM   Float?                                @map("gps_accuracy_m") @db.Real
-  isMockLocation Boolean                               @default(false) @map("is_mock_location")
-  insideVillage  Boolean?                              @map("inside_village")
-  submittedAt    DateTime?                             @map("submitted_at") @db.Timestamptz
-  receivedAt     DateTime                              @default(now()) @map("received_at") @db.Timestamptz
-  reviewedById   String?                               @map("reviewed_by") @db.Uuid
-  reviewedAt     DateTime?                             @map("reviewed_at") @db.Timestamptz
-  reviewNote     String?                               @map("review_note")
-  createdAt      DateTime                              @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime                              @updatedAt @map("updated_at") @db.Timestamptz
+  gpsAccuracyM   Float?                                 @map("gps_accuracy_m") @db.Real
+  isMockLocation Boolean                                @default(false) @map("is_mock_location")
+  insideVillage  Boolean?                               @map("inside_village")
+  submittedAt    DateTime?                              @map("submitted_at") @db.Timestamptz
+  receivedAt     DateTime                               @default(now()) @map("received_at") @db.Timestamptz
+  reviewedById   String?                                @map("reviewed_by") @db.Uuid
+  reviewedAt     DateTime?                              @map("reviewed_at") @db.Timestamptz
+  reviewNote     String?                                @map("review_note")
+  createdAt      DateTime                               @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime                               @updatedAt @map("updated_at") @db.Timestamptz
 
   user        User                  @relation("ReportAuthor", fields: [userId], references: [id])
   unit        Unit                  @relation(fields: [unitId], references: [id])
@@ -275,6 +275,7 @@ model Report {
   @@index([userId, occurredAt(sort: Desc)])
   @@index([category, occurredAt(sort: Desc)])
   @@index([villageId])
+  @@index([updatedAt])
   @@map("reports")
 }
 
@@ -339,4 +340,73 @@ model ReportCounter {
 
   @@id([unitId, category, period])
   @@map("report_counters")
+}
+
+// ===== Agregat analitik (diisi worker, lihat AggregatesService; docs/teknis/12-skala-nasional.md §4.1) =====
+
+/// Jumlah laporan per unit per hari lokal (zona unit) per kategori & status.
+model AggUnitDaily {
+  hari          DateTime       @db.Date
+  unitId        String         @map("unit_id") @db.Uuid
+  category      ReportCategory
+  status        ReportStatus
+  jumlah        Int
+  prioritas     Int
+  lokasiJanggal Int            @map("lokasi_janggal")
+
+  @@id([hari, unitId, category, status])
+  @@index([unitId, hari])
+  @@map("agg_unit_daily")
+}
+
+/// Rekap per Bhabin per hari lokal.
+model AggUserDaily {
+  hari            DateTime  @db.Date
+  userId          String    @map("user_id") @db.Uuid
+  unitId          String    @map("unit_id") @db.Uuid
+  total           Int
+  disetujui       Int
+  menunggu        Int
+  revisi          Int
+  ditolak         Int
+  lokasiJanggal   Int       @map("lokasi_janggal")
+  sambang         Int
+  deteksiDini     Int       @map("deteksi_dini")
+  problemSolving  Int       @map("problem_solving")
+  penyuluhan      Int
+  hargaPangan     Int       @map("harga_pangan")
+  mappingKk       Int       @map("mapping_kk")
+  ketahananPangan Int       @map("ketahanan_pangan")
+  lastAt          DateTime? @map("last_at") @db.Timestamptz
+
+  @@id([hari, userId])
+  @@index([unitId, hari])
+  @@index([userId, hari])
+  @@map("agg_user_daily")
+}
+
+/// Harga komoditas per unit per hari lokal per kabupaten (dari laporan yang tidak ditolak).
+model AggPriceDaily {
+  hari        DateTime @db.Date
+  unitId      String   @map("unit_id") @db.Uuid
+  commodityId Int      @map("commodity_id")
+  kabupaten   String
+  jumlahHarga BigInt   @map("jumlah_harga")
+  sampel      Int
+  minimum     Int
+  maksimum    Int
+  menipis     Int
+  kosong      Int
+
+  @@id([hari, unitId, commodityId, kabupaten])
+  @@index([unitId, hari])
+  @@map("agg_price_daily")
+}
+
+/// Penanda proses agregasi (mis. waktu penyegaran terakhir).
+model AggState {
+  key   String   @id
+  value DateTime @db.Timestamptz
+
+  @@map("agg_state")
 }

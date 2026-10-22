@@ -138,10 +138,10 @@ Angka divalidasi lewat uji beban (k6) pada tahap pilot Polda sebelum pengadaan f
 | Hierarki unit & pembatasan wilayah | ✅ siap (query rekursif + cache) |
 | Idempotensi sinkron mobile (`clientUuid`) | ✅ siap |
 | Antarmuka penyimpanan (`StorageService`) | 🟡 driver `local`; `s3` belum |
-| Zona waktu per unit | ❌ masih WIB tetap — **dikerjakan berikutnya** |
-| Analitik dari agregat | ❌ masih query langsung |
+| Zona waktu per unit | ✅ siap (`units.timezone`, nomor laporan, rekap, ekspor) |
+| Analitik dari agregat | ✅ siap (`agg_unit_daily`, `agg_user_daily`, `agg_price_daily`; refresh inkremental tiap `AGG_REFRESH_SECONDS`) |
 | Peta ter-cluster | ❌ batas 5.000 titik |
-| Paginasi kinerja, pencarian unit | ❌ |
+| Paginasi kinerja, pencarian unit | 🟡 kinerja: paginasi + cari + filter unit; pencarian unit belum |
 | Ekspor sebagai job, thumbnail di worker | ❌ |
 | Partisi tabel | ❌ (bisa ditambahkan lewat migrasi tanpa mengubah kode aplikasi) |
 | Redis untuk rate limit/cache/antrean | ❌ |

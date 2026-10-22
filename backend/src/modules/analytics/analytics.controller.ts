@@ -22,8 +22,14 @@ export class AnalyticsController {
   }
 
   @Get('bhabin-performance')
-  performance(@CurrentUser() me: AuthUser, @Query() q: { unitId?: string; from?: string; to?: string }) {
-    return this.analytics.bhabinPerformance(me, range(q, 30));
+  performance(
+    @CurrentUser() me: AuthUser,
+    @Query() q: { unitId?: string; from?: string; to?: string; q?: string; sort?: string; page?: string; limit?: string },
+  ) {
+    const sort = (['total', 'hari', 'setuju', 'nama'] as const).find((s) => s === q.sort);
+    return this.analytics.bhabinPerformance(me, range(q, 30), {
+      q: q.q || undefined, sort, page: Number(q.page) || 1, limit: Math.min(Number(q.limit) || 20, 100),
+    });
   }
 
   @Get('map')

@@ -24,6 +24,12 @@ export interface BhabinPerformance {
   ketahanan_pangan: number;
 }
 
+export interface PerformancePage {
+  data: BhabinPerformance[];
+  meta: { page: number; limit: number; total: number };
+  summary: { bhabin: number; melapor: number; total: number; rata_hari: number; kurang: number; hari: number };
+}
+
 export const CATEGORY_KEYS = ['sambang', 'deteksi_dini', 'problem_solving', 'penyuluhan', 'harga_pangan', 'mapping_kk', 'ketahanan_pangan'] as const;
 
 /** Status kehadiran dari persentase hari aktif melapor. */

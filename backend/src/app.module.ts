@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -9,6 +10,7 @@ import { CryptoModule } from './common/crypto/crypto.module';
 import { StorageModule } from './common/storage/storage.module';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
 import { ExportsModule } from './modules/exports/exports.module';
+import { AggregatesModule } from './modules/aggregates/aggregates.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -23,6 +25,7 @@ import { VillagesModule } from './modules/villages/villages.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     PrismaModule,
     StorageModule,
@@ -37,6 +40,7 @@ import { VillagesModule } from './modules/villages/villages.module';
     ReportsModule,
     AnalyticsModule,
     AttachmentsModule,
+    AggregatesModule,
     ExportsModule,
     HealthModule,
   ],

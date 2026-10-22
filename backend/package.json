@@ -12,7 +12,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "seed": "ts-node prisma/seed.ts",
     "seed:demo": "ts-node prisma/seed-demo-reports.ts",
-    "seed:demo-attachments": "ts-node prisma/seed-demo-attachments.ts"
+    "seed:demo-attachments": "ts-node prisma/seed-demo-attachments.ts",
+    "aggregates:rebuild": "ts-node prisma/rebuild-aggregates.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -36,6 +37,7 @@
     "@nestjs/core": "^10.4.22",
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/platform-express": "^10.4.22",
+    "@nestjs/schedule": "^4.1.2",
     "@nestjs/swagger": "^7.4.2",
     "@nestjs/throttler": "^6.7.1",
     "@prisma/client": "^5.22.0",

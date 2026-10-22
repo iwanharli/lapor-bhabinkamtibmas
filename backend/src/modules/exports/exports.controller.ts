@@ -111,7 +111,7 @@ export class ExportsController {
   @Roles(UserRole.VERIFIKATOR, UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR)
   async performanceCsv(@CurrentUser() me: AuthUser, @Query() q: { unitId?: string; from?: string; to?: string }, @Res() res: Response) {
     const r = range(q, 30);
-    const rows = await this.analytics.bhabinPerformance(me, r);
+    const { data: rows } = await this.analytics.bhabinPerformance(me, r, { limit: 100_000 });
     // Jumlah tanggal kalender (zona pengekspor) yang tercakup rentang, termasuk hari pertama & terakhir.
     const tz = await this.units.timezoneOf(me.unitId);
     const day = (d: Date) => Date.parse(localDate(d, tz));

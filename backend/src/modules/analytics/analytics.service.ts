@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma, UserRole } from '@prisma/client';
 import { AuthUser } from '../../common/decorators/auth.decorators';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -344,50 +344,90 @@ export class AnalyticsService {
   }
 
   /**
-   * Peta tematik stunting: angka keluarga per wilayah (provinsi/kabupaten/kecamatan/desa sesuai zoom) di dalam bbox.
-   * Hanya wilayah yang punya data Mapping; tanpa titik rumah agar keluarga tidak bisa ditunjuk.
+   * Peta tematik stunting (SVG, telusur bertingkat): SEMUA wilayah satu tingkat di bawah induk beserta angkanya
+   * (tanpa data = 0/abu-abu) — provinsi (tanpa induk) → kabupaten/kota → kecamatan → desa (induk = kode kecamatan).
+   * Desa tanpa kode kecamatan Kemendagri (data contoh) dikembalikan lewat `orphan` di tingkat provinsi.
+   * Tanpa titik rumah agar keluarga tidak bisa ditunjuk.
    */
-  async stuntingMap(me: AuthUser, level: 1 | 2 | 3 | 4, bbox: [number, number, number, number], unitId?: string, withExtent = false) {
+  async stuntingRegions(me: AuthUser, level: 1 | 2 | 3 | 4, parent?: string, unitId?: string) {
+    if (level > 1 && !parent) throw new BadRequestException({ code: 'PARENT_REQUIRED', message: 'Kode wilayah induk wajib untuk tingkat ini' });
+    if (parent && !/^[0-9.]{2,13}$/.test(parent)) throw new BadRequestException({ code: 'INVALID_PARENT', message: 'Kode wilayah tidak valid' });
     const scope = await this.scopeSql(me, unitId);
-    const env = Prisma.sql`ST_MakeEnvelope(${bbox[0]}, ${bbox[1]}, ${bbox[2]}, ${bbox[3]}, 4326)`;
-    const key = level === 4 ? Prisma.sql`v.id::text` : level === 3 ? Prisma.sql`v.kecamatan_kode` : level === 2 ? Prisma.sql`left(v.kecamatan_kode, 5)` : Prisma.sql`left(v.kecamatan_kode, 2)`;
+    const keyLen = [0, 2, 5, 8][level] ?? 0;
+    const key = level === 4 ? Prisma.sql`v.id::text` : Prisma.sql`left(v.kecamatan_kode, ${keyLen}::int)`;
+    const within = level === 1 ? Prisma.empty
+      : level === 4 ? Prisma.sql`AND v.kecamatan_kode = ${parent}`
+      : Prisma.sql`AND left(v.kecamatan_kode, ${parent!.length}::int) = ${parent}`;
     const H = (k: string) => Prisma.raw(`coalesce(sum((k.health->>'${k}')::int), 0)::int AS ${k}`);
-    const metrics = Prisma.sql`
-      count(*)::int AS kk, ${H('balita')}, ${H('stunting')}, ${H('berisiko')}, ${H('belum_ditangani')},
-      count(*) FILTER (WHERE k.data ? 'jamban' AND k.data->>'jamban' <> 'Jamban sendiri dengan septic tank')::int AS jamban_tidak_layak,
-      count(*) FILTER (WHERE k.data->>'sumber_air_minum' IN ('Sumur/mata air tidak terlindung', 'Sungai/danau/irigasi'))::int AS air_tidak_layak,
-      count(*) FILTER (WHERE k.data ? 'sumber_air_minum')::int AS kk_sanitasi`;
-    const kk = Prisma.sql`
-      SELECT DISTINCT ON (coalesce(r.kk_hash, r.id::text)) r.village_id, r.data, r.health FROM reports r
-      WHERE ${scope} AND r.category = 'MAPPING_KK' AND r.status = 'SUBMITTED' AND r.schema_version = 2
-        ${level >= 3 ? Prisma.sql`AND r.village_id IN (SELECT id FROM villages WHERE geom && ${env})` : Prisma.empty}
-      ORDER BY coalesce(r.kk_hash, r.id::text), r.submitted_at DESC`;
-    const rows = level === 4
-      ? await this.prisma.$queryRaw<Record<string, unknown>[]>`
-          WITH k AS (${kk}), agg AS (
-            SELECT v.id::text AS kode, ${metrics} FROM k JOIN villages v ON v.id = k.village_id
-            WHERE v.geom && ${env} GROUP BY v.id)
-          SELECT agg.*, v.nama, concat_ws(' › ', v.provinsi, v.kabupaten, v.kecamatan) AS chain,
-                 ST_AsGeoJSON(ST_SimplifyPreserveTopology(v.geom, 0.0001), 5) AS geometry
-          FROM agg JOIN villages v ON v.id::text = agg.kode LIMIT 3001`
-      : await this.prisma.$queryRaw<Record<string, unknown>[]>`
-          WITH k AS (${kk}), agg AS (
-            SELECT ${key} AS kode, ${metrics} FROM k JOIN villages v ON v.id = k.village_id
-            WHERE v.kecamatan_kode IS NOT NULL GROUP BY 1)
-          SELECT agg.*, rg.nama, rg.chain, ST_AsGeoJSON(rg.geom_s, 5) AS geometry
-          FROM agg JOIN regions rg ON rg.kode = agg.kode AND rg.level = ${level}
-          WHERE rg.geom_s && ${env} LIMIT 3001`;
-    // Muatan pertama: batas desa berdata di cakupan pengguna agar peta langsung mengarah ke wilayahnya.
-    const [extent] = withExtent ? await this.prisma.$queryRaw<{ w: number | null; s: number | null; e: number | null; n: number | null }[]>`
-      SELECT ST_XMin(x)::float w, ST_YMin(x)::float s, ST_XMax(x)::float e, ST_YMax(x)::float n FROM (
-        SELECT ST_Extent(v.geom) x FROM villages v
-        WHERE v.id IN (SELECT r.village_id FROM reports r WHERE ${scope} AND r.category = 'MAPPING_KK' AND r.status = 'SUBMITTED')) t` : [];
+    const agg = Prisma.sql`
+      WITH k AS (
+        SELECT DISTINCT ON (coalesce(r.kk_hash, r.id::text)) r.village_id, r.data, r.health FROM reports r
+        WHERE ${scope} AND r.category = 'MAPPING_KK' AND r.status = 'SUBMITTED' AND r.schema_version = 2
+        ORDER BY coalesce(r.kk_hash, r.id::text), r.submitted_at DESC)
+      SELECT ${key} AS kode, count(*)::int AS kk, ${H('balita')}, ${H('stunting')}, ${H('berisiko')}, ${H('belum_ditangani')},
+        count(*) FILTER (WHERE k.data ? 'jamban' AND k.data->>'jamban' <> 'Jamban sendiri dengan septic tank')::int AS jamban_tidak_layak,
+        count(*) FILTER (WHERE k.data->>'sumber_air_minum' IN ('Sumur/mata air tidak terlindung', 'Sungai/danau/irigasi'))::int AS air_tidak_layak,
+        count(*) FILTER (WHERE k.data ? 'sumber_air_minum')::int AS kk_sanitasi
+      FROM k JOIN villages v ON v.id = k.village_id
+      WHERE v.kecamatan_kode IS NOT NULL ${within} GROUP BY 1`;
+    const shapes = level === 4
+      ? await this.prisma.$queryRaw<{ kode: string; nama: string; chain: string; geometry: string | null }[]>`
+          SELECT v.id::text AS kode, v.nama, concat_ws(' › ', v.kabupaten, v.kecamatan) AS chain,
+                 ST_AsGeoJSON(ST_SimplifyPreserveTopology(v.geom, 0.0002), 5) AS geometry
+          FROM villages v WHERE v.kecamatan_kode = ${parent} AND v.geom IS NOT NULL`
+      : await this.prisma.$queryRaw<{ kode: string; nama: string; chain: string; geometry: string | null }[]>`
+          SELECT r.kode, r.nama, r.chain, ST_AsGeoJSON(r.geom_s, 4) AS geometry FROM regions r
+          WHERE r.level = ${level} AND r.geom_s IS NOT NULL ${level === 1 ? Prisma.empty : Prisma.sql`AND r.parent_kode = ${parent}`}`;
+    const stats = new Map((await this.prisma.$queryRaw<Record<string, number | string>[]>(agg)).map((r) => [r.kode as string, r]));
+    const [self] = parent
+      ? level === 4
+        ? await this.prisma.$queryRaw<{ nama: string; chain: string }[]>`SELECT nama, chain FROM regions WHERE kode = ${parent}`
+        : await this.prisma.$queryRaw<{ nama: string; chain: string }[]>`SELECT nama, chain FROM regions WHERE kode = ${parent}`
+      : [];
+    // Desa contoh tanpa kode kecamatan: tidak masuk pohon wilayah; tampilkan terpisah agar datanya tetap terlihat.
+    const orphan = level === 1
+      ? await this.prisma.$queryRaw<{ kode: string; nama: string; chain: string; geometry: string | null }[]>`
+          SELECT DISTINCT v.id::text AS kode, v.nama, concat_ws(' › ', v.kabupaten, v.kecamatan) AS chain,
+                 ST_AsGeoJSON(ST_SimplifyPreserveTopology(v.geom, 0.0002), 5) AS geometry
+          FROM reports r JOIN villages v ON v.id = r.village_id
+          WHERE ${scope} AND r.category = 'MAPPING_KK' AND r.status = 'SUBMITTED' AND v.kecamatan_kode IS NULL AND v.geom IS NOT NULL LIMIT 200`
+      : [];
+    const zero = { kk: 0, balita: 0, stunting: 0, berisiko: 0, belum_ditangani: 0, jamban_tidak_layak: 0, air_tidak_layak: 0, kk_sanitasi: 0 };
+    const feature = (r: { kode: string; nama: string; chain: string; geometry: string | null }, lv: number) => ({
+      type: 'Feature' as const,
+      properties: { ...zero, ...(stats.get(r.kode) ?? {}), kode: r.kode, nama: r.nama, chain: r.chain, level: lv },
+      geometry: JSON.parse(r.geometry!),
+    });
     return {
       type: 'FeatureCollection' as const,
-      level,
-      extent: extent?.w != null ? [extent.w, extent.s, extent.e, extent.n] : null,
-      truncated: rows.length > 3000,
-      features: rows.slice(0, 3000).map(({ geometry, ...props }) => ({ type: 'Feature' as const, properties: { ...props, level }, geometry: JSON.parse(geometry as string) })),
+      level, parent: parent ?? null, parentNama: self?.nama ?? null, parentChain: self?.chain ?? null,
+      features: shapes.filter((r) => r.geometry).map((r) => feature(r, level)),
+      orphan: orphan.length ? await this.orphanFeatures(scope, orphan) : null,
+    };
+  }
+
+  /** Desa contoh tanpa kode kecamatan beserta angkanya (dipakai bila data hanya ada di desa seperti itu). */
+  private async orphanFeatures(scope: Prisma.Sql, rows: { kode: string; nama: string; chain: string; geometry: string | null }[]) {
+    const H = (k: string) => Prisma.raw(`coalesce(sum((k.health->>'${k}')::int), 0)::int AS ${k}`);
+    const stats = await this.prisma.$queryRaw<Record<string, number | string>[]>`
+      WITH k AS (
+        SELECT DISTINCT ON (coalesce(r.kk_hash, r.id::text)) r.village_id, r.data, r.health FROM reports r
+        WHERE ${scope} AND r.category = 'MAPPING_KK' AND r.status = 'SUBMITTED' AND r.schema_version = 2
+          AND r.village_id IN (SELECT unnest(${rows.map((r) => r.kode)}::uuid[]))
+        ORDER BY coalesce(r.kk_hash, r.id::text), r.submitted_at DESC)
+      SELECT k.village_id::text AS kode, count(*)::int AS kk, ${H('balita')}, ${H('stunting')}, ${H('berisiko')}, ${H('belum_ditangani')},
+        count(*) FILTER (WHERE k.data ? 'jamban' AND k.data->>'jamban' <> 'Jamban sendiri dengan septic tank')::int AS jamban_tidak_layak,
+        count(*) FILTER (WHERE k.data->>'sumber_air_minum' IN ('Sumur/mata air tidak terlindung', 'Sungai/danau/irigasi'))::int AS air_tidak_layak,
+        count(*) FILTER (WHERE k.data ? 'sumber_air_minum')::int AS kk_sanitasi
+      FROM k GROUP BY 1`;
+    const by = new Map(stats.map((s) => [s.kode as string, s]));
+    return {
+      type: 'FeatureCollection' as const,
+      features: rows.filter((r) => r.geometry).map((r) => ({
+        type: 'Feature' as const,
+        properties: { kk: 0, balita: 0, stunting: 0, berisiko: 0, belum_ditangani: 0, jamban_tidak_layak: 0, air_tidak_layak: 0, kk_sanitasi: 0, ...(by.get(r.kode) ?? {}), kode: r.kode, nama: r.nama, chain: r.chain, level: 4 },
+        geometry: JSON.parse(r.geometry!),
+      })),
     };
   }
 }

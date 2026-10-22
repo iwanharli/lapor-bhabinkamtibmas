@@ -71,6 +71,8 @@ export function ReportForm({
 }: { schema: FormSchema; villages: Village[]; commodities: Commodity[]; report?: ReportDetail }) {
   const router = useRouter();
   const ralat = report?.status === 'SUBMITTED';
+  // Isian sensitif (No KK/NIK) yang sudah tersimpan terenkripsi: tidak dikirim ke layar; kosong = pakai nilai tersimpan.
+  const saved = new Set(report?.sensitiveFilled ?? []);
   const geo = useGeolocation();
   const [clientUuid] = useState(() => newUuid());
   // Desa binaan dikunci: 1 Bhabin membina 1 desa (ralat/draft memakai desa laporan itu).
@@ -102,6 +104,12 @@ export function ReportForm({
   const [errors, setErrors] = useState<string[]>([]);
   const steps = schema.steps?.length ? schema.steps : null;
   const [step, setStep] = useState(0);
+  // Melanjutkan draft: buka langkah pertama yang belum lengkap.
+  useEffect(() => {
+    if (!steps || !report || report.status !== 'DRAFT') return;
+    const i = steps.findIndex((st) => validate(true, new Set(st.fields), false).length > 0);
+    if (i > 0) setStep(i);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const last = !steps || step === steps.length - 1;
 
   const existingCount = useMemo(() => {
@@ -135,7 +143,7 @@ export function ReportForm({
         if (n < min) errs.push(`${f.label}: minimal ${min} ${f.type === 'photo' ? 'foto' : 'berkas'}.`);
         continue;
       }
-      if (f.type === 'nik' && ralat && empty(values[f.key])) continue; // NIK lama tetap tersimpan
+      if (f.type === 'nik' && saved.has(f.key) && empty(values[f.key])) continue; // nilai tersimpan tetap dipakai
       if (f.type === 'repeater') {
         const rows = ((values[f.key] as Row[]) ?? []).filter((row) => Object.values(row).some((x) => x !== ''));
         if (req && !rows.length) errs.push(`${f.label} wajib diisi.`);
@@ -144,7 +152,7 @@ export function ReportForm({
             if (!active(sub, row)) continue;
             const sv = row[sub.key];
             if (empty(sv)) {
-              if (isRequired(sub, row) && !(sub.type === 'nik' && ralat)) errs.push(`${f.label} ${i + 1} — ${sub.label} wajib diisi.`);
+              if (isRequired(sub, row) && !(sub.type === 'nik' && saved.has(f.key))) errs.push(`${f.label} ${i + 1} — ${sub.label} wajib diisi.`);
             } else if (sub.type === 'nik' && !/^\d{16}$/.test(sv)) errs.push(`${f.label} ${i + 1} — ${sub.label} harus 16 digit angka.`);
           }
         });
@@ -259,7 +267,7 @@ export function ReportForm({
       <Section title={steps ? steps[step].title : schema.title} description={steps?.[step].description}>
         {schema.fields.filter((f) => !steps || steps[step].fields.includes(f.key)).map((f) => (
           <FieldInput key={f.key} f={f} value={values[f.key]} values={values} set={set} commodities={commodities}
-            files={files[f.key] ?? []} existing={existingCount[f.key] ?? 0} ralat={ralat}
+            files={files[f.key] ?? []} existing={existingCount[f.key] ?? 0} saved={saved}
             setFiles={(list) => setFiles((p) => ({ ...p, [f.key]: list }))} />
         ))}
       </Section>
@@ -394,10 +402,10 @@ function Labeled({ label, required, hint, children }: { label: string; required?
 }
 
 function FieldInput({
-  f, value, values, set, commodities, files, setFiles, existing, ralat,
+  f, value, values, set, commodities, files, setFiles, existing, saved,
 }: {
   f: FormField; value: unknown; values: Values; set: (k: string, v: unknown) => void; commodities: Commodity[];
-  files: File[]; setFiles: (l: File[]) => void; existing: number; ralat: boolean;
+  files: File[]; setFiles: (l: File[]) => void; existing: number; saved: Set<string>;
 }) {
   if (!active(f, values)) return null;
   const req = isRequired(f, values);
@@ -406,7 +414,7 @@ function FieldInput({
   if (MEDIA.includes(f.type)) return <MediaInput f={f} req={req} files={files} setFiles={setFiles} existing={existing} />;
 
   if (f.type === 'repeater' && !f.fields?.some((x) => x.source === 'commodities')) {
-    return <CardRepeater f={f} rows={(value as Row[]) ?? []} set={(rows) => set(f.key, rows)} ralat={ralat} />;
+    return <CardRepeater f={f} rows={(value as Row[]) ?? []} set={(rows) => set(f.key, rows)} keep={saved.has(f.key)} />;
   }
   if (f.type === 'repeater') return <RepeaterInput f={f} rows={(value as Row[]) ?? [{}]} set={(rows) => set(f.key, rows)} commodities={commodities} req={req} />;
 
@@ -451,7 +459,7 @@ function FieldInput({
 
   if (f.type === 'nik') {
     return (
-      <Labeled label={f.label} required={req} hint={ralat ? 'Kosongkan bila tidak diubah — NIK lama tetap tersimpan (terenkripsi).' : 'Disimpan terenkripsi.'}>
+      <Labeled label={f.label} required={req} hint={saved.has(f.key) ? '✓ Sudah tersimpan (terenkripsi). Kosongkan bila tidak diubah.' : 'Disimpan terenkripsi.'}>
         <Input inputMode="numeric" autoComplete="off" maxLength={16} value={str} placeholder="16 digit" onChange={(e) => set(f.key, e.target.value.replace(/\D/g, ''))} className="h-11 font-mono tracking-wider" />
       </Labeled>
     );
@@ -486,7 +494,7 @@ function FieldInput({
 }
 
 /** Satu isian di dalam kartu repeater (konteks kondisi = baris itu sendiri). */
-function SubInput({ f, row, update, ralat }: { f: FormField; row: Row; update: (k: string, v: string) => void; ralat: boolean }) {
+function SubInput({ f, row, update, keep }: { f: FormField; row: Row; update: (k: string, v: string) => void; keep: boolean }) {
   if (!active(f, row)) return null;
   const req = isRequired(f, row);
   const v = row[f.key] ?? '';
@@ -500,7 +508,7 @@ function SubInput({ f, row, update, ralat }: { f: FormField; row: Row; update: (
     ) : f.type === 'date' ? (
       <Input type="date" value={v} max={new Date().toISOString().slice(0, 10)} onChange={(e) => update(f.key, e.target.value)} className="h-11" />
     ) : f.type === 'nik' ? (
-      <Input inputMode="numeric" autoComplete="off" maxLength={16} value={v} placeholder={ralat ? 'Kosongkan bila tidak diubah' : '16 digit'} onChange={(e) => update(f.key, e.target.value.replace(/\D/g, ''))} className="h-11 font-mono tracking-wider" />
+      <Input inputMode="numeric" autoComplete="off" maxLength={16} value={v} placeholder={keep ? 'Tersimpan · kosongkan bila tidak diubah' : '16 digit'} onChange={(e) => update(f.key, e.target.value.replace(/\D/g, ''))} className="h-11 font-mono tracking-wider" />
     ) : (
       <Input value={v} maxLength={f.maxLength} placeholder={f.placeholders && f.requiredIf ? f.placeholders[row[f.requiredIf.field]] : undefined} onChange={(e) => update(f.key, e.target.value)} className="h-11" />
     );
@@ -513,7 +521,7 @@ function SubInput({ f, row, update, ralat }: { f: FormField; row: Row; update: (
 }
 
 /** Repeater berupa kartu per baris (mis. anggota keluarga), tombol + untuk menambah. */
-function CardRepeater({ f, rows, set, ralat }: { f: FormField; rows: Row[]; set: (rows: Row[]) => void; ralat: boolean }) {
+function CardRepeater({ f, rows, set, keep }: { f: FormField; rows: Row[]; set: (rows: Row[]) => void; keep: boolean }) {
   const max = f.max ?? 20;
   const noun = f.label.toLowerCase().replace(/^daftar /, '');
   const update = (i: number, k: string, v: string) => set(rows.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
@@ -533,7 +541,7 @@ function CardRepeater({ f, rows, set, ralat }: { f: FormField; rows: Row[]; set:
             <button type="button" onClick={() => set(rows.filter((_, j) => j !== i))} className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs text-danger hover:bg-danger-soft"><Trash2 size={13} /> Hapus</button>
           </div>
           <div className="grid grid-cols-2 gap-3 p-3">
-            {(f.fields ?? []).map((sub) => <SubInput key={sub.key} f={sub} row={row} update={(k, v) => update(i, k, v)} ralat={ralat} />)}
+            {(f.fields ?? []).map((sub) => <SubInput key={sub.key} f={sub} row={row} update={(k, v) => update(i, k, v)} keep={keep} />)}
           </div>
         </div>
       ))}

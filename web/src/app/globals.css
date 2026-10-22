@@ -104,3 +104,44 @@ dialog.modal::backdrop {
 @media (prefers-reduced-motion: reduce) {
   dialog.modal[open], dialog.modal::backdrop { animation: none; }
 }
+
+/* Peta: penanda laporan & gugus; prioritas berdenyut (breath wave). */
+.map-dot,
+.map-cluster {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  box-sizing: border-box;
+}
+.map-cluster {
+  color: #fff;
+  font: 600 12px/1 system-ui, sans-serif;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 0.35);
+  transition: transform 120ms ease-out;
+}
+.map-cluster:hover { transform: scale(1.08); }
+.map-dot { border: 2px solid #fff; box-shadow: 0 1px 3px rgb(15 23 42 / 0.35); }
+.map-priority { border-color: #c81e3a; }
+.map-priority::before,
+.map-priority::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  border: 2px solid #c81e3a;
+  background: rgb(200 30 58 / 0.18);
+  animation: breath-wave 2.4s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+.map-priority::after { animation-delay: 1.2s; }
+@keyframes breath-wave {
+  0% { transform: scale(1); opacity: 0.85; }
+  70% { opacity: 0.15; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-priority::before, .map-priority::after { animation: none; transform: scale(1.5); opacity: 0.35; }
+}

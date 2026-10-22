@@ -110,11 +110,11 @@ export class AuthService {
     return this.issueTokens(row.user, row.deviceId ?? undefined);
   }
 
-  async logout(refreshToken: string) {
+  async logout(refreshToken: string, client: { ip?: string; userAgent?: string } = {}) {
     const row = await this.prisma.refreshToken.findUnique({ where: { tokenHash: sha256(refreshToken) } });
     if (!row || row.revokedAt) return;
     await this.prisma.refreshToken.update({ where: { id: row.id }, data: { revokedAt: new Date() } });
-    await this.audit.log({ actorId: row.userId, action: 'LOGOUT' });
+    await this.audit.log({ actorId: row.userId, action: 'LOGOUT', ...client });
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto, deviceId?: string) {

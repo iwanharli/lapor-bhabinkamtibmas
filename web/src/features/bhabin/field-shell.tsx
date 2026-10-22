@@ -1,10 +1,11 @@
 'use client';
 
-import { ClipboardList, Home, KeyRound, LogOut, Plus, ShieldCheck, UserCheck } from 'lucide-react';
+import { ClipboardList, Home, KeyRound, LogOut, Plus, UserCheck, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/components/ui';
+import { Logo } from '@/components/brand/logo';
 import { NotificationBell } from '@/features/notifications/notification-bell';
 
 const TABS = [
@@ -41,7 +42,7 @@ export function FieldShell({ user, children }: { user: { nama: string; pangkat?:
     <div className="min-h-dvh bg-bg">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-gradient-to-r from-[var(--navy)] to-[var(--navy-2)] text-white">
         <div className="mx-auto flex h-14 max-w-xl items-center gap-3 px-4">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/10"><ShieldCheck size={20} /></span>
+          <Logo size={38} />
           <div className="min-w-0 flex-1 leading-tight">
             <p className="truncate text-sm font-semibold">Lapor Bhabinkamtibmas</p>
             <p className="truncate text-[11px] text-white/70">{user.unit.nama}</p>
@@ -58,6 +59,7 @@ export function FieldShell({ user, children }: { user: { nama: string; pangkat?:
                   <p className="truncate text-sm font-semibold">{[user.pangkat, user.nama].filter(Boolean).join(' ')}</p>
                   <p className="truncate text-xs text-muted">Bhabinkamtibmas · {user.unit.nama}</p>
                 </div>
+                <Link href="/bhabin/profil" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-bg"><UserRound size={16} /> Profil saya</Link>
                 <Link href="/ganti-sandi" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-bg"><KeyRound size={16} /> Ganti sandi</Link>
                 <button type="button" onClick={logout} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-danger hover:bg-danger-soft"><LogOut size={16} /> Keluar</button>
               </div>

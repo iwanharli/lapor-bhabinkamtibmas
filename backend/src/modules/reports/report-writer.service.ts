@@ -4,6 +4,7 @@ import { AuthUser } from '../../common/decorators/auth.decorators';
 import { SensitiveDataService } from '../../common/crypto/sensitive-data.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { localDate } from '../../common/time';
+import { StorageService } from '../../common/storage/storage.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { FormSchemaJson, isPriority, mergeSecret, mergeSensitive, splitSensitive, validateReportData } from './report-validator';
@@ -34,6 +35,7 @@ export class ReportWriterService {
     private crypto: SensitiveDataService,
     private audit: AuditService,
     private notifications: NotificationsService,
+    private storage: StorageService,
   ) {}
 
   /** `existing`: laporan yang sudah dibuat (draft/ralat) tetap boleh memakai versi skema lamanya. */
@@ -203,6 +205,22 @@ export class ReportWriterService {
   }
 
   /** Kirim laporan: validasi penuh lalu langsung final (`SUBMITTED`); tidak ada tahap verifikasi. */
+  /** Buang draft milik sendiri beserta lampirannya. Laporan terkirim tidak bisa dihapus. */
+  async discard(me: AuthUser, id: string) {
+    const r = await this.prisma.report.findUnique({ where: { id }, include: { attachments: { select: { id: true, objectKey: true, thumbKey: true } } } });
+    if (!r || r.userId !== me.id) throw new NotFoundException({ code: 'NOT_FOUND' });
+    if (r.status !== ReportStatus.DRAFT) throw new ConflictException({ code: 'INVALID_TRANSITION', message: 'Hanya draft yang bisa dibuang' });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.reportStatusHistory.deleteMany({ where: { reportId: id } });
+      await tx.attachment.deleteMany({ where: { reportId: id } });
+      const res = await tx.report.deleteMany({ where: { id, status: ReportStatus.DRAFT } });
+      if (!res.count) throw new ConflictException({ code: 'INVALID_TRANSITION', message: 'Status laporan sudah berubah' });
+      await this.audit.log({ actorId: me.id, action: 'REPORT_DRAFT_DISCARD', entity: 'report', entityId: id, meta: { nomor: r.nomor, category: r.category } }, tx);
+    });
+    // Berkas dihapus setelah transaksi berhasil; kegagalan hapus berkas tidak membatalkan.
+    for (const a of r.attachments) for (const k of [a.objectKey, a.thumbKey]) if (k) await this.storage.remove(k).catch(() => undefined);
+  }
+
   async submit(me: AuthUser, id: string) {
     const r = await this.ownedEditable(me, id);
     if (r.status !== ReportStatus.DRAFT) return this.summary(r);

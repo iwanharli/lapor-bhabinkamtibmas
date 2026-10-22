@@ -1,5 +1,6 @@
-import { CircleAlert, CircleCheck, Crosshair, ExternalLink, MapPin, ServerCog } from 'lucide-react';
+import { CircleAlert, CircleCheck, Crosshair, MapPin, ServerCog } from 'lucide-react';
 import { cn } from '@/components/ui';
+import { MapFrame } from './map-frame';
 import { tanggalJam, jarak } from '@/lib/format';
 import type { ReportDetail } from '@/lib/types';
 
@@ -9,7 +10,7 @@ function Check({ ok, icon, label, value }: { ok?: boolean; icon: React.ReactNode
       <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg', ok === false ? 'bg-warn-soft text-warn' : ok ? 'bg-success-soft text-success' : 'bg-bg text-muted')}>
         {icon}
       </span>
-      <span className="flex-1 text-muted">{label}</span>
+      <span className="flex-1 whitespace-nowrap text-muted">{label}</span>
       <span className="text-right font-medium">{value}</span>
     </li>
   );
@@ -17,21 +18,12 @@ function Check({ ok, icon, label, value }: { ok?: boolean; icon: React.ReactNode
 
 /** Peta titik laporan + pemeriksaan bukti lokasi. Peta memakai OpenStreetMap (butuh internet; tautan tetap tersedia). */
 export function LocationInfo({ report: r }: { report: ReportDetail }) {
-  const d = 0.004;
-  const bbox = [r.lng - d, r.lat - d * 0.6, r.lng + d, r.lat + d * 0.6].join(',');
-  const embed = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${r.lat},${r.lng}`;
   const mapUrl = `https://www.openstreetmap.org/?mlat=${r.lat}&mlon=${r.lng}#map=17/${r.lat}/${r.lng}`;
   const accurate = r.gpsAccuracyM != null && r.gpsAccuracyM <= 50;
 
   return (
     <div>
-      <div className="relative h-48 bg-bg">
-        <iframe title="Peta lokasi laporan" src={embed} loading="lazy" className="h-full w-full border-0" />
-        <a href={mapUrl} target="_blank" rel="noreferrer"
-          className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-surface/95 px-2.5 py-1 text-xs font-medium shadow hover:text-primary">
-          Buka peta <ExternalLink size={12} />
-        </a>
-      </div>
+      <MapFrame lat={r.lat} lng={r.lng} mapUrl={mapUrl} />
       <ul className="divide-y divide-line">
         <Check icon={<MapPin size={16} />} label="Koordinat" value={<span className="font-mono text-xs">{r.lat.toFixed(5)}, {r.lng.toFixed(5)}</span>} />
         <Check ok={accurate} icon={<Crosshair size={16} />} label="Akurasi GPS" value={r.gpsAccuracyM != null ? `±${Math.round(r.gpsAccuracyM)} m` : '—'} />

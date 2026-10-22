@@ -11,9 +11,21 @@ export function PriceTrendChart({ rows, nama }: { rows: PriceTrendRow[]; nama: s
   const days = rows.map((r) => r.hari);
   const values = rows.map((r) => r.rata2);
   const avg = values.length ? Math.round(values.reduce((s, v) => s + v, 0) / values.length) : 0;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const change = values.length > 1 && values[0] ? ((values.at(-1)! - values[0]) / values[0]) * 100 : null;
+  const dayMin = days[values.indexOf(min)];
+  const dayMax = days[values.indexOf(max)];
+  const stats = [
+    { label: 'Terendah', value: rp(min), sub: dayLabel(dayMin), cls: 'text-success' },
+    { label: 'Tertinggi', value: rp(max), sub: dayLabel(dayMax), cls: 'text-danger' },
+    { label: 'Rata-rata periode', value: rp(avg), sub: `${days.length} hari ada data`, cls: '' },
+    { label: 'Perubahan periode', value: change == null ? '—' : `${change > 0 ? '+' : ''}${change.toLocaleString('id-ID', { maximumFractionDigits: 1 })}%`, sub: `${dayLabel(days[0])} → ${dayLabel(days.at(-1)!)}`, cls: change == null ? '' : change > 0 ? 'text-danger' : 'text-success' },
+  ];
   return (
+    <div>
     <EChart
-      height={300}
+      height={340}
       option={{
         legend: { show: false },
         grid: { left: 8, right: 24, top: 24, bottom: 8, containLabel: true },
@@ -41,5 +53,15 @@ export function PriceTrendChart({ rows, nama }: { rows: PriceTrendRow[]; nama: s
         ],
       }}
     />
+    <dl className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-line sm:grid-cols-4">
+      {stats.map((s) => (
+        <div key={s.label} className="bg-bg/60 px-3.5 py-2.5">
+          <dt className="text-[11px] text-muted">{s.label}</dt>
+          <dd className={`text-sm font-semibold tabular-nums ${s.cls}`}>{s.value}</dd>
+          <dd className="text-[11px] text-muted">{s.sub}</dd>
+        </div>
+      ))}
+    </dl>
+    </div>
   );
 }

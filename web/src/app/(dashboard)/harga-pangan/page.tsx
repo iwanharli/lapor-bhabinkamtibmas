@@ -4,6 +4,7 @@ import { CommodityFocus } from '@/features/prices/commodity-focus';
 import { CommodityPicker } from '@/features/prices/commodity-picker';
 import { LatestPriceTable } from '@/features/prices/latest-price-table';
 import { PriceAreaTable } from '@/features/prices/price-area-table';
+import { UrlUnitFilter } from '@/features/units/unit-combobox';
 import { isSpike } from '@/features/prices/price-change';
 import { PriceTrendChart } from '@/features/prices/price-trend-chart';
 import { apiGet, getSessionUser } from '@/lib/api/server';
@@ -12,7 +13,7 @@ import type { LatestPrice, PriceAreaRow, PriceTrendRow } from '@/lib/types';
 
 const RANGES = [7, 30, 90];
 
-export default async function HargaPanganPage({ searchParams }: { searchParams: Promise<{ c?: string; hari?: string }> }) {
+export default async function HargaPanganPage({ searchParams }: { searchParams: Promise<{ c?: string; hari?: string; unitId?: string }> }) {
   const sp = await searchParams;
   const days = RANGES.includes(Number(sp.hari)) ? Number(sp.hari) : 30;
   const from = new Date(Date.now() - days * 86_400_000).toISOString();
@@ -30,7 +31,7 @@ export default async function HargaPanganPage({ searchParams }: { searchParams: 
   const byChange = [...withData].sort((a, b) => (persen(b.rata2, b.rata2_sebelumnya) ?? -999) - (persen(a.rata2, a.rata2_sebelumnya) ?? -999));
   const selected = latest.find((p) => p.commodity_id === Number(sp.c)) ?? byChange[0];
 
-  const area = selected ? await apiGet<PriceAreaRow[]>(`/analytics/prices/by-area?commodityId=${selected.commodity_id}`) : [];
+  const area = selected ? await apiGet<PriceAreaRow[]>(`/analytics/prices/by-area?commodityId=${selected.commodity_id}${sp.unitId ? `&unitId=${sp.unitId}` : ''}`) : [];
 
   const days_ = [...new Set(trend.map((t) => t.hari))].sort();
   const series = new Map<number, (number | null)[]>();
@@ -50,6 +51,7 @@ export default async function HargaPanganPage({ searchParams }: { searchParams: 
     const c = p.c ?? selected?.commodity_id;
     if (c) q.set('c', String(c));
     if ((p.hari ?? days) !== 30) q.set('hari', String(p.hari ?? days));
+    if (sp.unitId) q.set('unitId', sp.unitId);
     const s = q.toString();
     return s ? `/harga-pangan?${s}` : '/harga-pangan';
   };
@@ -99,8 +101,9 @@ export default async function HargaPanganPage({ searchParams }: { searchParams: 
                   <EmptyState tone="neutral" title="Data tren belum cukup">Butuh laporan harga minimal di 2 hari berbeda.</EmptyState>
                 )}
               </Card>
-              <Card title="Sebaran per desa" subtitle="Rata-rata 7 hari · % dibanding rata-rata wilayah">
-                <PriceAreaTable rows={area} average={selected.rata2} tz={me?.unit.timezone} />
+              <Card title="Sebaran per desa" subtitle="Rata-rata 7 hari · % dibanding rata-rata wilayah" bodyClassName="p-0">
+                <PriceAreaTable key={`${selected.commodity_id}-${sp.unitId ?? ''}`} rows={area} average={selected.rata2} tz={me?.unit.timezone}
+                  filter={<UrlUnitFilter levels={['POLDA', 'POLRES', 'POLSEK']} emptyLabel="Semua wilayah" className="sm:w-full" />} />
               </Card>
             </div>
           </Stack>

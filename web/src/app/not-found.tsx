@@ -1,5 +1,6 @@
-import { ClipboardList, Home, SearchX, ShieldCheck } from 'lucide-react';
+import { ClipboardList, Home, SearchX } from 'lucide-react';
 import Link from 'next/link';
+import { Logo } from '@/components/brand/logo';
 import { ButtonLink } from '@/components/ui';
 
 export default function NotFoundPage() {
@@ -21,7 +22,7 @@ export default function NotFoundPage() {
             <ClipboardList size={16} /> Lihat laporan
           </Link>
         </div>
-        <div className="mt-8 inline-flex items-center gap-2 text-xs text-muted"><ShieldCheck size={14} className="text-primary" /> Lapor Bhabinkamtibmas · Baharkam Polri</div>
+        <div className="mt-8 inline-flex items-center gap-2 text-xs text-muted"><Logo size={18} /> Lapor Bhabinkamtibmas · Baharkam Polri</div>
       </section>
     </main>
   );

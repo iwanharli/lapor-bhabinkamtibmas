@@ -10,6 +10,8 @@ export interface SchemaField {
   required?: boolean;
   /** Wajib (dan ditampilkan) hanya bila field lain bernilai `equals` atau salah satu `in`. Di repeater, field acuannya di baris yang sama. */
   requiredIf?: { field: string; equals?: unknown; in?: unknown[] };
+  /** Tampil hanya untuk kelompok tertentu (nilai field lain, jenis kelamin, umur dari tanggal lahir); di repeater acuannya baris yang sama. */
+  showIf?: ShowIf;
   /** Petunjuk isian per nilai field acuan requiredIf (hanya untuk tampilan). */
   placeholders?: Record<string, string>;
   options?: string[];
@@ -22,6 +24,36 @@ export interface SchemaField {
   fields?: SchemaField[];
 }
 
+export interface ShowIf {
+  field?: string;
+  in?: unknown[];
+  sexField?: string;
+  sex?: string;
+  /** Field tanggal lahir (YYYY-MM-DD); umur dalam tahun, ageMax eksklusif. Tanpa tanggal lahir → tidak tampil. */
+  dob?: string;
+  ageMin?: number;
+  ageMax?: number;
+}
+
+/** Umur (tahun penuh) dari YYYY-MM-DD; null bila kosong/tidak valid. */
+export function ageYears(dob: unknown, now = new Date()) {
+  if (typeof dob !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dob)) return null;
+  const [y, m, d] = dob.split('-').map(Number);
+  const a = now.getFullYear() - y - (now.getMonth() + 1 < m || (now.getMonth() + 1 === m && now.getDate() < d) ? 1 : 0);
+  return a < 0 ? null : a;
+}
+
+export function showIfMet(s: ShowIf | undefined, data: Record<string, unknown>) {
+  if (!s) return true;
+  if (s.field && !(s.in ?? []).includes(data[s.field])) return false;
+  if (s.sexField && data[s.sexField] !== s.sex) return false;
+  if (s.dob) {
+    const a = ageYears(data[s.dob]);
+    if (a == null || (s.ageMin != null && a < s.ageMin) || (s.ageMax != null && a >= s.ageMax)) return false;
+  }
+  return true;
+}
+
 export interface FormSchemaJson {
   category: string;
   version: number;
@@ -29,7 +61,8 @@ export interface FormSchemaJson {
   fields: SchemaField[];
   /** Formulir bertahap: judul langkah & field yang tampil di tiap langkah. */
   steps?: { title: string; description?: string; fields: string[] }[];
-  rules?: { when: { field: string; equals: unknown }; then: { flag: 'PRIORITY' } }[];
+  /** Prioritas bila field bernilai equals; dengan `repeater`, cukup salah satu baris yang cocok. */
+  rules?: { when: { repeater?: string; field: string; equals: unknown }; then: { flag: 'PRIORITY' } }[];
 }
 
 export interface FieldError {
@@ -42,6 +75,7 @@ const empty = (v: unknown) => v == null || v === '' || (Array.isArray(v) && v.le
 
 /** Field bersyarat aktif? (tanpa requiredIf selalu aktif) */
 export function conditionMet(f: SchemaField, data: Record<string, unknown>) {
+  if (!showIfMet(f.showIf, data)) return false;
   if (!f.requiredIf) return true;
   const v = data[f.requiredIf.field];
   return f.requiredIf.in ? f.requiredIf.in.includes(v) : v === f.requiredIf.equals;
@@ -138,7 +172,16 @@ export function validateReportData(
 
 /** Apakah laporan prioritas menurut aturan skema. */
 export function isPriority(schema: FormSchemaJson, data: Record<string, unknown>) {
-  return (schema.rules ?? []).some((r) => r.then.flag === 'PRIORITY' && data[r.when.field] === r.when.equals);
+  return (schema.rules ?? []).some((r) => {
+    if (r.then.flag !== 'PRIORITY') return false;
+    if (!r.when.repeater) return data[r.when.field] === r.when.equals;
+    const rows = data[r.when.repeater];
+    return Array.isArray(rows) && rows.some((row) => {
+      const x = (row ?? {}) as Record<string, unknown>;
+      const sub = schema.fields.find((f) => f.key === r.when.repeater)?.fields?.find((f) => f.key === r.when.field);
+      return x[r.when.field] === r.when.equals && (!sub || conditionMet(sub, x));
+    });
+  });
 }
 
 /**

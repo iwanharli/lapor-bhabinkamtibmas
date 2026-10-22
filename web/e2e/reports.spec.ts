@@ -10,7 +10,7 @@ test('laporan terkirim langsung final dan dapat diralat pelapor', async ({ page 
 
   await expect(page.getByRole('heading', { name: report.nomor })).toBeVisible();
   await expect(page.getByText('Terkirim').first()).toBeVisible();
-  await expect(page.getByText(/masih dapat meralat/)).toBeVisible();
+  await expect(page.getByText(/ralat s\.d\./)).toBeVisible();
   await expect(page.locator('img[src*="thumb=1"]')).toHaveCount(1);
   // Tidak ada lagi aksi verifikasi.
   await expect(page.getByRole('button', { name: /Setujui|Minta revisi|Tolak/ })).toHaveCount(0);

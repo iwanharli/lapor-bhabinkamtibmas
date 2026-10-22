@@ -9,9 +9,9 @@ export class NotificationsController {
   /** GET /notifications?unread=true&page=&limit= */
   @Get()
   @Roles(...ALL_ROLES)
-  list(@CurrentUser() me: AuthUser, @Query() q: { unread?: string; page?: string; limit?: string }) {
+  list(@CurrentUser() me: AuthUser, @Query() q: { unread?: string; type?: string; page?: string; limit?: string }) {
     return this.notifications.list(me, {
-      unread: q.unread === 'true', page: Math.max(Number(q.page) || 1, 1), limit: Math.min(Number(q.limit) || 20, 100),
+      unread: q.unread === 'true', type: q.type && /^[A-Z_]{1,40}$/.test(q.type) ? q.type : undefined, page: Math.max(Number(q.page) || 1, 1), limit: Math.min(Number(q.limit) || 20, 100),
     });
   }
 

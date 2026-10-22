@@ -137,6 +137,41 @@
       "max": 3
     },
     {
+      "key": "sumber_air_minum",
+      "label": "Sumber air minum",
+      "type": "select",
+      "options": [
+        "Air kemasan/isi ulang",
+        "Ledeng/PAM",
+        "Sumur bor/pompa",
+        "Sumur/mata air terlindung",
+        "Sumur/mata air tidak terlindung",
+        "Sungai/danau/irigasi",
+        "Air hujan",
+        "Lainnya"
+      ]
+    },
+    {
+      "key": "jamban",
+      "label": "Fasilitas jamban",
+      "type": "select",
+      "options": [
+        "Jamban sendiri dengan septic tank",
+        "Jamban sendiri tanpa septic tank",
+        "Jamban bersama/umum",
+        "Tidak ada (BAB sembarangan)"
+      ]
+    },
+    {
+      "key": "perokok_dalam_rumah",
+      "label": "Ada yang merokok di dalam rumah?",
+      "type": "select",
+      "options": [
+        "Tidak ada",
+        "Ada"
+      ]
+    },
+    {
       "key": "kk_nama",
       "label": "Nama lengkap",
       "type": "text",
@@ -342,6 +377,25 @@
         "Disabilitas": "Jenis disabilitas, mis. tunanetra, pengguna kursi roda",
         "Lansia sakit menahun": "Kondisi, mis. stroke, tidak bisa berjalan",
         "Lainnya": "Sebutkan"
+      }
+    },
+    {
+      "key": "kk_risiko_ibu",
+      "label": "Kelompok risiko stunting",
+      "type": "select",
+      "options": [
+        "Tidak ada",
+        "Ibu hamil",
+        "Ibu hamil KEK/anemia",
+        "Remaja putri anemia"
+      ],
+      "hint": "Untuk perempuan 10–49 tahun. Sesuai keterangan bidan/Posyandu bila ada.",
+      "showIf": {
+        "sexField": "kk_jenis_kelamin",
+        "sex": "Perempuan",
+        "dob": "kk_tanggal_lahir",
+        "ageMin": 10,
+        "ageMax": 50
       }
     },
     {
@@ -585,6 +639,91 @@
           }
         },
         {
+          "key": "status_stunting",
+          "label": "Status stunting",
+          "type": "select",
+          "options": [
+            "Normal",
+            "Berisiko stunting",
+            "Stunting",
+            "Belum diketahui"
+          ],
+          "hint": "Sesuai buku KIA/KMS atau keterangan Posyandu/Puskesmas.",
+          "showIf": {
+            "dob": "tanggal_lahir",
+            "ageMax": 5
+          }
+        },
+        {
+          "key": "stunting_ditangani",
+          "label": "Sudah ditangani?",
+          "type": "select",
+          "options": [
+            "Ya, rutin ke Posyandu/Puskesmas",
+            "Belum"
+          ],
+          "requiredIf": {
+            "field": "status_stunting",
+            "in": [
+              "Berisiko stunting",
+              "Stunting"
+            ]
+          },
+          "showIf": {
+            "dob": "tanggal_lahir",
+            "ageMax": 5
+          }
+        },
+        {
+          "key": "stunting_ket",
+          "label": "Catatan stunting",
+          "type": "text",
+          "maxLength": 200,
+          "placeholder": "mis. tinggi 78 cm di umur 2 tahun",
+          "showIf": {
+            "field": "status_stunting",
+            "in": [
+              "Berisiko stunting",
+              "Stunting"
+            ],
+            "dob": "tanggal_lahir",
+            "ageMax": 5
+          }
+        },
+        {
+          "key": "risiko_ibu",
+          "label": "Kelompok risiko stunting",
+          "type": "select",
+          "options": [
+            "Tidak ada",
+            "Ibu hamil",
+            "Ibu hamil KEK/anemia",
+            "Remaja putri anemia"
+          ],
+          "hint": "Untuk perempuan 10–49 tahun. Sesuai keterangan bidan/Posyandu bila ada.",
+          "showIf": {
+            "sexField": "jenis_kelamin",
+            "sex": "Perempuan",
+            "dob": "tanggal_lahir",
+            "ageMin": 10,
+            "ageMax": 50
+          }
+        },
+        {
+          "key": "calon_pengantin",
+          "label": "Calon pengantin?",
+          "type": "select",
+          "options": [
+            "Tidak",
+            "Ya"
+          ],
+          "hint": "Berencana menikah dalam 1 tahun ke depan.",
+          "showIf": {
+            "dob": "tanggal_lahir",
+            "ageMin": 16
+          }
+        },
+        {
           "key": "no_hp",
           "label": "No. HP / WhatsApp",
           "type": "phone",
@@ -619,11 +758,14 @@
     },
     {
       "title": "Kondisi hunian",
-      "description": "Status, jenis bangunan, kondisi, dan foto rumah",
+      "description": "Status, jenis bangunan, kondisi, sanitasi, dan foto rumah",
       "fields": [
         "status_kepemilikan",
         "jenis_bangunan",
         "kondisi_hunian",
+        "sumber_air_minum",
+        "jamban",
+        "perokok_dalam_rumah",
         "foto_hunian"
       ]
     },
@@ -643,6 +785,7 @@
         "kk_pekerjaan_ket",
         "kk_kebutuhan_khusus",
         "kk_kebutuhan_khusus_ket",
+        "kk_risiko_ibu",
         "kk_no_hp"
       ]
     },
@@ -661,5 +804,16 @@
       ]
     }
   ],
-  "rules": []
+  "rules": [
+    {
+      "when": {
+        "repeater": "anggota",
+        "field": "stunting_ditangani",
+        "equals": "Belum"
+      },
+      "then": {
+        "flag": "PRIORITY"
+      }
+    }
+  ]
 }

@@ -18,6 +18,15 @@ export class VillagesService {
     return this.prisma.village.findMany({ where, orderBy: [{ kabupaten: 'asc' }, { kecamatan: 'asc' }, { nama: 'asc' }], take: 500 });
   }
 
+  async distance(id: string, lat: number, lng: number) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) throw new BadRequestException('Koordinat tidak valid');
+    const [row] = await this.prisma.$queryRaw<{ d: number | null }[]>`
+      SELECT round(ST_Distance(geom::geography, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography))::float AS d
+      FROM villages WHERE id = ${id}::uuid AND geom IS NOT NULL`;
+    const distanceM = row?.d ?? null;
+    return { distanceM, insideVillage: distanceM == null ? null : distanceM <= 200 };
+  }
+
   async create(me: AuthUser, dto: Prisma.VillageUncheckedCreateInput) {
     if (dto.polsekId) await this.units.assertInScope(me.unitId, dto.polsekId);
     const v = await this.prisma.village.create({ data: dto });

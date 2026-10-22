@@ -69,3 +69,13 @@ export async function apiGetOrNotFound<T>(path: string): Promise<T | null> {
   if (!res.ok) throw new Error(`API ${path} gagal: ${res.status}`);
   return res.json() as Promise<T>;
 }
+
+/** Header asal klien (IP & user-agent browser) yang diteruskan BFF ke API agar tercatat di audit log. */
+export function clientHeaders(h: Headers): Record<string, string> {
+  const out: Record<string, string> = {};
+  const ua = h.get('user-agent');
+  const xff = h.get('x-forwarded-for') ?? h.get('x-real-ip');
+  if (ua) out['user-agent'] = ua;
+  if (xff) out['x-forwarded-for'] = xff;
+  return out;
+}

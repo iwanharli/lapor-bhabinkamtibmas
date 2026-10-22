@@ -15,20 +15,25 @@ export function navFor(role: string): NavSection[] {
   }
   const sections: NavSection[] = [
     {
-      title: 'Pemantauan',
+      title: 'Beranda',
       items: [
         { href: '/', label: 'Ringkasan', icon: 'dashboard' },
-        { href: '/peta', label: 'Peta Sebaran', icon: 'map' },
-        { href: '/kinerja', label: 'Kinerja Bhabin', icon: 'performance' },
-        { href: '/absensi', label: 'Absensi', icon: 'users' },
         { href: '/notifikasi', label: 'Notifikasi', icon: 'notifications' },
       ],
     },
     {
-      title: 'Operasional',
+      title: 'Laporan & Wilayah',
       items: [
         { href: '/laporan', label: 'Laporan', icon: 'reports', children: REPORT_CATEGORIES },
+        { href: '/peta', label: 'Peta Sebaran', icon: 'map' },
         { href: '/harga-pangan', label: 'Harga Pangan', icon: 'prices' },
+      ],
+    },
+    {
+      title: 'Personel',
+      items: [
+        { href: '/kinerja', label: 'Kinerja Bhabin', icon: 'performance' },
+        { href: '/absensi', label: 'Absensi', icon: 'attendance' },
       ],
     },
   ];

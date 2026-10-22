@@ -47,6 +47,13 @@ export class VillagesController {
     return this.villages.list(me, q);
   }
 
+  /** Jarak (m) sebuah titik ke batas desa; dipakai formulir untuk peringatan sebelum kirim. */
+  @Get('villages/:id/distance')
+  @Roles(...ALL_ROLES)
+  distance(@Param('id', ParseUUIDPipe) id: string, @Query('lat') lat: string, @Query('lng') lng: string) {
+    return this.villages.distance(id, Number(lat), Number(lng));
+  }
+
   @Get('admin/villages')
   @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
   adminList(@CurrentUser() me: AuthUser, @Query() q: { q?: string; polsekId?: string; batas?: string; page?: string; limit?: string }) {

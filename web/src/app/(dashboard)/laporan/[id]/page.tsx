@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { BackLink, Card, SplitLayout, Stack } from '@/components/ui';
+import { Card, SplitLayout, Stack } from '@/components/ui';
 import { AttachmentGallery } from '@/features/reports/attachment-gallery';
 import { LocationInfo } from '@/features/reports/location-info';
 import { PriceItemsTable } from '@/features/reports/price-items-table';
@@ -19,7 +19,6 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
 
   return (
     <>
-      <BackLink href="/laporan" />
       <Stack>
         <ReportHeader report={r} />
 
@@ -30,23 +29,21 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
               <Card title="Lokasi & bukti" subtitle="Titik GPS saat laporan dibuat">
                 <LocationInfo report={r} />
               </Card>
+              <Card title="Lampiran" subtitle={r.attachments.length ? `${r.attachments.length} berkas · klik untuk memperbesar` : 'Foto & dokumen bukti kegiatan'}>
+                <AttachmentGallery items={r.attachments} fields={r.schema?.fields ?? []} tz={r.unit.timezone} />
+              </Card>
               <Card title="Riwayat" subtitle={`${r.history.length} perubahan status`}>
                 <StatusTimeline history={r.history} tz={r.unit.timezone} />
               </Card>
             </>
           }
         >
-          <Card title="Isian laporan" subtitle={r.schema?.title}>
-            <ReportFields report={r} />
-          </Card>
+          <ReportFields report={r} />
           {r.items.length > 0 && (
             <Card title="Harga komoditas" subtitle={`${r.items.length} komoditas · dibanding rata-rata 7 hari di wilayah Anda; selisih ≥10% disorot`}>
               <PriceItemsTable items={r.items} averages={averages} />
             </Card>
           )}
-          <Card title="Lampiran" subtitle={r.attachments.length ? `${r.attachments.length} berkas · klik foto untuk memperbesar` : 'Foto & dokumen bukti kegiatan'}>
-            <AttachmentGallery items={r.attachments} fields={r.schema?.fields ?? []} tz={r.unit.timezone} />
-          </Card>
         </SplitLayout>
       </Stack>
     </>

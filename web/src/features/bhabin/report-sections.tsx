@@ -1,6 +1,8 @@
 import { ChevronDown, Lock, UserRound } from 'lucide-react';
 import { cn } from '@/components/ui';
 import { displayValue } from '@/lib/format';
+import { revealableFields } from '@/features/reports/revealable';
+import { SensitiveReveal } from '@/features/reports/sensitive-reveal';
 import type { ReportDetail, SchemaField } from '@/lib/types';
 
 const SKIP = ['photo', 'file'];
@@ -67,8 +69,17 @@ export function ReportSections({ report }: { report: ReportDetail }) {
     ? report.schema.steps.map((s) => ({ title: s.title, fields: s.fields.map((k) => byKey.get(k)).filter(Boolean) as SchemaField[] }))
     : [{ title: 'Isian laporan', fields }];
 
+  const revealable = revealableFields(report);
+
   return (
     <div className="space-y-3">
+      {report.canRevealSensitive && revealable.length > 0 && (
+        <div className="flex items-center gap-3 rounded-2xl border border-violet-500/25 bg-gradient-to-r from-violet-500/10 via-indigo-500/5 to-transparent p-3.5 shadow-sm">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-500/15 text-violet-700 dark:text-violet-300"><Lock size={18} /></span>
+          <p className="min-w-0 flex-1 text-xs leading-snug text-muted">Data sensitif (mis. No. KK & NIK) disimpan terenkripsi. Membukanya dicatat di audit log.</p>
+          <SensitiveReveal reportId={report.id} fields={revealable} />
+        </div>
+      )}
       {groups.filter((g) => g.fields.length).map((g, gi) => {
         const shown = g.fields.filter((f) => f.type === 'repeater' || (f.sensitive ? report.sensitiveFilled?.includes(f.key) : filled(report.data[f.key])));
         return (

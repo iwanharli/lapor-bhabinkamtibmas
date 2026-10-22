@@ -1,9 +1,10 @@
 'use client';
 
-import { ArrowRight, Eye, EyeOff, FlaskConical, LockKeyhole, ShieldCheck, UserRound } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, FlaskConical, LockKeyhole, UserRound } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { Alert, Button, cn, ErrorText, Field, Input } from '@/components/ui';
+import { Logo } from '@/components/brand/logo';
 import type { DevAccount } from '@/lib/dev-accounts';
 
 /** Tombol login cepat akun percobaan; hanya tampil bila server mengizinkan (lokal). */
@@ -93,9 +94,7 @@ function LoginForm() {
         <div className="pointer-events-none absolute -right-20 top-[30%] h-[26rem] w-[26rem] rounded-full border border-white/10" />
         <div className="pointer-events-none absolute -right-8 top-[36%] h-[19rem] w-[19rem] rounded-full bg-primary-2/10" />
         <div className="relative flex items-center gap-3">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/15 bg-white/10 text-white shadow-lg shadow-black/10">
-            <ShieldCheck size={26} />
-          </span>
+          <Logo size={56} />
           <span>
             <strong className="block text-sm font-bold tracking-wide">BINMAS</strong>
             <span className="text-xs text-white/65">Baharkam Polri</span>
@@ -119,7 +118,7 @@ function LoginForm() {
       <section className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-8 lg:px-10">
         <div className="w-full max-w-[27rem]">
           <div className="mb-6 flex items-center gap-3 lg:hidden">
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-primary-2 to-primary text-white shadow-md shadow-primary/20"><ShieldCheck size={23} /></span>
+            <Logo size={48} />
             <span><strong className="block text-sm font-bold tracking-wide">BINMAS</strong><span className="text-xs text-muted">Lapor Bhabinkamtibmas</span></span>
           </div>
 

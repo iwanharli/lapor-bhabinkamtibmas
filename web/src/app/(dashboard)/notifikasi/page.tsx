@@ -3,9 +3,9 @@ import { NotificationList } from '@/features/notifications/notification-list';
 
 export default function NotifikasiPage() {
   return (
-    <>
-      <PageHeader title="Notifikasi" subtitle="Laporan Deteksi Dini urgensi tinggi dan laporan dengan lokasi perlu dicek di wilayah Anda" />
-      <div className="max-w-3xl"><NotificationList /></div>
-    </>
+    <div className="mx-auto max-w-3xl">
+      <PageHeader title="Notifikasi" subtitle="Laporan prioritas dan laporan dengan lokasi perlu dicek di wilayah Anda" />
+      <NotificationList />
+    </div>
   );
 }

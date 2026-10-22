@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { API_URL, saveSession } from '@/lib/api/server';
+import { API_URL, saveSession, clientHeaders } from '@/lib/api/server';
 import { devAccounts, devLoginEnabled } from '@/lib/dev-accounts';
 
 const notFound = () => NextResponse.json({ error: { code: 'NOT_FOUND' } }, { status: 404 });
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   if (!acc) return notFound();
   const res = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...clientHeaders(req.headers) },
     body: JSON.stringify({ nrp: acc.nrp, password: acc.password }),
   });
   const body = await res.json();

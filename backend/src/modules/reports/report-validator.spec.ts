@@ -106,3 +106,21 @@ describe('nomor HP / WhatsApp', () => {
     expect(validateReportData(schema, { hp }, ctx)).toHaveLength(1);
   });
 });
+
+describe('showIf & prioritas repeater (stunting)', () => {
+  const s = require('../../../../packages/form-schemas/mapping_kk.v2.json') as FormSchemaJson;
+  const dob = (years: number) => `${new Date().getFullYear() - years}-01-01`;
+  it('balita stunting belum ditangani → prioritas', () => {
+    expect(isPriority(s, { anggota: [{ tanggal_lahir: dob(2), status_stunting: 'Stunting', stunting_ditangani: 'Belum' }] })).toBe(true);
+    expect(isPriority(s, { anggota: [{ tanggal_lahir: dob(2), status_stunting: 'Stunting', stunting_ditangani: 'Ya, rutin ke Posyandu/Puskesmas' }] })).toBe(false);
+  });
+  it('nilai usang di field tersembunyi (bukan balita) tidak memicu prioritas', () => {
+    expect(isPriority(s, { anggota: [{ tanggal_lahir: dob(20), status_stunting: 'Stunting', stunting_ditangani: 'Belum' }] })).toBe(false);
+  });
+  it('"sudah ditangani" wajib bila balita berisiko', () => {
+    const errs = validateReportData({ ...s, fields: s.fields.filter((f) => f.key === 'anggota') }, {
+      anggota: [{ nama: 'A', hubungan: 'Anak', jenis_kelamin: 'Perempuan', agama: 'Islam', status_perkawinan: 'Belum Kawin', pekerjaan: 'Belum/Tidak Bekerja', tanggal_lahir: dob(1), status_stunting: 'Berisiko stunting' }],
+    }, { commodityIds: new Set(), attachmentCounts: null });
+    expect(errs.map((e) => e.field)).toContain('anggota[0].stunting_ditangani');
+  });
+});

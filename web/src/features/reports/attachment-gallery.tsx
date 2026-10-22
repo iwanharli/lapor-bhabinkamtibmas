@@ -49,7 +49,7 @@ export function AttachmentGallery({ items, fields, tz }: { items: ReportAttachme
       {groups.map((g) => (
         <div key={g}>
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">{label(g)}</p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-3">
             {items.filter((a) => a.fieldKey === g).map((a) =>
               isImage(a) ? (
                 <button key={a.id} type="button" onClick={() => setOpen(images.indexOf(a))}

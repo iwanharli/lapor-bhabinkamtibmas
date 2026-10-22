@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, cn, Input, Select, Textarea } from '@/components/ui';
 import { callApi } from '@/lib/api/client';
+import { jarak } from '@/lib/format';
 import type { ReportDetail } from '@/lib/types';
 import { newUuid, shrinkImage, uploadForm, useGeolocation } from './field-utils';
 
@@ -15,6 +16,7 @@ export interface FormField {
   required?: boolean;
   /** Tampil & wajib hanya bila field acuan bernilai equals / salah satu `in` (di repeater: field di baris yang sama). */
   requiredIf?: { field: string; equals?: unknown; in?: unknown[] };
+  showIf?: { field?: string; in?: unknown[]; sexField?: string; sex?: string; dob?: string; ageMin?: number; ageMax?: number };
   /** Teks bantuan di bawah isian & contoh isi di dalam kotak. */
   hint?: string;
   placeholder?: string;
@@ -42,8 +44,26 @@ const MEDIA = ['photo', 'file'];
 const PHONE = /^(\+?62|0)8\d{7,12}$/;
 const STOK_LABEL: Record<string, string> = { AMAN: 'Aman', MENIPIS: 'Menipis', KOSONG: 'Kosong' };
 
+/** Umur (tahun penuh) dari YYYY-MM-DD, selaras validator server. */
+function ageYears(dob: unknown) {
+  if (typeof dob !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dob)) return null;
+  const [y, m, d] = dob.split('-').map(Number);
+  const now = new Date();
+  const a = now.getFullYear() - y - (now.getMonth() + 1 < m || (now.getMonth() + 1 === m && now.getDate() < d) ? 1 : 0);
+  return a < 0 ? null : a;
+}
+
 /** Field bersyarat aktif (ditampilkan) untuk konteks nilai ini? */
 const active = (f: FormField, v: Values) => {
+  const s = f.showIf;
+  if (s) {
+    if (s.field && !(s.in ?? []).includes(v[s.field])) return false;
+    if (s.sexField && v[s.sexField] !== s.sex) return false;
+    if (s.dob) {
+      const a = ageYears(v[s.dob]);
+      if (a == null || (s.ageMin != null && a < s.ageMin) || (s.ageMax != null && a >= s.ageMax)) return false;
+    }
+  }
   if (!f.requiredIf) return true;
   const x = v[f.requiredIf.field];
   return f.requiredIf.in ? f.requiredIf.in.includes(x) : x === f.requiredIf.equals;
@@ -79,10 +99,22 @@ export function ReportForm({
   // Isian sensitif (No KK/NIK) yang sudah tersimpan terenkripsi: tidak dikirim ke layar; kosong = pakai nilai tersimpan.
   const saved = new Set(report?.sensitiveFilled ?? []);
   const geo = useGeolocation();
+  const [outside, setOutside] = useState<{ distanceM: number } | null>(null);
   const [clientUuid] = useState(() => newUuid());
   // Desa binaan dikunci: 1 Bhabin membina 1 desa (ralat/draft memakai desa laporan itu).
   const village = report ? { id: report.village.id, nama: report.village.nama, kecamatan: report.village.kecamatan } : villages[0];
   const villageId = village?.id ?? '';
+
+  // Cek jarak titik GPS ke batas desa agar Bhabin tahu sebelum mengirim.
+  const point = geo.fix ?? (report ? { lat: report.lat, lng: report.lng } : null);
+  useEffect(() => {
+    if (!villageId || !point) return setOutside(null);
+    let live = true;
+    callApi<{ distanceM: number | null; insideVillage: boolean | null }>(`/villages/${villageId}/distance?lat=${point.lat}&lng=${point.lng}`)
+      .then((d) => live && setOutside(d.insideVillage === false && d.distanceM != null ? { distanceM: d.distanceM } : null))
+      .catch(() => live && setOutside(null));
+    return () => { live = false; };
+  }, [villageId, point?.lat, point?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
   // Waktu kegiatan dikunci: laporan baru = waktu saat disimpan/dikirim; draft & ralat mempertahankan waktu awalnya.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -326,6 +358,15 @@ export function ReportForm({
             <Crosshair size={14} /> {geo.fix ? 'Ulangi' : 'Ambil lokasi'}
           </button>
         </div>
+        {outside && village && (
+          <div className="flex gap-3 rounded-xl border border-warn/30 bg-warn-soft/50 p-3 text-xs leading-relaxed">
+            <TriangleAlert size={16} className="mt-0.5 shrink-0 text-warn" />
+            <p className="text-ink/80">
+              Titik GPS laporan berada ±{jarak(outside.distanceM)} dari batas desa {village.nama} (toleransi 200 m).
+              Laporan tetap bisa dikirim; pimpinan diberi tahu untuk mengecek lokasinya.
+            </p>
+          </div>
+        )}
       </Section>}
 
       <Section title={steps ? steps[step].title : schema.title} description={steps?.[step].description}>
@@ -570,7 +611,7 @@ function SubInput({ f, row, update, keep }: { f: FormField; row: Row; update: (k
   if (!active(f, row)) return null;
   const req = isRequired(f, row);
   const v = row[f.key] ?? '';
-  const wide = f.type === 'text' || f.type === 'nik' || f.type === 'phone' || f.type === 'textarea' || (f.options?.length ?? 0) > 6 || !!f.requiredIf;
+  const wide = f.type === 'text' || f.type === 'nik' || f.type === 'phone' || f.type === 'textarea' || (f.options?.length ?? 0) > 6 || !!f.requiredIf || !!f.showIf || !!f.hint;
   const control =
     f.type === 'select' ? (
       <Select value={v} onChange={(e) => update(f.key, e.target.value)} className="h-11">
@@ -584,21 +625,50 @@ function SubInput({ f, row, update, keep }: { f: FormField; row: Row; update: (k
     ) : f.type === 'nik' ? (
       <Input inputMode="numeric" autoComplete="off" maxLength={16} value={v} placeholder={keep ? 'Tersimpan · kosongkan bila tidak diubah' : '16 digit'} onChange={(e) => update(f.key, e.target.value.replace(/\D/g, ''))} className="h-11 font-mono tracking-wider" />
     ) : (
-      <Input value={v} maxLength={f.maxLength} placeholder={f.placeholders && f.requiredIf ? f.placeholders[row[f.requiredIf.field]] : undefined} onChange={(e) => update(f.key, e.target.value)} className="h-11" />
+      <Input value={v} maxLength={f.maxLength} placeholder={f.placeholders && f.requiredIf ? f.placeholders[row[f.requiredIf.field]] : f.placeholder} onChange={(e) => update(f.key, e.target.value)} className="h-11" />
     );
   return (
     <label className={cn('block', wide && 'col-span-2')}>
       <span className="mb-1 block text-xs font-medium text-muted">{f.label}{req && <span className="text-danger"> *</span>}</span>
       {control}
+      {f.hint && <span className="mt-1 block text-[11px] text-muted">{f.hint}</span>}
     </label>
   );
 }
 
 /** Repeater berupa kartu per baris (mis. anggota keluarga), tombol + untuk menambah. */
+/** Umur dalam bulan dari tanggal lahir YYYY-MM-DD (null bila kosong/tidak valid/di masa depan). */
+function ageMonths(d?: string) {
+  if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
+  const [y, m, dd] = d.split('-').map(Number);
+  const now = new Date();
+  const months = (now.getFullYear() - y) * 12 + (now.getMonth() + 1 - m) - (now.getDate() < dd ? 1 : 0);
+  return months < 0 ? null : months;
+}
+const BALITA_MONTHS = 60;
+const umurLabel = (mo: number) => (mo < 12 ? `${mo} bulan` : `${Math.floor(mo / 12)} tahun${mo % 12 ? ` ${mo % 12} bulan` : ''}`);
+/** Isian balita yang disembunyikan & diisi otomatis (status/pekerjaan tetap wajib di server). */
+const BALITA_DEFAULTS: Record<string, string> = { status_perkawinan: 'Belum Kawin', pendidikan: 'Tidak/Belum Sekolah', pekerjaan: 'Belum/Tidak Bekerja', pekerjaan_ket: '', no_hp: '' };
+const isBalita = (row: Row) => (ageMonths(row.tanggal_lahir) ?? Infinity) < BALITA_MONTHS;
+
 function CardRepeater({ f, rows, set, keep }: { f: FormField; rows: Row[]; set: (rows: Row[]) => void; keep: boolean }) {
   const max = f.max ?? 20;
   const noun = f.label.toLowerCase().replace(/^daftar /, '');
-  const update = (i: number, k: string, v: string) => set(rows.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
+  const subKeys = new Set((f.fields ?? []).map((x) => x.key));
+  const update = (i: number, k: string, v: string) => set(rows.map((r, j) => {
+    if (j !== i) return r;
+    const next = { ...r, [k]: v };
+    if (k === 'tanggal_lahir' && isBalita(next)) {
+      for (const [dk, dv] of Object.entries(BALITA_DEFAULTS)) if (subKeys.has(dk)) next[dk] = dv;
+    }
+    return next;
+  }));
+  // Baris balita dari draft/cadangan lama: samakan isian tersembunyi agar tidak gagal validasi.
+  useEffect(() => {
+    const fix = (r: Row) => isBalita(r) && Object.entries(BALITA_DEFAULTS).some(([k, v]) => subKeys.has(k) && (r[k] ?? '') !== v);
+    if (rows.some(fix)) set(rows.map((r) => (fix(r) ? { ...r, ...Object.fromEntries(Object.entries(BALITA_DEFAULTS).filter(([k]) => subKeys.has(k))) } : r)));
+  }, [rows]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="space-y-3">
       {rows.length === 0 && (
@@ -611,11 +681,16 @@ function CardRepeater({ f, rows, set, keep }: { f: FormField; rows: Row[]; set: 
               <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--brand)]/10 text-[var(--brand)]"><UserRound size={15} /></span>
               <span className="truncate">{row.nama || `${f.label} ${i + 1}`}</span>
               {row.hubungan && <span className="shrink-0 rounded-full bg-bg px-2 py-0.5 text-[11px] font-normal text-muted">{row.hubungan}</span>}
+              {(() => { const mo = ageMonths(row.tanggal_lahir); return mo != null && mo < BALITA_MONTHS
+                ? <span className="shrink-0 rounded-full bg-info-soft px-2 py-0.5 text-[11px] font-medium text-info">Balita · {umurLabel(mo)}</span> : null; })()}
             </span>
             <button type="button" onClick={() => set(rows.filter((_, j) => j !== i))} className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs text-danger hover:bg-danger-soft"><Trash2 size={13} /> Hapus</button>
           </div>
           <div className="grid grid-cols-2 gap-3 p-3">
-            {(f.fields ?? []).map((sub) => <SubInput key={sub.key} f={sub} row={row} update={(k, v) => update(i, k, v)} keep={keep} />)}
+            {(f.fields ?? []).filter((sub) => !(isBalita(row) && sub.key in BALITA_DEFAULTS)).map((sub) => <SubInput key={sub.key} f={sub} row={row} update={(k, v) => update(i, k, v)} keep={keep} />)}
+            {isBalita(row) && subKeys.has('pekerjaan') && (
+              <p className="col-span-2 rounded-lg bg-info-soft/60 px-3 py-2 text-xs text-info">Balita: status perkawinan, pendidikan & pekerjaan diisi otomatis.</p>
+            )}
           </div>
         </div>
       ))}

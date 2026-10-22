@@ -296,10 +296,10 @@ export class AnalyticsService {
   /** Harga terbaru per wilayah (kecamatan) untuk satu komoditas. */
   async pricesByArea(me: AuthUser, commodityId: number, unitId?: string) {
     const scope = await this.scopeSql(me, unitId);
-    return this.prisma.$queryRaw<{ kecamatan: string; desa: string; rata2: number; sampel: number; terakhir: Date }[]>`
-      SELECT v.kecamatan, v.nama AS desa, round(avg(i.harga))::int AS rata2, count(*)::int AS sampel, max(r.occurred_at) AS terakhir
+    return this.prisma.$queryRaw<{ kabupaten: string; kecamatan: string; desa: string; rata2: number; sampel: number; terakhir: Date }[]>`
+      SELECT v.kabupaten, v.kecamatan, v.nama AS desa, round(avg(i.harga))::int AS rata2, count(*)::int AS sampel, max(r.occurred_at) AS terakhir
       FROM report_items i JOIN reports r ON r.id = i.report_id JOIN villages v ON v.id = r.village_id
       WHERE ${scope} AND ${PRICE_VALID} AND i.commodity_id = ${commodityId} AND r.occurred_at >= now() - interval '7 days'
-      GROUP BY 1, 2 ORDER BY 3 DESC`;
+      GROUP BY 1, 2, 3 ORDER BY 4 DESC`;
   }
 }

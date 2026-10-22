@@ -36,6 +36,7 @@ export interface SchemaField {
   sensitive?: boolean;
   source?: string;
   requiredIf?: { field: string; equals?: unknown; in?: unknown[] };
+  showIf?: { field?: string; in?: unknown[]; sexField?: string; sex?: string; dob?: string; ageMin?: number; ageMax?: number };
   fields?: SchemaField[];
 }
 
@@ -130,6 +131,7 @@ export interface PriceTrendRow {
 }
 
 export interface PriceAreaRow {
+  kabupaten?: string;
   kecamatan: string;
   desa: string;
   rata2: number;

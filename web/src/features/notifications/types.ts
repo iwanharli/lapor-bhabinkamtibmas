@@ -12,4 +12,5 @@ export interface NotificationPage {
   data: AppNotification[];
   meta: { page: number; limit: number; total: number };
   unread: number;
+  byType?: Record<string, number>;
 }

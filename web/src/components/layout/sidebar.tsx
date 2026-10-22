@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  CalendarCheck,
   Bell,
   Building2,
   ChevronDown,
@@ -11,7 +12,6 @@ import {
   MapPinned,
   TrendingUp,
   LucideIcon,
-  ShieldCheck,
   ShoppingBasket,
   Users,
   X,
@@ -19,6 +19,7 @@ import {
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { cn } from '@/components/ui';
+import { Logo } from '@/components/brand/logo';
 import { useState } from 'react';
 
 /** Nama ikon dikirim dari Server Component sebagai string, dipetakan di sini. */
@@ -33,6 +34,7 @@ const ICONS = {
   performance: TrendingUp,
   audit: History,
   villages: MapPinned,
+  attendance: CalendarCheck,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;
@@ -54,9 +56,7 @@ export const isActive = (pathname: string, href: string) => (href === '/' ? path
 export function Brand({ collapsed }: { collapsed?: boolean }) {
   return (
     <Link href="/" className="flex items-center gap-3">
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary-2 to-primary text-white shadow-lg shadow-primary/30">
-        <ShieldCheck size={22} />
-      </span>
+      <Logo size={44} />
       {!collapsed && (
         <span className="leading-tight">
           <strong className="block text-[15px] text-white">Lapor Bhabinkamtibmas</strong>

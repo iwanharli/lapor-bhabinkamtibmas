@@ -14,6 +14,9 @@ const META: Record<string, { icon: typeof Home; cls: string }> = {
 
 const SIZE = { sm: ['h-8 w-8 rounded-lg', 16], md: ['h-10 w-10 rounded-xl', 19], lg: ['h-14 w-14 rounded-2xl', 26] } as const;
 
+/** Komponen ikon kategori saja (untuk latar khusus, mis. header gradien). */
+export const categoryGlyph = (category: string) => (META[category] ?? META.SAMBANG).icon;
+
 export function CategoryIcon({ category, size = 'md' }: { category: string; size?: keyof typeof SIZE }) {
   const m = META[category] ?? META.SAMBANG;
   const [box, icon] = SIZE[size];

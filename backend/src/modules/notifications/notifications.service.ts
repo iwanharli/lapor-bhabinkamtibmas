@@ -68,16 +68,17 @@ export class NotificationsService {
     }).catch((e) => this.logger.error(e));
   }
 
-  async list(me: AuthUser, q: { unread?: boolean; page: number; limit: number }) {
-    const where: Prisma.NotificationWhereInput = { userId: me.id, ...(q.unread && { readAt: null }) };
-    const [data, total, unread] = await Promise.all([
+  async list(me: AuthUser, q: { unread?: boolean; type?: string; page: number; limit: number }) {
+    const where: Prisma.NotificationWhereInput = { userId: me.id, ...(q.unread && { readAt: null }), ...(q.type && { type: q.type }) };
+    const [data, total, unread, byType] = await Promise.all([
       this.prisma.notification.findMany({ where, orderBy: { createdAt: 'desc' }, take: q.limit, skip: (q.page - 1) * q.limit }),
       this.prisma.notification.count({ where }),
       this.unreadCount(me),
+      this.prisma.notification.groupBy({ by: ['type'], where: { userId: me.id }, _count: true }),
     ]);
     // Bhabin membuka laporan di tampilan lapangan.
     const fix = (link: string | null) => (me.role === 'BHABIN' && link?.startsWith('/laporan/') ? `/bhabin${link}` : link);
-    return { data: data.map((n) => ({ ...n, link: fix(n.link) })), meta: { page: q.page, limit: q.limit, total }, unread };
+    return { data: data.map((n) => ({ ...n, link: fix(n.link) })), meta: { page: q.page, limit: q.limit, total }, unread, byType: Object.fromEntries(byType.map((t) => [t.type, t._count])) };
   }
 
   unreadCount(me: AuthUser) {

@@ -28,7 +28,10 @@ export function SensitiveReveal({ reportId, fields }: { reportId: string; fields
 
   return (
     <>
-      <Button variant="secondary" size="sm" icon={<Eye size={14} />} onClick={() => setOpen(true)}>Tampilkan data sensitif</Button>
+      <button type="button" onClick={() => setOpen(true)}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-md shadow-violet-600/25 transition hover:brightness-110 active:scale-[0.98]">
+        <Eye size={15} /> Tampilkan data sensitif
+      </button>
       <Modal open={open} onClose={() => { setOpen(false); setValues(null); setReason(''); }} size="sm" title="Data sensitif" description="Akses dicatat di audit log beserta alasannya.">
         {values ? (
           <ModalBody>

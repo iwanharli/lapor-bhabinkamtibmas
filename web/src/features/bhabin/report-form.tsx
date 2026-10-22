@@ -35,6 +35,8 @@ export interface Village { id: string; nama: string; kecamatan: string }
 type Values = Record<string, unknown>;
 type Row = Record<string, string>;
 const MEDIA = ['photo', 'file'];
+/** Nomor HP Indonesia (08…, 628…, +628…), selaras validator server. */
+const PHONE = /^(\+?62|0)8\d{7,12}$/;
 const STOK_LABEL: Record<string, string> = { AMAN: 'Aman', MENIPIS: 'Menipis', KOSONG: 'Kosong' };
 
 /** Field bersyarat aktif (ditampilkan) untuk konteks nilai ini? */
@@ -197,6 +199,7 @@ export function ReportForm({
             if (empty(sv)) {
               if (isRequired(sub, row) && !(sub.type === 'nik' && saved.has(f.key))) errs.push(`${f.label} ${i + 1} — ${sub.label} wajib diisi.`);
             } else if (sub.type === 'nik' && !/^\d{16}$/.test(sv)) errs.push(`${f.label} ${i + 1} — ${sub.label} harus 16 digit angka.`);
+            else if (sub.type === 'phone' && !PHONE.test(sv)) errs.push(`${f.label} ${i + 1} — ${sub.label} tidak valid.`);
           }
         });
         continue;
@@ -204,6 +207,7 @@ export function ReportForm({
       const v = values[f.key];
       if (req && empty(v)) errs.push(`${f.label} wajib diisi.`);
       if (f.type === 'nik' && !empty(v) && !/^\d{16}$/.test(String(v))) errs.push(`${f.label} harus 16 digit angka.`);
+      if (f.type === 'phone' && !empty(v) && !PHONE.test(String(v))) errs.push(`${f.label} tidak valid (mis. 0812xxxxxxxx).`);
     }
     return errs;
   }
@@ -534,6 +538,14 @@ function FieldInput({
     );
   }
 
+  if (f.type === 'phone') {
+    return (
+      <Labeled label={f.label} required={req} hint="Nomor yang aktif WhatsApp, mis. 0812xxxxxxxx">
+        <Input type="tel" inputMode="tel" autoComplete="off" maxLength={16} value={str} placeholder="08xxxxxxxxxx" onChange={(e) => set(f.key, e.target.value.replace(/[^\d+]/g, ''))} className="h-11 tracking-wide" />
+      </Labeled>
+    );
+  }
+
   if (f.type === 'date') {
     return (
       <Labeled label={f.label} required={req}>
@@ -555,7 +567,7 @@ function SubInput({ f, row, update, keep }: { f: FormField; row: Row; update: (k
   if (!active(f, row)) return null;
   const req = isRequired(f, row);
   const v = row[f.key] ?? '';
-  const wide = f.type === 'text' || f.type === 'nik' || f.type === 'textarea' || (f.options?.length ?? 0) > 6 || !!f.requiredIf;
+  const wide = f.type === 'text' || f.type === 'nik' || f.type === 'phone' || f.type === 'textarea' || (f.options?.length ?? 0) > 6 || !!f.requiredIf;
   const control =
     f.type === 'select' ? (
       <Select value={v} onChange={(e) => update(f.key, e.target.value)} className="h-11">
@@ -564,6 +576,8 @@ function SubInput({ f, row, update, keep }: { f: FormField; row: Row; update: (k
       </Select>
     ) : f.type === 'date' ? (
       <Input type="date" value={v} max={new Date().toISOString().slice(0, 10)} onChange={(e) => update(f.key, e.target.value)} className="h-11" />
+    ) : f.type === 'phone' ? (
+      <Input type="tel" inputMode="tel" autoComplete="off" maxLength={16} value={v} placeholder="08xxxxxxxxxx" onChange={(e) => update(f.key, e.target.value.replace(/[^\d+]/g, ''))} className="h-11 tracking-wide" />
     ) : f.type === 'nik' ? (
       <Input inputMode="numeric" autoComplete="off" maxLength={16} value={v} placeholder={keep ? 'Tersimpan · kosongkan bila tidak diubah' : '16 digit'} onChange={(e) => update(f.key, e.target.value.replace(/\D/g, ''))} className="h-11 font-mono tracking-wider" />
     ) : (

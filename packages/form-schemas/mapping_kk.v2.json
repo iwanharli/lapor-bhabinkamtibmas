@@ -346,10 +346,10 @@
     },
     {
       "key": "kk_no_hp",
-      "label": "No. HP",
-      "type": "text",
+      "label": "No. HP / WhatsApp",
+      "type": "phone",
       "required": false,
-      "maxLength": 20
+      "maxLength": 16
     },
     {
       "key": "anggota",
@@ -583,6 +583,13 @@
             "Lansia sakit menahun": "Kondisi, mis. stroke, tidak bisa berjalan",
             "Lainnya": "Sebutkan"
           }
+        },
+        {
+          "key": "no_hp",
+          "label": "No. HP / WhatsApp",
+          "type": "phone",
+          "required": false,
+          "maxLength": 16
         }
       ]
     },

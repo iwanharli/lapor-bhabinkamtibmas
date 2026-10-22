@@ -95,3 +95,14 @@ describe('isian bersyarat & sensitif bertingkat (Mapping Data Keluarga v2)', () 
     expect(mergeSecret(secret, ralat)).toEqual({ no_kk: '3201010101010001', anggota: [{ nik: '3201010101010002' }, { nik: '3201010101010003' }] });
   });
 });
+
+describe('nomor HP / WhatsApp', () => {
+  const schema = { category: 'X', version: 1, title: 'Uji', fields: [{ key: 'hp', label: 'No. HP', type: 'phone' }] } as unknown as FormSchemaJson;
+  const ctx = { commodityIds: new Set<number>(), attachmentCounts: null };
+  it.each(['081234567890', '6281234567890', '+6281234567890', '0812-3456-7890'])('menerima %s', (hp) => {
+    expect(validateReportData(schema, { hp }, ctx)).toEqual([]);
+  });
+  it.each(['12345', '0212345678', 'abc'])('menolak %s', (hp) => {
+    expect(validateReportData(schema, { hp }, ctx)).toHaveLength(1);
+  });
+});

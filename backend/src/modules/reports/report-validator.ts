@@ -6,7 +6,7 @@
 export interface SchemaField {
   key: string;
   label: string;
-  type: 'text' | 'textarea' | 'number' | 'currency' | 'date' | 'select' | 'multiselect' | 'nik' | 'photo' | 'file' | 'repeater';
+  type: 'text' | 'textarea' | 'number' | 'currency' | 'date' | 'select' | 'multiselect' | 'nik' | 'phone' | 'photo' | 'file' | 'repeater';
   required?: boolean;
   /** Wajib (dan ditampilkan) hanya bila field lain bernilai `equals` atau salah satu `in`. Di repeater, field acuannya di baris yang sama. */
   requiredIf?: { field: string; equals?: unknown; in?: unknown[] };
@@ -78,6 +78,9 @@ function checkValue(f: SchemaField, v: unknown, path: string, ctx: { commodityId
       return v.every((x) => f.options?.includes(String(x))) ? null : `pilihan tidak dikenal`;
     case 'nik':
       return /^\d{16}$/.test(String(v)) ? null : 'NIK harus 16 digit angka';
+    case 'phone':
+      // Nomor HP Indonesia: 08…, 628…, atau +628…, total 10–15 digit.
+      return /^(\+?62|0)8\d{7,12}$/.test(String(v).replace(/[\s-]/g, '')) ? null : 'nomor HP tidak valid (mis. 0812xxxxxxxx)';
     default:
       return null;
   }

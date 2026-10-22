@@ -30,15 +30,18 @@ export class HttpErrorFilter implements ExceptionFilter {
     if (status >= 500) this.logger.error(exception);
 
     const rawMessage = (b as any).message;
-    const details = Array.isArray(rawMessage) ? rawMessage : undefined;
+    // Rincian dari validasi DTO (message berupa array) atau dari service (field details).
+    const details = Array.isArray(rawMessage) ? rawMessage : Array.isArray((b as any).details) ? (b as any).details : undefined;
     res.status(status).json({
       error: {
         code: (b as any).code ?? DEFAULT_CODES[status] ?? 'INTERNAL_ERROR',
-        message: details
+        message: Array.isArray(rawMessage)
           ? 'Isian tidak valid'
           : status >= 500
             ? 'Terjadi kesalahan pada server'
-            : typeof rawMessage === 'string'
+            : status === 429
+              ? DEFAULT_MESSAGES[429]
+              : typeof rawMessage === 'string'
               ? rawMessage
               : typeof body === 'string'
                 ? body

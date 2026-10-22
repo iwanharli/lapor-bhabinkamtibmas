@@ -1,0 +1,79 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "kode_wilayah": "99.01.01.2001",
+    "nama": "Sukamaju",
+    "kecamatan": "Kecamatan Contoh",
+    "kabupaten": "Kabupaten Contoh",
+    "provinsi": "Provinsi Contoh"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       106.8052,
+       -6.6061000000000005
+      ],
+      [
+       106.82719999999999,
+       -6.6061000000000005
+      ],
+      [
+       106.82719999999999,
+       -6.5841
+      ],
+      [
+       106.8052,
+       -6.5841
+      ],
+      [
+       106.8052,
+       -6.6061000000000005
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "kode_wilayah": "99.01.01.2002",
+    "nama": "Harapan",
+    "kecamatan": "Kecamatan Contoh",
+    "kabupaten": "Kabupaten Contoh",
+    "provinsi": "Provinsi Contoh"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       106.7941,
+       -6.6123
+      ],
+      [
+       106.81609999999999,
+       -6.6123
+      ],
+      [
+       106.81609999999999,
+       -6.5903
+      ],
+      [
+       106.7941,
+       -6.5903
+      ],
+      [
+       106.7941,
+       -6.6123
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

@@ -54,6 +54,23 @@ npm run dev
 | 90000005 | Auditor | Polda Contoh |
 | 00000001 | Superadmin | Mabes (sandi dari `SEED_SUPERADMIN_PASSWORD`, wajib diganti) |
 
+## Test
+
+```bash
+cd backend && npm test                 # unit test (Jest)
+cd web && npm run typecheck && npx eslint src e2e
+
+# E2E (Playwright) — backend & web harus berjalan dengan data seed + seed:demo
+cd web
+npx playwright install chromium        # sekali saja (atau pakai Chrome terpasang: PW_CHANNEL=chrome)
+E2E_BASE_URL=http://localhost:3001 npm run e2e
+```
+
+Untuk E2E lokal, longgarkan batas login di `backend/.env`: `LOGIN_RATE_LIMIT=100`.
+CI (GitHub Actions, `.github/workflows/ci.yml`) menjalankan typecheck, lint, unit test, build, lalu E2E dengan PostgreSQL + PostGIS.
+
+Batas wilayah contoh untuk 4 desa demo ada di `backend/prisma/demo/*.geojson` — impor lewat menu **Desa → Impor GeoJSON**.
+
 ## Status
 
 **Fase 1 — Fondasi** (sedang berjalan): auth + RBAC + cakupan wilayah, pengguna/unit/desa, master komoditas, skema form, audit log, login & admin di web, login & beranda di mobile.

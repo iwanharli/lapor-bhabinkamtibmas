@@ -1,0 +1,186 @@
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma, Report, ReportCategory, ReportStatus, UnitLevel } from '@prisma/client';
+import { AuthUser } from '../../common/decorators/auth.decorators';
+import { SensitiveDataService } from '../../common/crypto/sensitive-data.service';
+import { PrismaService } from '../../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
+import { FormSchemaJson, isPriority, splitSensitive, validateReportData } from './report-validator';
+import { UpdateReportDto, UpsertReportDto } from './reports.dto';
+
+const PREFIX: Record<ReportCategory, string> = {
+  SAMBANG: 'SB', DETEKSI_DINI: 'DD', PROBLEM_SOLVING: 'PS', PENYULUHAN: 'PY', HARGA_PANGAN: 'HP', MAPPING_KK: 'KK', KETAHANAN_PANGAN: 'KP',
+};
+/** Laporan boleh dicatat paling lambat 3×24 jam setelah kegiatan. */
+const MAX_BACKDATE_MS = 3 * 86_400_000;
+/** Toleransi jam perangkat lebih cepat dari server. */
+const CLOCK_SKEW_MS = 10 * 60_000;
+/** Titik dianggap di dalam desa binaan bila ≤ 200 m dari batasnya. */
+const VILLAGE_TOLERANCE_M = 200;
+
+const EDITABLE: ReportStatus[] = [ReportStatus.DRAFT, ReportStatus.NEEDS_REVISION];
+
+/** Pembuatan, perubahan, dan pengiriman laporan oleh Bhabin (aplikasi mobile). */
+@Injectable()
+export class ReportWriterService {
+  constructor(private prisma: PrismaService, private crypto: SensitiveDataService, private audit: AuditService) {}
+
+  private async schemaOf(category: ReportCategory, version: number) {
+    const row = await this.prisma.formSchema.findUnique({ where: { category_version: { category, version } } });
+    if (!row) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: `Formulir ${category} versi ${version} tidak dikenal` });
+    if (row.status === 'RETIRED') throw new BadRequestException({ code: 'SCHEMA_RETIRED', message: 'Versi formulir sudah tidak berlaku; perbarui aplikasi' });
+    return row.schema as unknown as FormSchemaJson;
+  }
+
+  private async assertVillage(me: AuthUser, villageId: string) {
+    const ok = await this.prisma.userVillage.count({ where: { userId: me.id, villageId, until: null } });
+    if (!ok) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Desa bukan desa binaan Anda' });
+  }
+
+  private assertOccurredAt(iso: string) {
+    const t = Date.parse(iso);
+    if (t > Date.now() + CLOCK_SKEW_MS) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Waktu kegiatan tidak boleh di masa depan' });
+    if (Date.now() - t > MAX_BACKDATE_MS) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Laporan hanya dapat dicatat paling lambat 3×24 jam setelah kegiatan' });
+  }
+
+  /** Validasi isian draft (tanpa cek lampiran) agar galat format terlihat sejak awal. */
+  private async validateDraft(schema: FormSchemaJson, data: Record<string, unknown>) {
+    const commodityIds = new Set((await this.prisma.commodity.findMany({ select: { id: true } })).map((c) => c.id));
+    const errors = validateReportData(schema, data, { commodityIds, attachmentCounts: null }).filter((e) => !e.message.endsWith('wajib diisi'));
+    if (errors.length) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Isian tidak valid', details: errors.map((e) => e.message) });
+  }
+
+  private encryptSecret(existing: Buffer | null, secret: Record<string, unknown>) {
+    const merged = { ...(existing ? this.crypto.decrypt(existing) : {}), ...secret };
+    return Object.keys(merged).length ? Buffer.from(this.crypto.encrypt(merged)) : null;
+  }
+
+  /** Nomor laporan: {KAT}-{KODE_POLRES}-{YYMM}-{urut}, urut per Polres/kategori/bulan. */
+  private async nextNumber(tx: Prisma.TransactionClient, unitId: string, category: ReportCategory, at: Date) {
+    let unit = await tx.unit.findUniqueOrThrow({ where: { id: unitId } });
+    while (unit.level !== UnitLevel.POLRES && unit.parentId) unit = await tx.unit.findUniqueOrThrow({ where: { id: unit.parentId } });
+    const period = at.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }).slice(2, 7).replace('-', '');
+    const [row] = await tx.$queryRaw<{ last_no: number }[]>`
+      INSERT INTO report_counters (unit_id, category, period, last_no) VALUES (${unit.id}::uuid, ${category}::report_category, ${period}, 1)
+      ON CONFLICT (unit_id, category, period) DO UPDATE SET last_no = report_counters.last_no + 1
+      RETURNING last_no`;
+    return `${PREFIX[category]}-${unit.kode}-${period}-${String(row.last_no).padStart(5, '0')}`;
+  }
+
+  private ownedEditable = async (me: AuthUser, id: string) => {
+    const r = await this.prisma.report.findUnique({ where: { id } });
+    if (!r || r.userId !== me.id) throw new NotFoundException({ code: 'NOT_FOUND' });
+    if (!EDITABLE.includes(r.status)) throw new ConflictException({ code: 'INVALID_TRANSITION', message: 'Laporan yang sudah dikirim tidak dapat diubah' });
+    return r;
+  };
+
+  /** Buat draft, atau kembalikan/perbarui draft yang sama bila clientUuid sudah ada (aman diulang saat sinyal putus). */
+  async upsert(me: AuthUser, dto: UpsertReportDto) {
+    const existing = await this.prisma.report.findUnique({ where: { clientUuid: dto.clientUuid } });
+    if (existing) {
+      if (existing.userId !== me.id) throw new ConflictException({ code: 'DUPLICATE', message: 'clientUuid sudah dipakai' });
+      if (!EDITABLE.includes(existing.status)) return this.summary(existing);
+      return this.update(me, existing.id, dto);
+    }
+
+    const schema = await this.schemaOf(dto.category, dto.schemaVersion);
+    await this.assertVillage(me, dto.villageId);
+    this.assertOccurredAt(dto.occurredAt);
+    await this.validateDraft(schema, dto.data);
+    const { plain, secret } = splitSensitive(schema, dto.data);
+    const occurredAt = new Date(dto.occurredAt);
+
+    const report = await this.prisma.$transaction(async (tx) => {
+      const nomor = await this.nextNumber(tx, me.unitId, dto.category, occurredAt);
+      const r = await tx.report.create({
+        data: {
+          clientUuid: dto.clientUuid, nomor, category: dto.category, schemaVersion: dto.schemaVersion, userId: me.id, unitId: me.unitId,
+          villageId: dto.villageId, status: ReportStatus.DRAFT, data: plain as Prisma.InputJsonObject, sensitive: this.encryptSecret(null, secret),
+          occurredAt, lat: dto.location.lat, lng: dto.location.lng, gpsAccuracyM: dto.gpsAccuracyM, isMockLocation: !!dto.isMockLocation,
+        },
+      });
+      await this.audit.log({ actorId: me.id, action: 'REPORT_CREATE', entity: 'report', entityId: r.id }, tx);
+      return r;
+    });
+    return this.summary(report);
+  }
+
+  async update(me: AuthUser, id: string, dto: UpdateReportDto) {
+    const r = await this.ownedEditable(me, id);
+    const schema = await this.schemaOf(r.category, r.schemaVersion);
+    if (dto.villageId) await this.assertVillage(me, dto.villageId);
+    if (dto.occurredAt) this.assertOccurredAt(dto.occurredAt);
+
+    let data: Prisma.InputJsonObject | undefined;
+    let sensitive: Buffer | null | undefined;
+    if (dto.data) {
+      await this.validateDraft(schema, dto.data);
+      const { plain, secret } = splitSensitive(schema, dto.data);
+      data = plain as Prisma.InputJsonObject;
+      sensitive = this.encryptSecret(r.sensitive ? Buffer.from(r.sensitive) : null, secret);
+    }
+    const updated = await this.prisma.report.update({
+      where: { id },
+      data: {
+        ...(dto.villageId && { villageId: dto.villageId }),
+        ...(dto.occurredAt && { occurredAt: new Date(dto.occurredAt) }),
+        ...(dto.location && { lat: dto.location.lat, lng: dto.location.lng }),
+        ...(dto.gpsAccuracyM != null && { gpsAccuracyM: dto.gpsAccuracyM }),
+        ...(dto.isMockLocation != null && { isMockLocation: dto.isMockLocation }),
+        ...(data && { data }),
+        ...(sensitive !== undefined && { sensitive }),
+      },
+    });
+    await this.audit.log({ actorId: me.id, action: 'REPORT_UPDATE', entity: 'report', entityId: id });
+    return this.summary(updated);
+  }
+
+  /** Kirim laporan: validasi penuh (termasuk lampiran), cek lokasi, prioritas, item harga, lalu ubah status. */
+  async submit(me: AuthUser, id: string) {
+    const r = await this.ownedEditable(me, id);
+    const schema = await this.schemaOf(r.category, r.schemaVersion);
+    const secret = r.sensitive ? this.crypto.decrypt(Buffer.from(r.sensitive)) : {};
+    const data = { ...(r.data as Record<string, unknown>), ...secret };
+
+    const [commodities, attachments] = await Promise.all([
+      this.prisma.commodity.findMany({ select: { id: true, satuanDefault: true } }),
+      this.prisma.attachment.groupBy({ by: ['fieldKey'], where: { reportId: id }, _count: { _all: true } }),
+    ]);
+    const errors = validateReportData(schema, data, {
+      commodityIds: new Set(commodities.map((c) => c.id)),
+      attachmentCounts: Object.fromEntries(attachments.map((a) => [a.fieldKey, a._count._all])),
+    });
+    if (errors.length) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Laporan belum lengkap', details: errors.map((e) => e.message) });
+
+    const [{ inside }] = await this.prisma.$queryRaw<{ inside: boolean | null }[]>`
+      SELECT CASE WHEN bool_and(v.geom IS NULL) THEN NULL
+                  ELSE bool_or(ST_DWithin(v.geom::geography, r.location, ${VILLAGE_TOLERANCE_M})) END AS inside
+      FROM reports r JOIN user_villages uv ON uv.user_id = r.user_id AND uv.until IS NULL JOIN villages v ON v.id = uv.village_id
+      WHERE r.id = ${id}::uuid`;
+    const schemaRow = await this.prisma.formSchema.findUniqueOrThrow({ where: { category_version: { category: r.category, version: r.schemaVersion } } });
+    const to = schemaRow.autoApprove ? ReportStatus.APPROVED : ReportStatus.SUBMITTED;
+    const satuan = new Map(commodities.map((c) => [c.id, c.satuanDefault]));
+
+    await this.prisma.$transaction(async (tx) => {
+      if (r.category === ReportCategory.HARGA_PANGAN) {
+        const items = (data.items as { commodityId: number; harga: number; satuan?: string; stok: 'AMAN' | 'MENIPIS' | 'KOSONG' }[]) ?? [];
+        await tx.reportItem.deleteMany({ where: { reportId: id } });
+        await tx.reportItem.createMany({
+          data: items.map((i) => ({ reportId: id, commodityId: Number(i.commodityId), harga: Number(i.harga), satuan: i.satuan ?? satuan.get(Number(i.commodityId)) ?? 'kg', stok: i.stok })),
+          skipDuplicates: true,
+        });
+      }
+      const res = await tx.report.updateMany({
+        where: { id, status: r.status },
+        data: { status: to, priority: isPriority(schema, data), insideVillage: inside, submittedAt: new Date(), reviewNote: null },
+      });
+      if (!res.count) throw new ConflictException({ code: 'INVALID_TRANSITION', message: 'Status laporan sudah berubah' });
+      await tx.reportStatusHistory.create({ data: { reportId: id, fromStatus: r.status, toStatus: to, actorId: me.id } });
+      await this.audit.log({ actorId: me.id, action: 'REPORT_SUBMIT', entity: 'report', entityId: id, meta: { to } }, tx);
+    });
+    return this.summary(await this.prisma.report.findUniqueOrThrow({ where: { id } }));
+  }
+
+  private summary(r: Report) {
+    return { id: r.id, clientUuid: r.clientUuid, nomor: r.nomor, status: r.status, priority: r.priority, insideVillage: r.insideVillage, updatedAt: r.updatedAt };
+  }
+}

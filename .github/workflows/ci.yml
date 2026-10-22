@@ -1,0 +1,134 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend · typecheck & unit test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run lint
+      - run: npm test
+
+  web:
+    name: Web · typecheck, lint & build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npx eslint src e2e playwright.config.ts
+      - run: npm run build
+
+  e2e:
+    name: E2E · Playwright
+    needs: [backend, web]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: lapor
+          POSTGRES_USER: lapor
+          POSTGRES_PASSWORD: lapor
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U lapor" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      API_URL: http://localhost:3000/api/v1
+      E2E_BASE_URL: http://localhost:3001
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            web/package-lock.json
+
+      - name: Backend — siapkan database & data contoh
+        working-directory: backend
+        run: |
+          npm ci
+          cat > .env <<ENV
+          NODE_ENV=development
+          PORT=3000
+          DATABASE_URL=postgresql://lapor:lapor@localhost:5432/lapor
+          JWT_ACCESS_SECRET=ci-$(openssl rand -hex 24)
+          JWT_ACCESS_TTL=900
+          JWT_REFRESH_TTL_MOBILE=2592000
+          JWT_REFRESH_TTL_WEB=43200
+          CORS_ORIGINS=http://localhost:3001
+          MIN_APP_VERSION=1.0.0
+          SEED_SUPERADMIN_NRP=00000001
+          SEED_SUPERADMIN_PASSWORD=CiSuperadmin#2026
+          STORAGE_DRIVER=local
+          STORAGE_LOCAL_DIR=./storage
+          DATA_ENCRYPTION_KEYS=k1:$(openssl rand -base64 32)
+          LOGIN_RATE_LIMIT=1000
+          ENV
+          npx prisma migrate deploy
+          npx prisma db seed
+          npm run seed:demo
+          npm run seed:demo-attachments
+          npm run build
+
+      - name: Backend — jalankan
+        working-directory: backend
+        run: |
+          nohup node dist/main.js > ../backend.log 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://localhost:3000/api/v1/health && break; sleep 2; done
+
+      - name: Web — build & jalankan
+        working-directory: web
+        run: |
+          npm ci
+          echo "API_URL=$API_URL" > .env.local
+          npm run build
+          nohup npm run start > ../web.log 2>&1 &
+          for i in $(seq 1 30); do curl -fs -o /dev/null http://localhost:3001/login && break; sleep 2; done
+
+      - name: Playwright
+        working-directory: web
+        run: |
+          npx playwright install --with-deps chromium
+          npm run e2e
+
+      - name: Unggah laporan & log bila gagal
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            web/playwright-report
+            web/test-results
+            backend.log
+            web.log
+          retention-days: 7

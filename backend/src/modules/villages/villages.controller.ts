@@ -1,8 +1,22 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
-import { IsObject, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { IsArray, IsBoolean, IsObject, IsOptional, IsString, IsUUID, Length } from 'class-validator';
 import { ALL_ROLES, AuthUser, CurrentUser, Roles } from '../../common/decorators/auth.decorators';
-import { VillagesService } from './villages.service';
+import { GeoFeature, VillagesService } from './villages.service';
+
+class UpdateVillageDto {
+  @IsOptional() @IsString() @Length(2, 120) nama?: string;
+  @IsOptional() @IsString() kecamatan?: string;
+  @IsOptional() @IsString() kabupaten?: string;
+  @IsOptional() @IsString() provinsi?: string;
+  @IsOptional() @IsUUID() polsekId?: string;
+}
+
+class ImportGeojsonDto {
+  @IsUUID() polsekId: string;
+  @IsArray() features: GeoFeature[];
+  @IsOptional() @IsBoolean() dryRun?: boolean;
+}
 
 class CreateVillageDto {
   @IsString() @Length(10, 13) kodeWilayah: string;
@@ -26,6 +40,34 @@ export class VillagesController {
   @Roles(...ALL_ROLES)
   list(@CurrentUser() me: AuthUser, @Query('q') q?: string) {
     return this.villages.list(me, q);
+  }
+
+  @Get('admin/villages')
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
+  adminList(@CurrentUser() me: AuthUser, @Query() q: { q?: string; polsekId?: string; batas?: string; page?: string; limit?: string }) {
+    return this.villages.adminList(me, {
+      q: q.q || undefined, polsekId: q.polsekId || undefined, batas: q.batas,
+      page: Math.max(Number(q.page) || 1, 1), limit: Math.min(Number(q.limit) || 20, 100),
+    });
+  }
+
+  @Get('villages/geojson')
+  @Roles(UserRole.VERIFIKATOR, UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR)
+  geojson(@CurrentUser() me: AuthUser, @Query('polsekId') polsekId?: string) {
+    return this.villages.geojson(me, polsekId || undefined);
+  }
+
+  @Post('admin/villages/import')
+  @HttpCode(200)
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
+  importGeojson(@CurrentUser() me: AuthUser, @Body() dto: ImportGeojsonDto) {
+    return this.villages.importGeojson(me, dto);
+  }
+
+  @Patch('admin/villages/:id')
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
+  update(@CurrentUser() me: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateVillageDto) {
+    return this.villages.update(me, id, dto);
   }
 
   @Post('admin/villages')

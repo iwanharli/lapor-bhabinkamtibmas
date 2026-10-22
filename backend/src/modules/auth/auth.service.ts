@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { User, UserRole } from '@prisma/client';
@@ -117,22 +117,28 @@ export class AuthService {
     await this.audit.log({ actorId: row.userId, action: 'LOGOUT' });
   }
 
-  async changePassword(userId: string, dto: ChangePasswordDto) {
+  async changePassword(userId: string, dto: ChangePasswordDto, deviceId?: string) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (!(await argon2.verify(user.passwordHash, dto.currentPassword))) {
       throw new UnauthorizedException({ code: 'INVALID_CREDENTIALS', message: 'Sandi lama salah' });
     }
-    await this.prisma.user.update({
+    if (await argon2.verify(user.passwordHash, dto.newPassword)) {
+      throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Sandi baru tidak boleh sama dengan sandi lama' });
+    }
+    const updated = await this.prisma.user.update({
       where: { id: userId },
       data: { passwordHash: await argon2.hash(dto.newPassword, { type: argon2.argon2id }), mustChangePassword: false },
     });
+    // Semua sesi lama dicabut; sesi saat ini diganti token baru (tanpa penanda sandi sementara).
+    await this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
     await this.audit.log({ actorId: userId, action: 'PASSWORD_CHANGED' });
+    return this.issueTokens(updated, deviceId);
   }
 
   private async issueTokens(user: User, deviceId?: string) {
     const ttl = Number(this.config.get('JWT_ACCESS_TTL', 900));
     const accessToken = await this.jwt.signAsync(
-      { sub: user.id, nrp: user.nrp, role: user.role, unitId: user.unitId },
+      { sub: user.id, nrp: user.nrp, role: user.role, unitId: user.unitId, ...(user.mustChangePassword && { pwd: true }) },
       { expiresIn: ttl },
     );
     const refreshTtl = Number(this.config.get(deviceId ? 'JWT_REFRESH_TTL_MOBILE' : 'JWT_REFRESH_TTL_WEB', 43200));

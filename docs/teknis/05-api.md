@@ -113,7 +113,10 @@ Respons `201` (atau `200` jika `clientUuid` sudah ada):
 Validasi skema + kelengkapan lampiran → status `SUBMITTED` (atau `APPROVED` jika kategori `auto_approve`). Error `400 VALIDATION_FAILED` berisi daftar field.
 
 ### `PATCH /reports/:id`
-Ubah `data`/`villageId`/`occurredAt`. Hanya oleh pemilik, hanya untuk status `DRAFT` atau `NEEDS_REVISION`.
+Ubah `data`/`villageId`/`occurredAt`/`location`. Hanya oleh pemilik, hanya untuk status `DRAFT` atau `NEEDS_REVISION`. `data` **mengganti seluruh isian** (aplikasi selalu mengirim formulir lengkap). Field bertanda `sensitive` di skema disimpan terenkripsi (AES-256-GCM, kunci `DATA_ENCRYPTION_KEYS`) dan tidak pernah dikirim balik kecuali lewat `reveal-sensitive`.
+
+### Filter status gabungan
+`status=MENUNGGU` = Terkirim + Ditinjau (belum diputuskan). `GET /reports/status-counts` mengembalikan jumlah per status untuk filter yang sama.
 
 ### `GET /reports`
 Filter: `category`, `status`, `unitId`, `villageId`, `userId`, `from`, `to`, `priority`, `q` (teks), `bbox` (`minLng,minLat,maxLng,maxLat`). Hasil otomatis dibatasi cakupan wilayah.
@@ -129,6 +132,15 @@ Mengembalikan field sensitif asli. Wajib `reason` (teks). Dicatat `SENSITIVE_REA
 { "to": "NEEDS_REVISION", "note": "Foto etalase buram, mohon diulang." }
 ```
 Transisi yang sah dijelaskan di [03-modul-laporan §6](03-modul-laporan.md#6-alur-status-laporan). Transisi lain → `409 INVALID_TRANSITION`.
+
+### Kode galat tambahan
+| HTTP | Kode | Arti |
+|---|---|---|
+| 403 | `PASSWORD_CHANGE_REQUIRED` | Masih memakai sandi sementara; hanya `/auth/me`, `/auth/change-password`, `/auth/logout` yang boleh |
+| 400 | `SCHEMA_RETIRED` | Versi formulir sudah tidak berlaku; aplikasi perlu diperbarui |
+| 400 | `UNSUPPORTED_FILE` / `CHECKSUM_MISMATCH` | Lampiran bukan JPG/PNG/WEBP/PDF/MP4 (dicek dari isi berkas) / rusak saat dikirim |
+
+`POST /auth/change-password` mengembalikan token baru dan mencabut semua sesi lain.
 
 ## 5. Absensi
 
@@ -149,6 +161,15 @@ Respons berisi `insideVillage`, `villageName`, `lateSync`.
 | `GET /analytics/bhabin-performance?unitId=&month=` | Jumlah kegiatan per Bhabin per kategori + kehadiran |
 | `GET /analytics/hotspots?category=DETEKSI_DINI&from=&to=` | Agregat kerawanan per desa/kecamatan |
 
+## 6b. Lampiran, peta, kinerja, ekspor
+
+| Endpoint | Fungsi |
+|---|---|
+| `GET /attachments/:id/file?thumb=1` | Berkas/thumbnail lampiran (cek cakupan laporan) |
+| `GET /analytics/map?from=&category=&priority=` | Titik laporan untuk peta (maks. 5.000) |
+| `GET /analytics/bhabin-performance?from=&to=` | Rekap kinerja per Bhabin |
+| `GET /exports/{reports,prices,users,performance}.csv` | Ekspor CSV (`;` + BOM UTF-8), tercatat di audit |
+
 ## 7. Administrasi (web)
 
 | Endpoint | Fungsi |
@@ -157,7 +178,11 @@ Respons berisi `insideVillage`, `villageName`, `lateSync`.
 | `POST /admin/users/:id/reset-password` | Reset sandi (sandi sementara) |
 | `GET/DELETE /admin/users/:id/devices/:deviceId` | Lihat/cabut perangkat |
 | `GET/POST/PATCH /admin/units` | Kelola unit |
-| `GET/POST/PATCH /admin/villages` | Kelola desa, unggah GeoJSON batas |
+| `GET/POST/PATCH /admin/villages` | Kelola desa (daftar memuat status batas, jumlah Bhabin, laporan 30 hari) |
+| `POST /admin/villages/import` | Impor desa + batas dari GeoJSON ke satu Polsek (`dryRun` untuk pratinjau) |
+| `GET /villages/geojson?polsekId=` | Batas desa (disederhanakan) untuk peta |
+| `POST /admin/users/import` | Impor pengguna dari baris CSV (`dryRun` untuk pratinjau; semua-atau-tidak) |
+| `GET /admin/users/role-counts` | Jumlah pengguna per peran |
 | `PUT /admin/users/:id/villages` | Atur desa binaan Bhabin |
 | `GET/POST/PATCH /admin/commodities` | Master komoditas |
 | `GET/POST /admin/form-schemas` · `POST /admin/form-schemas/:id/retire` | Kelola skema form |

@@ -6,6 +6,7 @@ import {
   History,
   LayoutDashboard,
   Map,
+  MapPinned,
   TrendingUp,
   LucideIcon,
   ShieldCheck,
@@ -27,6 +28,7 @@ const ICONS = {
   map: Map,
   performance: TrendingUp,
   audit: History,
+  villages: MapPinned,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

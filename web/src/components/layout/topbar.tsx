@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, LogOut, Menu, PanelLeft } from 'lucide-react';
+import { ChevronDown, KeyRound, LogOut, Menu, PanelLeft } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -67,6 +67,9 @@ function UserMenu({ user }: { user: ShellUser }) {
             <strong className="block">{user.nama}</strong>
             <span className="text-xs text-muted">{user.role} · {user.unit}</span>
           </div>
+          <Link href="/ganti-sandi" onClick={() => setOpen(false)} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm hover:bg-bg">
+            <KeyRound size={16} /> Ganti sandi
+          </Link>
           <button onClick={logout} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-danger hover:bg-danger-soft">
             <LogOut size={16} /> Keluar
           </button>

@@ -31,6 +31,7 @@ export function navFor(role: string): NavSection[] {
       items: [
         { href: '/admin/pengguna', label: 'Pengguna', icon: 'users' },
         { href: '/admin/unit', label: 'Unit', icon: 'units' },
+        { href: '/admin/desa', label: 'Desa', icon: 'villages' },
         { href: '/audit', label: 'Audit log', icon: 'audit' },
       ],
     });

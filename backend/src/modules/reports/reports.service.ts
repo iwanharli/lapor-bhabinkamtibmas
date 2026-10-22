@@ -1,4 +1,5 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { SensitiveDataService } from '../../common/crypto/sensitive-data.service';
 import { Prisma, ReportStatus, UserRole } from '@prisma/client';
 import { AuthUser } from '../../common/decorators/auth.decorators';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -6,6 +7,9 @@ import { AuditService } from '../audit/audit.service';
 import { UnitsService } from '../units/units.service';
 import { canReview, NOTE_REQUIRED } from './report-status';
 import { ListReportsQuery, TransitionDto } from './reports.dto';
+
+/** Peran yang boleh membuka isi field sensitif (selain pembuat laporan). */
+const SENSITIVE_READERS: UserRole[] = [UserRole.VERIFIKATOR, UserRole.AUDITOR];
 
 const LIST_SELECT = {
   id: true, nomor: true, category: true, status: true, priority: true, occurredAt: true,
@@ -18,7 +22,7 @@ const LIST_SELECT = {
 
 @Injectable()
 export class ReportsService {
-  constructor(private prisma: PrismaService, private units: UnitsService, private audit: AuditService) {}
+  constructor(private prisma: PrismaService, private units: UnitsService, private audit: AuditService, private crypto: SensitiveDataService) {}
 
   /** Filter cakupan: Bhabin hanya laporannya sendiri, peran lain sebatas unit & turunannya. */
   async scopeWhere(me: AuthUser): Promise<Prisma.ReportWhereInput> {
@@ -38,7 +42,9 @@ export class ReportsService {
         me.role === UserRole.BHABIN ? {} : { status: { not: ReportStatus.DRAFT } },
         {
           ...(q.category && { category: q.category }),
-          ...(q.status && !ignoreStatus && { status: q.status }),
+          ...(q.status && !ignoreStatus && {
+            status: q.status === 'MENUNGGU' ? { in: [ReportStatus.SUBMITTED, ReportStatus.IN_REVIEW] } : q.status,
+          }),
           ...(q.unitId && { unitId: { in: await this.units.descendantIds(q.unitId) } }),
           ...(q.villageId && { villageId: q.villageId }),
           ...(q.userId && { userId: q.userId }),
@@ -111,7 +117,21 @@ export class ReportsService {
     });
     // Path penyimpanan tidak dikirim ke klien; cukup penanda ada/tidaknya thumbnail.
     const attachments = report.attachments.map(({ thumbKey, ...att }) => ({ ...att, hasThumb: !!thumbKey }));
-    return { ...report, attachments, schema: schema?.schema ?? null, canReview: me.role === UserRole.VERIFIKATOR };
+    // Isi field sensitif tidak dikirim; hanya nama field yang terisi (dibuka lewat reveal-sensitive).
+    const sensitiveFilled = r.sensitive ? Object.keys(this.crypto.decrypt(Buffer.from(r.sensitive))) : [];
+    return {
+      ...report, attachments, sensitiveFilled, schema: schema?.schema ?? null,
+      canReview: me.role === UserRole.VERIFIKATOR,
+      canRevealSensitive: SENSITIVE_READERS.includes(me.role) || r.userId === me.id,
+    };
+  }
+
+  /** Buka field sensitif dengan alasan; selalu tercatat di audit. */
+  async revealSensitive(me: AuthUser, id: string, reason: string) {
+    const r = await this.findInScope(me, id);
+    if (!SENSITIVE_READERS.includes(me.role) && r.userId !== me.id) throw new ForbiddenException({ code: 'FORBIDDEN' });
+    await this.audit.log({ actorId: me.id, action: 'SENSITIVE_READ', entity: 'report', entityId: id, meta: { reason } });
+    return r.sensitive ? this.crypto.decrypt(Buffer.from(r.sensitive)) : {};
   }
 
   async transition(me: AuthUser, id: string, dto: TransitionDto) {

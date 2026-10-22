@@ -1,14 +1,22 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { AuthUser, CurrentUser, Roles } from '../../common/decorators/auth.decorators';
-import { ListReportsQuery, TransitionDto } from './reports.dto';
+import { ListReportsQuery, RevealDto, TransitionDto, UpdateReportDto, UpsertReportDto } from './reports.dto';
+import { ReportWriterService } from './report-writer.service';
 import { ReportsService } from './reports.service';
 
 const READERS = [UserRole.BHABIN, UserRole.VERIFIKATOR, UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR];
 
 @Controller('reports')
 export class ReportsController {
-  constructor(private reports: ReportsService) {}
+  constructor(private reports: ReportsService, private writer: ReportWriterService) {}
+
+  /** Buat/perbarui draft (idempoten lewat clientUuid). */
+  @Post()
+  @Roles(UserRole.BHABIN)
+  upsert(@CurrentUser() me: AuthUser, @Body() dto: UpsertReportDto) {
+    return this.writer.upsert(me, dto);
+  }
 
   @Get()
   @Roles(...READERS)
@@ -27,6 +35,26 @@ export class ReportsController {
   @Roles(...READERS)
   get(@CurrentUser() me: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.reports.get(me, id);
+  }
+
+  @Patch(':id')
+  @Roles(UserRole.BHABIN)
+  update(@CurrentUser() me: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateReportDto) {
+    return this.writer.update(me, id, dto);
+  }
+
+  @Post(':id/submit')
+  @HttpCode(200)
+  @Roles(UserRole.BHABIN)
+  submit(@CurrentUser() me: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.writer.submit(me, id);
+  }
+
+  @Post(':id/reveal-sensitive')
+  @HttpCode(200)
+  @Roles(UserRole.BHABIN, UserRole.VERIFIKATOR, UserRole.AUDITOR)
+  reveal(@CurrentUser() me: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: RevealDto) {
+    return this.reports.revealSensitive(me, id, dto.reason);
   }
 
   @Post(':id/transition')

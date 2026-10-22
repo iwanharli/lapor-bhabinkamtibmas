@@ -3,6 +3,14 @@ import { COOKIE, refreshTokens, tokenCookies } from '@/lib/api/session-cookies';
 
 const isApi = (req: NextRequest) => req.nextUrl.pathname.startsWith('/api/');
 
+function mustChangePassword(req: NextRequest) {
+  try {
+    return !!JSON.parse(req.cookies.get(COOKIE.user)?.value ?? '{}').mustChangePassword;
+  } catch {
+    return false;
+  }
+}
+
 function toLogin(req: NextRequest, expired: boolean) {
   if (isApi(req)) {
     return NextResponse.json({ error: { code: 'UNAUTHENTICATED', message: 'Sesi berakhir, silakan masuk kembali' } }, { status: 401 });
@@ -19,6 +27,11 @@ function toLogin(req: NextRequest, expired: boolean) {
 export async function middleware(req: NextRequest) {
   const rt = req.cookies.get(COOKIE.refresh)?.value;
   if (!rt || !req.cookies.has(COOKIE.user)) return toLogin(req, false);
+
+  // Sandi sementara: hanya halaman ganti sandi yang boleh dibuka (API juga menolak di sisi backend).
+  if (mustChangePassword(req) && !req.nextUrl.pathname.startsWith('/ganti-sandi') && !isApi(req)) {
+    return NextResponse.redirect(new URL('/ganti-sandi', req.url));
+  }
   if (req.cookies.has(COOKIE.access)) return NextResponse.next();
 
   const tokens = await refreshTokens(rt);

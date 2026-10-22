@@ -70,7 +70,7 @@ export default async function RingkasanPage({ searchParams }: { searchParams: Pr
               tone="warn"
               value={t.menunggu}
               footer={`dari ${t.total.toLocaleString('id-ID')} laporan`}
-              href={reportsHref('status=SUBMITTED')}
+              href={reportsHref('status=MENUNGGU')}
             />
             <StatCard
               title="Disetujui"

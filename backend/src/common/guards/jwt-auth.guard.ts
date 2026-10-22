@@ -1,7 +1,7 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import { AuthUser, IS_PUBLIC } from '../decorators/auth.decorators';
+import { ALLOW_PENDING_PASSWORD, AuthUser, IS_PUBLIC } from '../decorators/auth.decorators';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -15,11 +15,19 @@ export class JwtAuthGuard implements CanActivate {
     const [type, token] = (req.headers.authorization ?? '').split(' ');
     if (type !== 'Bearer' || !token) throw new UnauthorizedException({ code: 'UNAUTHENTICATED' });
 
+    let user: AuthUser;
     try {
       const p = await this.jwt.verifyAsync(token);
-      req.user = { id: p.sub, nrp: p.nrp, role: p.role, unitId: p.unitId } satisfies AuthUser;
+      user = { id: p.sub, nrp: p.nrp, role: p.role, unitId: p.unitId, mustChangePassword: !!p.pwd };
     } catch {
       throw new UnauthorizedException({ code: 'TOKEN_EXPIRED' });
+    }
+    req.user = user;
+
+    // Sandi sementara: hanya profil, ganti sandi, dan logout yang boleh diakses.
+    const allowPending = this.reflector.getAllAndOverride<boolean>(ALLOW_PENDING_PASSWORD, [ctx.getHandler(), ctx.getClass()]);
+    if (user.mustChangePassword && !allowPending) {
+      throw new ForbiddenException({ code: 'PASSWORD_CHANGE_REQUIRED', message: 'Ganti sandi sementara Anda terlebih dahulu' });
     }
     return true;
   }

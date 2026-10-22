@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
-import { ALL_ROLES, AuthUser, CurrentUser, Public, Roles } from '../../common/decorators/auth.decorators';
+import { ALL_ROLES, AllowPendingPassword, AuthUser, CurrentUser, Public, Roles } from '../../common/decorators/auth.decorators';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthService } from './auth.service';
 import { ChangePasswordDto, LoginDto, RefreshDto } from './dto/auth.dto';
@@ -13,7 +13,8 @@ export class AuthController {
   constructor(private auth: AuthService, private prisma: PrismaService) {}
 
   @Public()
-  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  // Batas percobaan login per IP per menit; dapat dilonggarkan untuk dev/CI lewat LOGIN_RATE_LIMIT.
+  @Throttle({ default: { ttl: 60_000, limit: () => Number(process.env.LOGIN_RATE_LIMIT ?? 10) } })
   @Post('login')
   @HttpCode(200)
   login(@Body() dto: LoginDto, @Req() req: Request) {
@@ -35,14 +36,19 @@ export class AuthController {
     return this.auth.logout(dto.refreshToken);
   }
 
+  /** Mengembalikan token baru; sesi lain di semua perangkat dicabut. */
   @Roles(...ALL_ROLES)
+  @AllowPendingPassword()
   @Post('change-password')
-  @HttpCode(204)
-  changePassword(@Body() dto: ChangePasswordDto, @CurrentUser() me: AuthUser) {
-    return this.auth.changePassword(me.id, dto);
+  @HttpCode(200)
+  async changePassword(@Body() dto: ChangePasswordDto, @CurrentUser() me: AuthUser, @Req() req: Request) {
+    const device = req.headers['x-device-id'] as string | undefined;
+    const row = device ? await this.prisma.device.findUnique({ where: { userId_deviceId: { userId: me.id, deviceId: device } } }) : null;
+    return this.auth.changePassword(me.id, dto, row?.id);
   }
 
   @Roles(...ALL_ROLES)
+  @AllowPendingPassword()
   @Get('me')
   me(@CurrentUser() me: AuthUser) {
     return this.prisma.user.findUniqueOrThrow({

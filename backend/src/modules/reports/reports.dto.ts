@@ -1,10 +1,11 @@
 import { ReportCategory, ReportStatus } from '@prisma/client';
-import { Transform } from 'class-transformer';
-import { IsBoolean, IsDateString, IsEnum, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsDateString, IsEnum, IsIn, IsInt, IsNotEmpty, IsNumber, IsObject, IsOptional, IsString, IsUUID, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 
 export class ListReportsQuery {
   @IsOptional() @IsEnum(ReportCategory) category?: ReportCategory;
-  @IsOptional() @IsEnum(ReportStatus) status?: ReportStatus;
+  /** Status laporan, atau MENUNGGU = Terkirim + Ditinjau. */
+  @IsOptional() @IsIn([...Object.values(ReportStatus), 'MENUNGGU']) status?: ReportStatus | 'MENUNGGU';
   @IsOptional() @IsUUID() unitId?: string;
   @IsOptional() @IsUUID() villageId?: string;
   @IsOptional() @IsUUID() userId?: string;
@@ -19,4 +20,35 @@ export class ListReportsQuery {
 export class TransitionDto {
   @IsIn([ReportStatus.APPROVED, ReportStatus.NEEDS_REVISION, ReportStatus.REJECTED]) to: ReportStatus;
   @IsOptional() @IsString() @MaxLength(1000) note?: string;
+}
+
+export class LocationDto {
+  @IsNumber() @Min(-90) @Max(90) lat: number;
+  @IsNumber() @Min(-180) @Max(180) lng: number;
+}
+
+/** Buat atau perbarui draft laporan (idempoten lewat clientUuid). */
+export class UpsertReportDto {
+  @IsUUID() clientUuid: string;
+  @IsEnum(ReportCategory) category: ReportCategory;
+  @IsInt() @Min(1) schemaVersion: number;
+  @IsUUID() villageId: string;
+  @IsDateString() occurredAt: string;
+  @ValidateNested() @Type(() => LocationDto) location: LocationDto;
+  @IsOptional() @IsNumber() @Min(0) gpsAccuracyM?: number;
+  @IsOptional() @IsBoolean() isMockLocation?: boolean;
+  @IsObject() data: Record<string, unknown>;
+}
+
+export class UpdateReportDto {
+  @IsOptional() @IsUUID() villageId?: string;
+  @IsOptional() @IsDateString() occurredAt?: string;
+  @IsOptional() @ValidateNested() @Type(() => LocationDto) location?: LocationDto;
+  @IsOptional() @IsNumber() @Min(0) gpsAccuracyM?: number;
+  @IsOptional() @IsBoolean() isMockLocation?: boolean;
+  @IsOptional() @IsObject() data?: Record<string, unknown>;
+}
+
+export class RevealDto {
+  @IsString() @MaxLength(300) @Transform(({ value }) => String(value ?? '').trim()) @IsNotEmpty({ message: 'Alasan wajib diisi' }) reason: string;
 }

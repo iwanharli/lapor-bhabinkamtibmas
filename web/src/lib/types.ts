@@ -75,6 +75,9 @@ export interface ReportDetail extends ReportListItem {
   attachments: ReportAttachment[];
   history: StatusHistoryEntry[];
   canReview: boolean;
+  /** Field sensitif yang terisi (isinya hanya lewat reveal-sensitive). */
+  sensitiveFilled: string[];
+  canRevealSensitive: boolean;
 }
 
 // ===== Analitik =====

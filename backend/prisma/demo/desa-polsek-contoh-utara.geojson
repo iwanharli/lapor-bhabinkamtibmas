@@ -1,0 +1,79 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "kode_wilayah": "99.01.02.2001",
+    "nama": "Mekarsari",
+    "kecamatan": "Kecamatan Utara",
+    "kabupaten": "Kabupaten Contoh",
+    "provinsi": "Provinsi Contoh"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       106.82010000000001,
+       -6.5812
+      ],
+      [
+       106.8421,
+       -6.5812
+      ],
+      [
+       106.8421,
+       -6.5592
+      ],
+      [
+       106.82010000000001,
+       -6.5592
+      ],
+      [
+       106.82010000000001,
+       -6.5812
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "kode_wilayah": "99.01.02.2002",
+    "nama": "Cijaya",
+    "kecamatan": "Kecamatan Utara",
+    "kabupaten": "Kabupaten Contoh",
+    "provinsi": "Provinsi Contoh"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       106.8345,
+       -6.5714
+      ],
+      [
+       106.8565,
+       -6.5714
+      ],
+      [
+       106.8565,
+       -6.5493999999999994
+      ],
+      [
+       106.8345,
+       -6.5493999999999994
+      ],
+      [
+       106.8345,
+       -6.5714
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

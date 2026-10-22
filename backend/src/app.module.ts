@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { PrismaModule } from './prisma/prisma.module';
+import { CryptoModule } from './common/crypto/crypto.module';
 import { StorageModule } from './common/storage/storage.module';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
 import { ExportsModule } from './modules/exports/exports.module';
@@ -25,6 +26,7 @@ import { VillagesModule } from './modules/villages/villages.module';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     PrismaModule,
     StorageModule,
+    CryptoModule,
     AuditModule,
     AuthModule,
     UnitsModule,

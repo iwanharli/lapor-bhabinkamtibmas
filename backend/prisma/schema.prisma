@@ -109,6 +109,7 @@ model User {
   villages      UserVillage[]
   devices       Device[]
   refreshTokens RefreshToken[]
+  exportJobs    ExportJob[]
   auditLogs     AuditLog[]
   reports       Report[]              @relation("ReportAuthor")
   reviewed      Report[]              @relation("ReportReviewer")
@@ -436,4 +437,37 @@ model Region {
   @@index([parentKode])
   @@index([level])
   @@map("regions")
+}
+
+enum ExportJobStatus {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+}
+
+/// Antrean ekspor CSV (docs/teknis/12 §4.4). Berkas dihapus setelah `expiresAt`.
+model ExportJob {
+  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String          @map("user_id") @db.Uuid
+  /// reports | prices | performance | users
+  kind       String          @db.VarChar(32)
+  params     Json            @default("{}")
+  status     ExportJobStatus @default(QUEUED)
+  fileKey    String?         @map("file_key")
+  fileName   String?         @map("file_name") @db.VarChar(120)
+  rows       Int?
+  sizeBytes  Int?            @map("size_bytes")
+  error      String?
+  attempts   Int             @default(0) @db.SmallInt
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  startedAt  DateTime?       @map("started_at") @db.Timestamptz(3)
+  finishedAt DateTime?       @map("finished_at") @db.Timestamptz(3)
+  expiresAt  DateTime?       @map("expires_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@map("export_jobs")
 }

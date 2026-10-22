@@ -44,7 +44,7 @@ test('tab status, pagination, dan ukuran halaman', async ({ page }) => {
 test('ekspor CSV mengikuti filter', async ({ page }) => {
   await login(page, ACCOUNTS.pimpinan);
   await page.goto('/laporan?category=HARGA_PANGAN&rentang=semua');
-  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('link', { name: 'Ekspor CSV' }).click()]);
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Ekspor CSV' }).click()]);
   expect(download.suggestedFilename()).toMatch(/^laporan_\d{4}-\d{2}-\d{2}\.csv$/);
   const csv = await (await download.createReadStream())!.toArray().then((c) => Buffer.concat(c).toString('utf8'));
   const lines = csv.trim().split('\n');

@@ -143,7 +143,7 @@ Angka divalidasi lewat uji beban (k6) pada tahap pilot Polda sebelum pengadaan f
 | Batas wilayah provinsi → desa di peta | ✅ siap (`regions` + `villages`, tingkat mengikuti zoom; penetapan desa Kemendagri ke Polsek) |
 | Peta ter-cluster | ✅ siap (titik ≤ 1.500 per tampilan, selain itu gugus grid sesuai zoom) |
 | Paginasi kinerja, pencarian unit | ✅ siap (kolom pencarian unit, pohon unit bertahap, filter unit di Pengguna/Kinerja/Desa) |
-| Ekspor sebagai job, thumbnail di worker | ❌ |
+| Ekspor sebagai job, thumbnail di worker | ✅ ekspor lewat antrean `export_jobs` (tanpa Redis); thumbnail tetap saat unggah (ringan setelah kompresi) |
 | Partisi tabel | ❌ (bisa ditambahkan lewat migrasi tanpa mengubah kode aplikasi) |
 | Redis untuk rate limit/cache/antrean | ❌ |
 

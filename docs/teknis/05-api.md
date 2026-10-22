@@ -218,6 +218,11 @@ Pencarian unit dalam cakupan (dengan `path` rantai induk), anak satu cabang untu
 
 ## 8. Ekspor
 
+### Antrean ekspor (dipakai web)
+`POST /exports/jobs` `{ kind: reports|prices|performance|users, params: {…filter} }` → pekerjaan `QUEUED`; `GET /exports/jobs/:id` untuk status (`QUEUED → RUNNING → DONE/FAILED`, `rows`, `error`); `GET /exports/jobs/:id/file` mengunduh CSV (hanya pembuatnya, berlaku `EXPORT_KEEP_HOURS` = 24 jam); `GET /exports/jobs` 20 ekspor terakhir. Diproses worker di proses API (tabel `export_jobs`, `FOR UPDATE SKIP LOCKED`, tanpa Redis) atas nama pembuat dengan peran & cakupan terkini; pekerjaan macet > 15 menit diantrekan ulang (maks. 3 kali). Batas `EXPORT_MAX_ROWS` = 200.000 baris.
+
+### Unduhan langsung
+
 `POST /exports` `{ "type": "reports", "format": "xlsx", "filters": { … } }` → `{ "jobId": "…" }`. Ekspor diproses worker.
 `GET /exports/:jobId` → status + URL unduh (presigned, 1 jam). Setiap ekspor dicatat di audit log.
 

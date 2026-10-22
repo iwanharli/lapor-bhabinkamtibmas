@@ -1,154 +1,68 @@
-import { Controller, Get, Query, Res } from '@nestjs/common';
-import { Prisma, UserRole } from '@prisma/client';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Res, StreamableFile } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { IsIn, IsObject, IsOptional } from 'class-validator';
 import { Response } from 'express';
-import { AuthUser, CurrentUser, Roles } from '../../common/decorators/auth.decorators';
-import { exportName, toCsv, waktu } from '../../common/csv';
-import { localDate } from '../../common/time';
-import { PrismaService } from '../../prisma/prisma.service';
-import { range } from '../analytics/analytics.controller';
-import { AnalyticsService } from '../analytics/analytics.service';
+import { ALL_ROLES, AuthUser, CurrentUser, Roles } from '../../common/decorators/auth.decorators';
 import { AuditService } from '../audit/audit.service';
-import { ListReportsQuery } from '../reports/reports.dto';
-import { ReportsService } from '../reports/reports.service';
-import { UnitsService } from '../units/units.service';
+import { ExportJobsService } from './export-jobs.service';
+import { EXPORT_KINDS, ExportKind, ExportsService } from './exports.service';
 
-const MAX_ROWS = 50_000;
+class CreateExportJobDto {
+  @IsIn(Object.keys(EXPORT_KINDS)) kind: ExportKind;
+  /** Filter yang sama dengan endpoint unduh langsung (query string). */
+  @IsOptional() @IsObject() params?: Record<string, string>;
+}
 
-const CATEGORY: Record<string, string> = {
-  SAMBANG: 'Sambang / DDS', DETEKSI_DINI: 'Deteksi Dini', PROBLEM_SOLVING: 'Problem Solving', PENYULUHAN: 'Penyuluhan',
-  HARGA_PANGAN: 'Harga Pangan', MAPPING_KK: 'Mapping KK', KETAHANAN_PANGAN: 'Ketahanan Pangan',
-};
-const STATUS: Record<string, string> = {
-  DRAFT: 'Draft', SUBMITTED: 'Terkirim', IN_REVIEW: 'Ditinjau', NEEDS_REVISION: 'Perlu Revisi', APPROVED: 'Disetujui', REJECTED: 'Ditolak',
-};
-const ROLE: Record<string, string> = {
-  BHABIN: 'Bhabinkamtibmas', VERIFIKATOR: 'Verifikator', PIMPINAN: 'Pimpinan', ADMIN_UNIT: 'Admin Unit', SUPERADMIN: 'Superadmin', AUDITOR: 'Auditor', INTEGRASI: 'Integrasi',
-};
-
-type SchemaJson = { fields: { key: string; label: string; type: string; sensitive?: boolean }[] };
-
+/**
+ * Ekspor CSV. Web memakai antrean (`POST /exports/jobs` → pantau → unduh) agar ekspor besar tidak
+ * menahan request; endpoint `GET /exports/*.csv` tetap ada untuk unduhan langsung yang kecil.
+ */
 @Controller('exports')
 export class ExportsController {
   constructor(
-    private prisma: PrismaService,
-    private reports: ReportsService,
-    private analytics: AnalyticsService,
-    private units: UnitsService,
+    private exports: ExportsService,
+    private jobs: ExportJobsService,
     private audit: AuditService,
   ) {}
 
-  private send(res: Response, name: string, csv: string) {
+  @Post('jobs')
+  @Roles(...ALL_ROLES)
+  createJob(@CurrentUser() me: AuthUser, @Body() dto: CreateExportJobDto) {
+    return this.jobs.create(me, dto.kind, dto.params ?? {});
+  }
+
+  @Get('jobs')
+  @Roles(...ALL_ROLES)
+  listJobs(@CurrentUser() me: AuthUser) {
+    return this.jobs.list(me);
+  }
+
+  @Get('jobs/:id')
+  @Roles(...ALL_ROLES)
+  getJob(@CurrentUser() me: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.jobs.get(me, id);
+  }
+
+  @Get('jobs/:id/file')
+  @Roles(...ALL_ROLES)
+  async jobFile(@CurrentUser() me: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Res({ passthrough: true }) res: Response) {
+    const f = await this.jobs.file(me, id);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${f.name}"`);
     res.setHeader('Cache-Control', 'no-store');
-    res.send(csv);
+    if (f.size) res.setHeader('Content-Length', String(f.size));
+    return new StreamableFile(f.stream);
   }
 
-  /** Laporan sesuai filter daftar laporan. Field bertanda sensitif di skema tidak diekspor. */
-  @Get('reports.csv')
-  @Roles(UserRole.VERIFIKATOR, UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR)
-  async reportsCsv(@CurrentUser() me: AuthUser, @Query() q: ListReportsQuery, @Res() res: Response) {
-    const where = await this.reports.buildWhere(me, q);
-    const [rows, schemas] = await Promise.all([
-      this.prisma.report.findMany({
-        where,
-        orderBy: { occurredAt: 'desc' },
-        take: MAX_ROWS,
-        include: {
-          user: { select: { nama: true, pangkat: true, nrp: true } },
-          unit: { select: { nama: true, timezone: true } },
-          village: { select: { nama: true, kecamatan: true, kabupaten: true } },
-          reviewedBy: { select: { nama: true, pangkat: true } },
-          items: { include: { commodity: { select: { nama: true } } } },
-          _count: { select: { attachments: true } },
-        },
-      }),
-      this.prisma.formSchema.findMany(),
-    ]);
-    const schemaOf = new Map(schemas.map((s) => [`${s.category}:${s.version}`, s.schema as unknown as SchemaJson]));
-
-    const isian = (r: (typeof rows)[number]) => {
-      const fields = schemaOf.get(`${r.category}:${r.schemaVersion}`)?.fields ?? [];
-      const data = r.data as Record<string, unknown>;
-      const parts = fields
-        .filter((f) => !f.sensitive && !['photo', 'file', 'repeater'].includes(f.type) && data[f.key] != null && data[f.key] !== '')
-        .map((f) => `${f.label}: ${Array.isArray(data[f.key]) ? (data[f.key] as unknown[]).join(', ') : data[f.key]}`);
-      const items = r.items.map((i) => `${i.commodity.nama} Rp${i.harga}/${i.satuan} (${i.stok.toLowerCase()})`);
-      return [...parts, ...(items.length ? [`Harga: ${items.join(', ')}`] : [])].join(' | ');
-    };
-    const person = (p?: { nama: string; pangkat: string | null } | null) => (p ? [p.pangkat, p.nama].filter(Boolean).join(' ') : '');
-
-    const csv = toCsv(
-      ['Nomor', 'Kategori', 'Status', 'Prioritas', 'Waktu kegiatan (setempat)', 'Bhabin', 'NRP', 'Unit', 'Desa', 'Kecamatan', 'Kabupaten',
-        'Lintang', 'Bujur', 'Akurasi GPS (m)', 'Di dalam desa binaan', 'Lokasi palsu', 'Lampiran', 'Diverifikasi oleh', 'Waktu verifikasi (setempat)', 'Catatan verifikator', 'Isian'],
-      rows.map((r) => [
-        r.nomor, CATEGORY[r.category], STATUS[r.status], r.priority, waktu(r.occurredAt, r.unit.timezone), person(r.user), r.user.nrp, r.unit.nama,
-        r.village.nama, r.village.kecamatan, r.village.kabupaten, r.lat.toFixed(6), r.lng.toFixed(6), r.gpsAccuracyM != null ? Math.round(r.gpsAccuracyM) : '',
-        r.insideVillage, r.isMockLocation, r._count.attachments, person(r.reviewedBy), waktu(r.reviewedAt, r.unit.timezone), r.reviewNote, isian(r),
-      ]),
-    );
-    await this.audit.log({ actorId: me.id, action: 'EXPORT_CREATE', entity: 'reports', meta: { rows: rows.length, filters: { ...q } } as Prisma.InputJsonValue });
-    this.send(res, exportName('laporan', await this.units.timezoneOf(me.unitId)), csv);
-  }
-
-  @Get('prices.csv')
-  @Roles(UserRole.VERIFIKATOR, UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR)
-  async pricesCsv(@CurrentUser() me: AuthUser, @Res() res: Response) {
-    const rows = await this.analytics.latestPrices(me);
-    const csv = toCsv(
-      ['Komoditas', 'Satuan', 'Rata-rata 7 hari (Rp)', 'Rata-rata 7 hari sebelumnya (Rp)', 'Perubahan (%)', 'Terendah (Rp)', 'Tertinggi (Rp)', 'Sampel', 'Stok menipis', 'Stok kosong'],
-      rows.map((p) => [
-        p.nama, p.satuan, p.rata2, p.rata2_sebelumnya,
-        p.rata2 && p.rata2_sebelumnya ? (Math.round(((p.rata2 - p.rata2_sebelumnya) / p.rata2_sebelumnya) * 1000) / 10).toString().replace('.', ',') : '',
-        p.minimum, p.maksimum, p.sampel, p.stok_menipis, p.stok_kosong,
-      ]),
-    );
-    await this.audit.log({ actorId: me.id, action: 'EXPORT_CREATE', entity: 'prices', meta: { rows: rows.length } });
-    this.send(res, exportName('harga_pangan', await this.units.timezoneOf(me.unitId)), csv);
-  }
-
-  @Get('performance.csv')
-  @Roles(UserRole.VERIFIKATOR, UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR)
-  async performanceCsv(@CurrentUser() me: AuthUser, @Query() q: { unitId?: string; from?: string; to?: string }, @Res() res: Response) {
-    const r = range(q, 30);
-    const { data: rows } = await this.analytics.bhabinPerformance(me, r, { limit: 100_000 });
-    // Jumlah tanggal kalender (zona pengekspor) yang tercakup rentang, termasuk hari pertama & terakhir.
-    const tz = await this.units.timezoneOf(me.unitId);
-    const day = (d: Date) => Date.parse(localDate(d, tz));
-    const days = Math.round((day(r.to) - day(r.from)) / 86_400_000) + 1;
-    const csv = toCsv(
-      ['NRP', 'Nama', 'Pangkat', 'Unit', 'Desa binaan', 'Total laporan', 'Hari aktif', `Hari aktif (%) dari ${days} hari`, 'Disetujui', 'Menunggu', 'Revisi', 'Ditolak', 'Lokasi perlu dicek',
-        'Sambang', 'Deteksi Dini', 'Problem Solving', 'Penyuluhan', 'Harga Pangan', 'Mapping KK', 'Ketahanan Pangan', 'Laporan terakhir (setempat)'],
-      rows.map((b) => [
-        b.nrp, b.nama, b.pangkat, b.unit, b.desa, b.total, b.hari_aktif, Math.min(Math.round((b.hari_aktif / days) * 100), 100), b.disetujui, b.menunggu, b.revisi, b.ditolak, b.lokasi_janggal,
-        b.sambang, b.deteksi_dini, b.problem_solving, b.penyuluhan, b.harga_pangan, b.mapping_kk, b.ketahanan_pangan, waktu(b.terakhir_sepanjang, b.timezone),
-      ]),
-    );
-    await this.audit.log({ actorId: me.id, action: 'EXPORT_CREATE', entity: 'performance', meta: { rows: rows.length } });
-    this.send(res, exportName('kinerja_bhabin', tz), csv);
-  }
-
-  @Get('users.csv')
-  @Roles(UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR)
-  async usersCsv(@CurrentUser() me: AuthUser, @Query('role') role: string | undefined, @Query('active') active: string | undefined, @Res() res: Response) {
-    const rows = await this.prisma.user.findMany({
-      where: {
-        unitId: { in: await this.units.descendantIds(me.unitId) },
-        ...(role && { role: role as UserRole }),
-        ...(active && { active: active === 'true' }),
-      },
-      orderBy: [{ unit: { nama: 'asc' } }, { nama: 'asc' }],
-      take: MAX_ROWS,
-      include: { unit: { select: { nama: true, kode: true, timezone: true } }, villages: { where: { until: null }, include: { village: { select: { nama: true, kodeWilayah: true } } } } },
-    });
-    const csv = toCsv(
-      ['NRP', 'Nama', 'Pangkat', 'Jabatan', 'Peran', 'Kode unit', 'Unit', 'No. HP', 'Status', 'Login terakhir (setempat)', 'Desa binaan'],
-      rows.map((u) => [
-        u.nrp, u.nama, u.pangkat, u.jabatan, ROLE[u.role], u.unit.kode, u.unit.nama, u.phone, u.active ? 'Aktif' : 'Nonaktif', waktu(u.lastLoginAt, u.unit.timezone),
-        u.villages.map((v) => v.village.nama).join(', '),
-      ]),
-    );
-    await this.audit.log({ actorId: me.id, action: 'EXPORT_CREATE', entity: 'users', meta: { rows: rows.length } });
-    this.send(res, exportName('pengguna', await this.units.timezoneOf(me.unitId)), csv);
+  @Get(':kind.csv')
+  @Roles(...ALL_ROLES)
+  async direct(@CurrentUser() me: AuthUser, @Param('kind') kind: string, @Query() q: Record<string, string>, @Res() res: Response) {
+    this.exports.assertAllowed(me, kind);
+    const out = await this.exports.build(me, kind, q);
+    await this.audit.log({ actorId: me.id, action: 'EXPORT_CREATE', entity: kind, meta: { rows: out.rows, filters: { ...q } } as Prisma.InputJsonValue });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${out.name}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(out.csv);
   }
 }

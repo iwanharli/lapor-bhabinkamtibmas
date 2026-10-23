@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { ACCOUNTS, login } from './helpers';
 
-// Tampilan lapangan Bhabin di web/HP: ukuran HP, GPS di dalam desa binaan Sukamaju.
+// Tampilan lapangan Bhabin di web/HP: ukuran HP, GPS di dalam desa binaan Situ Udik.
 test.use({
   viewport: { width: 390, height: 844 },
   isMobile: true,
   hasTouch: true,
-  geolocation: { latitude: -6.5951, longitude: 106.8162, accuracy: 10 },
+  geolocation: { latitude: -6.61824, longitude: 106.65272, accuracy: 10 },
   permissions: ['geolocation'],
 });
 
@@ -16,11 +16,11 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 test('Bhabin membuat, mengirim, dan meralat laporan dari web', async ({ page }) => {
   await login(page, ACCOUNTS.bhabin);
   await expect(page).toHaveURL(/\/bhabin$/);
-  await expect(page.getByRole('heading', { name: /Contoh Bhabin/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Made Wibowo/ })).toBeVisible();
 
   await page.getByRole('link', { name: 'Sambang' }).first().click();
   await expect(page.getByText('Lokasi didapat')).toBeVisible();
-  await expect(page.getByText('Sukamaju').first()).toBeVisible(); // desa binaan terkunci
+  await expect(page.getByText('Situ Udik').first()).toBeVisible(); // desa binaan terkunci
   await page.locator('label:has-text("Jenis sasaran") select').selectOption('Warga');
   const nama = `Warga E2E ${Date.now()}`;
   await page.locator('label:has-text("Nama warga/tokoh") input').fill(nama);

@@ -2,9 +2,9 @@ import { expect, type Page } from '@playwright/test';
 import { randomUUID } from 'crypto';
 
 export const API = process.env.API_URL ?? 'http://localhost:3000/api/v1';
-export const PASSWORD = 'Demo#12345';
+export const PASSWORD = 'BrsDemo2026';
 
-/** Akun dari seed dev (backend/prisma/seed.ts & seed-demo-reports.ts). */
+/** Akun demo (Polres Bogor; Bhabin desa Situ Udik, Polsek Cibungbulang). */
 export const ACCOUNTS = {
   bhabin: '90000001',
   pimpinanPolsek: '90000002',
@@ -50,7 +50,7 @@ export async function createSubmittedReport(note = 'E2E', opts: { category?: str
       schemaVersion: 1,
       villageId,
       occurredAt: new Date(Date.now() - 30 * 60_000).toISOString(),
-      location: { lat: -6.5951, lng: 106.8162 },
+      location: { lat: -6.61824, lng: 106.65272 },
       gpsAccuracyM: 8,
       data: opts.data ?? {
         jenis_sasaran: 'Tokoh Masyarakat',
@@ -76,7 +76,7 @@ export async function createSubmittedReport(note = 'E2E', opts: { category?: str
 export async function createUser(role = 'PIMPINAN') {
   const token = await apiLogin(ACCOUNTS.admin);
   const units = await api<{ id: string; kode: string }[]>('/units', { token });
-  const unit = units.find((u) => u.kode === 'POLSEK-CONTOH')!;
+  const unit = units.find((u) => u.kode === 'DEMO-SEK-320116')!;
   const nrp = `97${String(Date.now()).slice(-8)}`;
   const res = await api<{ temporaryPassword: string; user: { id: string } }>('/admin/users', {
     method: 'POST',

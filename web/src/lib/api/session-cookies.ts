@@ -13,19 +13,26 @@ export interface Tokens {
   accessToken: string;
   refreshToken: string;
   expiresIn: number;
+  /** Umur refresh token (detik) dari server. */
+  refreshExpiresIn?: number;
+  /** "Ingat saya": cookie bertahan sampai refresh token habis; tanpa itu cookie hilang saat browser ditutup. */
+  remember?: boolean;
 }
+
+/** Umur cookie sesi: panjang bila "Ingat saya", selain itu cookie sesi browser (tanpa maxAge). */
+const sessionAge = (t: Tokens) => (t.remember ? { maxAge: t.refreshExpiresIn ?? SESSION_MAX_AGE } : {});
 
 const base = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' as const, path: '/' };
 
 export function tokenCookies(t: Tokens) {
   return [
     { name: COOKIE.access, value: t.accessToken, ...base, maxAge: Math.max(t.expiresIn - ACCESS_SKEW_SECONDS, 60) },
-    { name: COOKIE.refresh, value: t.refreshToken, ...base, maxAge: SESSION_MAX_AGE },
+    { name: COOKIE.refresh, value: t.refreshToken, ...base, ...sessionAge(t) },
   ];
 }
 
-export function userCookie(user: unknown) {
-  return { name: COOKIE.user, value: JSON.stringify(user), ...base, maxAge: SESSION_MAX_AGE };
+export function userCookie(user: unknown, t: Tokens) {
+  return { name: COOKIE.user, value: JSON.stringify(user), ...base, ...sessionAge(t) };
 }
 
 export async function refreshTokens(refreshToken: string): Promise<Tokens | null> {

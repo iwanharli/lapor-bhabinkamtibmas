@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsOptional, IsString, Length, Matches, MaxLength, MinLength, ValidateNested } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, Length, Matches, MaxLength, MinLength, ValidateNested } from 'class-validator';
 
 export class DeviceDto {
   @IsString() @Length(8, 128) deviceId: string;
@@ -13,6 +13,8 @@ export class LoginDto {
   @IsString() @MinLength(1) password: string;
   /** Diisi oleh aplikasi mobile; login web tidak mengirim device. */
   @IsOptional() @ValidateNested() @Type(() => DeviceDto) device?: DeviceDto;
+  /** Web: "Ingat saya" — sesi bertahan JWT_REFRESH_TTL_WEB_REMEMBER (bawaan 30 hari). */
+  @IsOptional() @IsBoolean() remember?: boolean;
 }
 
 export class RefreshDto {

@@ -163,6 +163,8 @@ model RefreshToken {
   revokedAt DateTime? @map("revoked_at") @db.Timestamptz
   /// Diisi bila dicabut karena rotasi (bukan logout/pencabutan), untuk masa toleransi request paralel.
   rotatedAt DateTime? @map("rotated_at") @db.Timestamptz
+  /// "Ingat saya" (web): masa berlaku panjang, ikut diwariskan saat rotasi.
+  remember  Boolean   @default(false)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
   user   User    @relation(fields: [userId], references: [id])

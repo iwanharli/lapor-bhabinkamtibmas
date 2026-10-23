@@ -17,7 +17,7 @@ export interface SessionUser {
 export async function saveSession(t: Tokens, user?: SessionUser) {
   const c = await cookies();
   for (const ck of tokenCookies(t)) c.set(ck);
-  if (user) c.set(userCookie(user));
+  if (user) c.set(userCookie(user, t));
 }
 
 export async function clearSession() {

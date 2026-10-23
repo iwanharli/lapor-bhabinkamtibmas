@@ -71,7 +71,7 @@ export class AuthService {
     await this.audit.log({ actorId: user.id, action: 'LOGIN', meta: { client: isMobile ? 'mobile' : 'web' }, ...client });
 
     return {
-      ...(await this.issueTokens(user, deviceRowId)),
+      ...(await this.issueTokens(user, deviceRowId, !deviceRowId && !!dto.remember)),
       user: {
         id: user.id,
         nrp: user.nrp,
@@ -94,7 +94,7 @@ export class AuthService {
       throw new UnauthorizedException({ code: 'TOKEN_EXPIRED' });
     }
     if (row.revokedAt && row.rotatedAt && Date.now() - row.rotatedAt.getTime() < ROTATION_GRACE_MS) {
-      return this.issueTokens(row.user, row.deviceId ?? undefined);
+      return this.issueTokens(row.user, row.deviceId ?? undefined, row.remember);
     }
     if (row.revokedAt) {
       await this.prisma.refreshToken.updateMany({
@@ -107,7 +107,7 @@ export class AuthService {
 
     const now = new Date();
     await this.prisma.refreshToken.update({ where: { id: row.id }, data: { revokedAt: now, rotatedAt: now } });
-    return this.issueTokens(row.user, row.deviceId ?? undefined);
+    return this.issueTokens(row.user, row.deviceId ?? undefined, row.remember);
   }
 
   async logout(refreshToken: string, client: { ip?: string; userAgent?: string } = {}) {
@@ -135,17 +135,21 @@ export class AuthService {
     return this.issueTokens(updated, deviceId);
   }
 
-  private async issueTokens(user: User, deviceId?: string) {
+  private async issueTokens(user: User, deviceId?: string, remember = false) {
     const ttl = Number(this.config.get('JWT_ACCESS_TTL', 900));
     const accessToken = await this.jwt.signAsync(
       { sub: user.id, nrp: user.nrp, role: user.role, unitId: user.unitId, ...(user.mustChangePassword && { pwd: true }) },
       { expiresIn: ttl },
     );
-    const refreshTtl = Number(this.config.get(deviceId ? 'JWT_REFRESH_TTL_MOBILE' : 'JWT_REFRESH_TTL_WEB', 43200));
+    const refreshTtl = deviceId
+      ? Number(this.config.get('JWT_REFRESH_TTL_MOBILE', 2_592_000))
+      : remember
+        ? Number(this.config.get('JWT_REFRESH_TTL_WEB_REMEMBER', 2_592_000))
+        : Number(this.config.get('JWT_REFRESH_TTL_WEB', 43200));
     const refreshToken = 'rt_' + randomBytes(32).toString('base64url');
     await this.prisma.refreshToken.create({
-      data: { userId: user.id, deviceId, tokenHash: sha256(refreshToken), expiresAt: new Date(Date.now() + refreshTtl * 1000) },
+      data: { userId: user.id, deviceId, tokenHash: sha256(refreshToken), expiresAt: new Date(Date.now() + refreshTtl * 1000), remember },
     });
-    return { accessToken, refreshToken, expiresIn: ttl };
+    return { accessToken, refreshToken, expiresIn: ttl, refreshExpiresIn: refreshTtl, remember };
   }
 }

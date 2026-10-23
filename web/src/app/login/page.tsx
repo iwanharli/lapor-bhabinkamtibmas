@@ -3,7 +3,7 @@
 import { ArrowRight, Eye, EyeOff, FlaskConical, LockKeyhole, UserRound } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-import { Alert, Button, cn, ErrorText, Field, Input } from '@/components/ui';
+import { Alert, Button, Checkbox, cn, ErrorText, Field, Input } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
 import type { DevAccount } from '@/lib/dev-accounts';
 
@@ -71,7 +71,7 @@ function LoginForm() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ nrp: form.get('nrp'), password: form.get('password') }),
+        body: JSON.stringify({ nrp: form.get('nrp'), password: form.get('password'), remember: form.get('remember') === 'on' }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -136,6 +136,8 @@ function LoginForm() {
             <Field label="Sandi">
               {(id) => <span className="relative block"><LockKeyhole size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" /><Input id={id} name="password" type={showPassword ? 'text' : 'password'} required autoComplete="current-password" placeholder="Masukkan sandi" className="h-12 rounded-xl pl-11 pr-12" /><button type="button" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? 'Sembunyikan sandi' : 'Tampilkan sandi'} className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg text-muted transition hover:bg-bg hover:text-ink">{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span>}
             </Field>
+
+            <Checkbox name="remember" label={<span>Ingat saya <span className="text-muted">· tetap masuk 30 hari di perangkat ini</span></span>} />
 
             <ErrorText>{error}</ErrorText>
             <Button type="submit" size="lg" className="h-12 w-full rounded-xl shadow-md shadow-primary/20" loading={loading} loadingText="Memeriksa akun…" icon={!loading ? <ArrowRight size={17} /> : undefined}>Masuk ke dashboard</Button>

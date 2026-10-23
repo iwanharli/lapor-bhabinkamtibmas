@@ -141,7 +141,7 @@ function pointCluster(L: Leaflet, map: LeafletMap, group: MapPoint[]) {
 const MAP_LOADING_EVENT = 'lapor:map-loading';
 const MAP_INDONESIA_EVENT = 'lapor:map-focus-indonesia';
 
-/** Arahkan peta kembali ke tampilan seluruh Indonesia (mis. saat filter wilayah dikosongkan). */
+/** Arahkan peta kembali ke tampilan awal: wilayah akun, atau seluruh Indonesia untuk akun nasional. */
 export function focusIndonesia() {
   window.dispatchEvent(new Event(MAP_INDONESIA_EVENT));
 }
@@ -173,7 +173,24 @@ function MapLoading({ show }: { show: boolean }) {
  * Peta laporan di atas batas wilayah Kemendagri. Isi diambil per area tampilan:
  * titik bila sedikit, gugus berangka bila banyak (docs/teknis/12 §4.2). Dimuat hanya di browser.
  */
-export function ReportMap({ filters }: { filters: MapFilters }) {
+/** Kotak [w,s,e,n] → batas Leaflet; null = seluruh Indonesia. */
+export const homeBounds = (b?: [number, number, number, number] | null): [[number, number], [number, number]] =>
+  b ? [[b[1], b[0]], [b[3], b[2]]] : INDONESIA;
+
+/** `home`: wilayah akun (atau unit terpilih) sebagai tampilan awal; akun nasional melihat seluruh Indonesia. */
+export function ReportMap({ filters, home }: { filters: MapFilters; home?: [number, number, number, number] | null }) {
+  const homeRef = useRef(homeBounds(home));
+  homeRef.current = homeBounds(home);
+  const homeKey = home?.join(',') ?? '';
+  const firstHome = useRef(true);
+  // Unit di filter berganti → arahkan ke wilayah unit tersebut (tampilan awal sudah ditangani saat peta dibuat).
+  useEffect(() => {
+    if (firstHome.current) {
+      firstHome.current = false;
+      return;
+    }
+    focusIndonesia();
+  }, [homeKey]);
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<LeafletMap | null>(null);
   const detach = useRef<(() => void) | null>(null);
@@ -265,14 +282,14 @@ export function ReportMap({ filters }: { filters: MapFilters }) {
           mm.setMinZoom(Math.max(2, mm.getBoundsZoom(INDONESIA, false, symmetricPadding) - 0.5));
         };
         const initialInsets = mapInsets();
-        mm.fitBounds(INDONESIA, { paddingTopLeft: initialInsets.topLeft, paddingBottomRight: initialInsets.bottomRight });
+        mm.fitBounds(homeRef.current, { paddingTopLeft: initialInsets.topLeft, paddingBottomRight: initialInsets.bottomRight, maxZoom: 15 });
         fitIndonesia();
         mm.on('resize', fitIndonesia);
         L.tileLayer(TILE_URL, { maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · Kemendagri 2025' }).addTo(map.current);
         const detachBoundaries = attachBoundaries(L, map.current);
         const showIndonesia = () => {
           const { topLeft, bottomRight } = mapInsets();
-          mm.flyToBounds(INDONESIA, { paddingTopLeft: topLeft, paddingBottomRight: bottomRight, duration: 0.9 });
+          mm.flyToBounds(homeRef.current, { paddingTopLeft: topLeft, paddingBottomRight: bottomRight, duration: 0.9, maxZoom: 15 });
         };
         window.addEventListener(MAP_INDONESIA_EVENT, showIndonesia);
         detach.current = () => {

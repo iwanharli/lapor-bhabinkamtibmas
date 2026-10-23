@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation';
 import { PageHeader } from '@/components/ui';
 import { TrackingMonitor } from '@/features/tracking/tracking-monitor';
 import { UrlUnitFilter } from '@/features/units/unit-combobox';
-import { getSessionUser } from '@/lib/api/server';
+import { apiGet, getSessionUser } from '@/lib/api/server';
+import { withParams } from '@/lib/url';
 
 const VIEWERS = ['PIMPINAN', 'ADMIN_UNIT', 'SUPERADMIN'];
 
@@ -10,6 +11,7 @@ export default async function PantauPage({ searchParams }: { searchParams: Promi
   const me = await getSessionUser();
   if (!me || !VIEWERS.includes(me.role)) redirect('/');
   const { unitId } = await searchParams;
+  const { bbox } = await apiGet<{ bbox: [number, number, number, number] | null }>(withParams('/units/bounds', { unitId }));
   return (
     <>
       <PageHeader
@@ -17,7 +19,7 @@ export default async function PantauPage({ searchParams }: { searchParams: Promi
         subtitle="Posisi terkini Bhabinkamtibmas selama jam dinas"
         actions={<UrlUnitFilter emptyLabel="Semua wilayah" className="w-64" />}
       />
-      <TrackingMonitor key={unitId ?? ''} unitId={unitId} />
+      <TrackingMonitor key={unitId ?? ''} unitId={unitId} home={bbox} />
     </>
   );
 }

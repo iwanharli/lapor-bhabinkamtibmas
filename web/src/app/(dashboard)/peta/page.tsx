@@ -13,11 +13,12 @@ export default async function PetaPage({ searchParams }: { searchParams: Promise
   const from = new Date(Date.now() - days * 86_400_000).toISOString();
   const regionCode = sp.kecamatanKode || sp.kabupatenKode || sp.provinsiKode;
   const regionLevel = sp.kecamatanKode ? '3' : sp.kabupatenKode ? '2' : sp.provinsiKode ? '1' : undefined;
-  const summary = await apiGet<MapSummary>(withParams('/analytics/map/summary', { from, category: sp.category, priority: sp.priority, unitId: sp.unitId, regionCode, regionLevel }));
+  const [summary, { bbox }] = await Promise.all([apiGet<MapSummary>(withParams('/analytics/map/summary', { from, category: sp.category, priority: sp.priority, unitId: sp.unitId, regionCode, regionLevel })),
+    apiGet<{ bbox: [number, number, number, number] | null }>(withParams('/units/bounds', { unitId: sp.unitId }))]);
 
   return (
     <main className="relative isolate h-[calc(100dvh-4rem)] min-h-[520px] overflow-hidden bg-[#e8edf3]">
-      <ReportMap filters={{ from, category: sp.category, priority: sp.priority, unitId: sp.unitId, regionCode, regionLevel: regionLevel ? Number(regionLevel) : undefined }} />
+      <ReportMap home={bbox} filters={{ from, category: sp.category, priority: sp.priority, unitId: sp.unitId, regionCode, regionLevel: regionLevel ? Number(regionLevel) : undefined }} />
       <MapOverlays summary={summary} days={days} search={sp} />
     </main>
   );

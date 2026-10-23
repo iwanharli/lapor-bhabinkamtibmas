@@ -115,6 +115,16 @@ export class UnitsService {
   }
 
   /** Zona waktu unit pengguna (untuk penanggalan lokal). */
+  /** Batas desa-desa di bawah unit (w,s,e,n); null untuk tingkat nasional atau bila belum ada geometri desa. */
+  async bounds(unitId: string): Promise<[number, number, number, number] | null> {
+    const unit = await this.prisma.unit.findUnique({ where: { id: unitId }, select: { parentId: true } });
+    if (!unit?.parentId) return null;
+    const [r] = await this.prisma.$queryRaw<{ w: number | null; s: number; e: number; n: number }[]>`
+      SELECT ST_XMin(x.e) AS w, ST_YMin(x.e) AS s, ST_XMax(x.e) AS e, ST_YMax(x.e) AS n
+      FROM (SELECT ST_Extent(geom) AS e FROM villages WHERE polsek_id IN (SELECT unit_subtree(${unitId}::uuid))) x`;
+    return r?.w == null ? null : [r.w, r.s, r.e, r.n];
+  }
+
   async timezoneOf(unitId: string) {
     return (await this.prisma.unit.findUnique({ where: { id: unitId }, select: { timezone: true } }))?.timezone ?? 'Asia/Jakarta';
   }

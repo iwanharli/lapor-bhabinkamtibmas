@@ -24,7 +24,7 @@ function lalu(iso: string | null) {
 type Leaflet = typeof import('leaflet');
 
 /** Pantau personel: posisi terkini Bhabin yang sedang dinas (diperbarui tiap 30 detik). Riwayat tidak disimpan. */
-export function TrackingMonitor({ unitId }: { unitId?: string }) {
+export function TrackingMonitor({ unitId, home }: { unitId?: string; home?: [number, number, number, number] | null }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<LeafletMap | null>(null);
   const lib = useRef<Leaflet | null>(null);
@@ -57,7 +57,7 @@ export function TrackingMonitor({ unitId }: { unitId?: string }) {
       const L = (await import('leaflet')).default;
       if (cancelled || !el.current || map.current) return;
       lib.current = L;
-      map.current = L.map(el.current).fitBounds(INDONESIA);
+      map.current = L.map(el.current).fitBounds(home ? [[home[1], home[0]], [home[3], home[2]]] : INDONESIA, { maxZoom: 15 });
       L.tileLayer(TILE_URL, { maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>' }).addTo(map.current);
       layer.current = L.layerGroup().addTo(map.current);
       setReady(true);
@@ -67,6 +67,7 @@ export function TrackingMonitor({ unitId }: { unitId?: string }) {
       map.current?.remove();
       map.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- wilayah awal saja; ganti unit me-mount ulang (key)
   }, []);
 
   useEffect(() => {
@@ -88,12 +89,12 @@ export function TrackingMonitor({ unitId }: { unitId?: string }) {
         .addTo(g);
       byUser.current.set(p.user_id, mk);
     }
-    if (!fitted.current && pts.length) {
+    if (!fitted.current && pts.length && !home) {
       fitted.current = true;
       m.fitBounds(L.latLngBounds(pts).pad(0.3), { maxZoom: 15 });
     }
     if (picked) byUser.current.get(picked)?.openTooltip();
-  }, [live, ready, picked]);
+  }, [live, ready, picked, home]);
 
   const focus = (id: string) => {
     setPicked(id);

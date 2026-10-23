@@ -47,6 +47,15 @@ export class UnitsController {
     return this.units.children(me.unitId, parentId || undefined);
   }
 
+  /** GET /units/bounds?unitId= — kotak batas wilayah unit (w,s,e,n) untuk fokus awal peta; null = seluruh Indonesia. */
+  @Get('bounds')
+  @Roles(...ALL_ROLES)
+  async bounds(@CurrentUser() me: AuthUser, @Query('unitId') unitId?: string) {
+    if (unitId && !/^[0-9a-f-]{36}$/i.test(unitId)) return { bbox: null };
+    if (unitId) await this.units.assertInScope(me.unitId, unitId);
+    return { bbox: await this.units.bounds(unitId || me.unitId) };
+  }
+
   /** GET /units/summary — ringkasan cakupan untuk halaman Unit. */
   @Get('summary')
   @Roles(...ALL_ROLES)

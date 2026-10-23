@@ -9,7 +9,7 @@ final tokenStorageProvider = Provider((_) => TokenStorage());
 
 final dioProvider = Provider<Dio>((ref) {
   final storage = ref.watch(tokenStorageProvider);
-  final dio = Dio(BaseOptions(baseUrl: apiUrl, connectTimeout: const Duration(seconds: 15), receiveTimeout: const Duration(seconds: 30)));
+  final dio = Dio(BaseOptions(baseUrl: apiUrl, connectTimeout: const Duration(seconds: 15), sendTimeout: const Duration(seconds: 60), receiveTimeout: const Duration(seconds: 30)));
   dio.interceptors.add(_AuthInterceptor(dio, storage));
   return dio;
 });
@@ -21,6 +21,9 @@ String apiErrorMessage(Object e) {
     if (data is Map && data['error'] is Map) return data['error']['message']?.toString() ?? 'Terjadi kesalahan';
     if (e.type == DioExceptionType.connectionError || e.type == DioExceptionType.connectionTimeout) {
       return 'Tidak dapat terhubung ke server';
+    }
+    if (e.type == DioExceptionType.sendTimeout || e.type == DioExceptionType.receiveTimeout) {
+      return 'Koneksi lambat, pengiriman terputus. Coba lagi.';
     }
   }
   return 'Terjadi kesalahan';

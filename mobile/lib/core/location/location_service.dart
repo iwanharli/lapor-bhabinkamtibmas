@@ -38,6 +38,13 @@ Future<Fix> getFix({Duration wait = const Duration(seconds: 20)}) async {
   } finally {
     await sub.cancel();
   }
-  final p = best ?? await Geolocator.getCurrentPosition();
+  // Belum dapat titik (mis. di dalam ruangan): coba sekali lagi dengan batas waktu, lalu posisi terakhir ponsel.
+  // Tanpa batas waktu, getCurrentPosition bisa menunggu selamanya dan tombol tampak "loading terus".
+  var p = best;
+  p ??= await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, timeLimit: Duration(seconds: 10)))
+      .then<Position?>((v) => v)
+      .catchError((Object _) => null);
+  p ??= await Geolocator.getLastKnownPosition();
+  if (p == null) throw LocationException('Lokasi GPS belum didapat. Pindah ke tempat terbuka lalu coba lagi.');
   return Fix(p.latitude, p.longitude, p.accuracy, p.isMocked);
 }

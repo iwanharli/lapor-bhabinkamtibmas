@@ -82,8 +82,10 @@ export default async function DesaPage({ searchParams }: { searchParams: Promise
               hrefFor={(p, l) => withParams('/admin/desa', sp, { page: p > 1 ? String(p) : undefined, limit: l !== 20 ? String(l) : undefined })} />
           </Card>
 
-          <Card title="Peta batas desa" subtitle={`${geo.features.length} desa berbatas`} className="flex flex-col self-start xl:sticky xl:top-20" bodyClassName="h-[460px]">
-            {geo.features.length ? <BoundaryMap data={geo} /> : <EmptyState icon={<Shapes size={22} />} tone="neutral" title="Belum ada batas wilayah" className="h-full">Impor GeoJSON untuk menampilkan peta.</EmptyState>}
+          <Card title="Peta batas desa" subtitle={`${(geo.total ?? geo.features.length).toLocaleString('id-ID')} desa berbatas`} className="flex flex-col self-start xl:sticky xl:top-20" bodyClassName="h-[460px]">
+            {geo.features.length ? <BoundaryMap data={geo} />
+              : geo.truncated ? <EmptyState icon={<Shapes size={22} />} tone="neutral" title="Terlalu banyak desa untuk digambar" className="h-full">Pilih Polsek di filter untuk melihat batas desanya di peta.</EmptyState>
+              : <EmptyState icon={<Shapes size={22} />} tone="neutral" title="Belum ada batas wilayah" className="h-full">Impor GeoJSON untuk menampilkan peta.</EmptyState>}
           </Card>
         </div>
       </Stack>

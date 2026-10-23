@@ -21,5 +21,8 @@ export interface VillageStats {
 
 export interface VillageGeoJson {
   type: 'FeatureCollection';
+  /** Jumlah desa berbatas dalam cakupan; `truncated` bila terlalu banyak untuk digambar (pilih Polsek dulu). */
+  total?: number;
+  truncated?: boolean;
   features: { type: 'Feature'; id: string; properties: { id: string; nama: string; kecamatan: string }; geometry: GeoJSON.Geometry }[];
 }

@@ -5,6 +5,9 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { UnitsService } from '../units/units.service';
 
+/** Batas jumlah poligon desa per permintaan peta. */
+const GEOJSON_MAX = 2000;
+
 @Injectable()
 export class VillagesService {
   constructor(private prisma: PrismaService, private units: UnitsService, private audit: AuditService) {}
@@ -151,12 +154,17 @@ export class VillagesService {
   async geojson(me: AuthUser, polsekId?: string) {
     if (polsekId) await this.units.assertInScope(me.unitId, polsekId);
     const scope = await this.scopeSql(me);
+    const where = Prisma.sql`${scope} AND v.geom IS NOT NULL ${polsekId ? Prisma.sql`AND v.polsek_id = ${polsekId}::uuid` : Prisma.empty}`;
+    // Cakupan nasional bisa puluhan ribu poligon (ratusan MB): kirim kosong & minta pilih Polsek.
+    const [{ n }] = await this.prisma.$queryRaw<{ n: number }[]>`SELECT count(*)::int AS n FROM villages v WHERE ${where}`;
+    if (n > GEOJSON_MAX) return { type: 'FeatureCollection', features: [], total: n, truncated: true };
     const rows = await this.prisma.$queryRaw<{ id: string; nama: string; kecamatan: string; geometry: string }[]>`
       SELECT v.id, v.nama, v.kecamatan, ST_AsGeoJSON(ST_SimplifyPreserveTopology(v.geom, 0.00005), 6) AS geometry
-      FROM villages v
-      WHERE ${scope} AND v.geom IS NOT NULL ${polsekId ? Prisma.sql`AND v.polsek_id = ${polsekId}::uuid` : Prisma.empty}`;
+      FROM villages v WHERE ${where}`;
     return {
       type: 'FeatureCollection',
+      total: n,
+      truncated: false,
       features: rows.map((r) => ({ type: 'Feature', id: r.id, properties: { id: r.id, nama: r.nama, kecamatan: r.kecamatan }, geometry: JSON.parse(r.geometry) })),
     };
   }

@@ -2,7 +2,7 @@
 
 import { ClipboardList, Home, KeyRound, LogOut, Plus, UserCheck, UserRound } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
@@ -20,7 +20,6 @@ const initials = (nama: string) => nama.split(/\s+/).slice(0, 2).map((w) => w[0]
 /** Kerangka tampilan lapangan Bhabin: header ringkas + tab bawah ala aplikasi HP; di layar lebar tetap satu kolom terpusat. */
 export function FieldShell({ user, children }: { user: { nama: string; pangkat?: string | null; unit: { nama: string } }; children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
 
@@ -32,8 +31,9 @@ export function FieldShell({ user, children }: { user: { nama: string; pangkat?:
   }, [open]);
 
   async function logout() {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.replace('/login');
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
+    // Muat ulang penuh: data sesi di memori ikut hilang & tidak bergantung pada file versi lama setelah deploy.
+    window.location.replace('/login');
   }
 
   const active = (t: (typeof TABS)[number]) => (t.exact ? pathname === t.href : pathname.startsWith(t.href) && !(t.href === '/bhabin/lapor' && pathname.startsWith('/bhabin/laporan')));

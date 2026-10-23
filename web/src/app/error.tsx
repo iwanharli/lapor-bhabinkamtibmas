@@ -2,9 +2,25 @@
 
 import { ArrowLeft, RefreshCw, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
+import { useEffect } from 'react';
 import { Button } from '@/components/ui';
 
+/** File JS/CSS versi lama sudah tidak ada setelah deploy baru. */
+const STALE = /ChunkLoadError|Loading (CSS )?chunk|dynamically imported module|Failed to fetch/i;
+
 export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  // Halaman dibuka sebelum versi baru dipasang: muat ulang sekali agar memakai file terbaru.
+  useEffect(() => {
+    if (!STALE.test(`${error.name} ${error.message}`)) return;
+    try {
+      if (sessionStorage.getItem('reload-after-deploy') === location.pathname) return;
+      sessionStorage.setItem('reload-after-deploy', location.pathname);
+    } catch {
+      /* penyimpanan tidak tersedia: tetap muat ulang sekali */
+    }
+    location.reload();
+  }, [error]);
+
   return (
     <main className="relative grid min-h-screen place-items-center overflow-hidden bg-bg px-4 py-12">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_at_top,rgba(36,79,145,.15),transparent_70%)]" />

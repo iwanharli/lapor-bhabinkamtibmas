@@ -2,7 +2,7 @@
 
 import { ChevronDown, KeyRound, LogOut, Menu, PanelLeft, UserRound } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { NotificationBell } from '@/features/notifications/notification-bell';
 import { isActive, NavSection } from './sidebar';
@@ -32,7 +32,6 @@ function useCrumbs(sections: NavSection[]) {
 }
 
 function UserMenu({ user }: { user: ShellUser }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -49,8 +48,9 @@ function UserMenu({ user }: { user: ShellUser }) {
   }, [open]);
 
   async function logout() {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.replace('/login');
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
+    // Muat ulang penuh: data sesi di memori ikut hilang & tidak bergantung pada file versi lama setelah deploy.
+    window.location.replace('/login');
   }
 
   return (

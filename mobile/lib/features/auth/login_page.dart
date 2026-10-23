@@ -1,9 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/config.dart';
 import '../../core/api/api_client.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/ui/theme.dart';
+
+/// Akun Bhabin demo (Polda Metro Jaya), satu per kabupaten/kota.
+const _demoPassword = 'BrsDemo2026';
+const _demoBhabin = [
+  ('31010005', 'Aipda Iwan Wijaya', 'Pulau Harapan · Kepulauan Seribu'),
+  ('31710005', 'Aiptu Rina Siregar', 'Gambir · Jakarta Pusat'),
+  ('31720005', 'Aiptu Agus Mahendra', 'Kamal Muara · Jakarta Utara'),
+  ('31730005', 'Brigpol Teuku Wibowo', 'Duri Kosambi · Jakarta Barat'),
+  ('31740005', 'Aipda Dedi Pratama', 'Menteng Dalam · Jakarta Selatan'),
+  ('31750005', 'Brigpol Ketut Sitompul', 'Utan Kayu Selatan · Jakarta Timur'),
+];
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -33,6 +45,39 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// Pilih akun Bhabin demo → isi NRP & sandi lalu langsung masuk.
+  Future<void> _pickDemo() async {
+    final nrp = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 0, 20, 4),
+            child: Text('Login cepat Bhabin (demo)', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Text('Pilih akun untuk langsung masuk. Sandi semua akun: $_demoPassword', style: TextStyle(color: muted, fontSize: 12.5)),
+          ),
+          for (final (nrp, nama, desa) in _demoBhabin)
+            ListTile(
+              leading: CircleAvatar(backgroundColor: success.withValues(alpha: 0.12), child: const Icon(Icons.local_police_outlined, color: success)),
+              title: Text(nama, style: const TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Text('$desa · $nrp'),
+              trailing: const Icon(Icons.arrow_forward, size: 18),
+              onTap: () => Navigator.pop(ctx, nrp),
+            ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+    if (nrp == null) return;
+    _nrp.text = nrp;
+    _password.text = _demoPassword;
+    await _submit();
   }
 
   @override
@@ -89,6 +134,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                   ),
                 ),
+                if (demoLogin) ...[
+                  const SizedBox(height: 14),
+                  OutlinedButton.icon(
+                    onPressed: _loading ? null : _pickDemo,
+                    style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white54), shape: const StadiumBorder()),
+                    icon: const Icon(Icons.bolt, size: 18),
+                    label: const Text('Login cepat Bhabin (demo)'),
+                  ),
+                ],
               ]),
             ),
           ),

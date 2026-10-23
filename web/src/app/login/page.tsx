@@ -1,18 +1,18 @@
 'use client';
 
-import { ArrowRight, Eye, EyeOff, FlaskConical, LockKeyhole, UserRound } from 'lucide-react';
+import { ArrowRight, Building2, ClipboardCheck, Eye, EyeOff, FlaskConical, Loader2, LockKeyhole, ShieldCheck, Smartphone, UserCog, UserRound, type LucideIcon } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { Alert, Button, Checkbox, cn, ErrorText, Field, Input, Modal, ModalBody } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
 import { ROLE_INFO, type DemoRole, type DevAccount } from '@/lib/dev-accounts';
 
-const ROLE_TONE: Record<DemoRole, string> = {
-  SUPERADMIN: 'bg-violet-500/12 text-violet-700 dark:text-violet-300',
-  PIMPINAN: 'bg-primary/10 text-primary',
-  ADMIN_UNIT: 'bg-orange-500/12 text-orange-700 dark:text-orange-300',
-  AUDITOR: 'bg-slate-500/12 text-slate-600 dark:text-slate-300',
-  BHABIN: 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300',
+const ROLE_STYLE: Record<DemoRole, { icon: LucideIcon; tone: string }> = {
+  SUPERADMIN: { icon: ShieldCheck, tone: 'bg-violet-500/12 text-violet-600 dark:text-violet-300' },
+  PIMPINAN: { icon: Building2, tone: 'bg-primary/10 text-primary' },
+  ADMIN_UNIT: { icon: UserCog, tone: 'bg-orange-500/12 text-orange-600 dark:text-orange-300' },
+  AUDITOR: { icon: ClipboardCheck, tone: 'bg-slate-500/12 text-slate-600 dark:text-slate-300' },
+  BHABIN: { icon: Smartphone, tone: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-300' },
 };
 
 /** Tombol kecil "Akun demo" → modal semua akun demo per wilayah; sekali klik untuk masuk. Hanya bila server mengizinkan. */
@@ -57,44 +57,51 @@ function DemoLogin({ onError }: { onError: (m: string) => void }) {
         className="mx-auto flex items-center gap-1.5 rounded-full border border-dashed border-warn/50 bg-warn-soft/40 px-3 py-1.5 text-xs font-semibold text-warn transition hover:bg-warn-soft">
         <FlaskConical size={13} /> Akun demo · masuk 1 klik
       </button>
-      <Modal open={open} onClose={() => !busy && setOpen(false)} dismissible={!busy} size="lg" title="Akun demo"
-        description="Pilih wilayah lalu klik akun untuk langsung masuk. Data demo: Polda Metro Jaya (6 kabupaten/kota DKI Jakarta).">
-        <ModalBody className="space-y-4">
-          <div className="grid gap-1.5 rounded-xl bg-surface-2 p-3 text-xs sm:grid-cols-2">
-            {(Object.keys(ROLE_INFO) as DemoRole[]).map((r) => (
-              <p key={r} className="leading-5">
-                <span className={cn('mr-1.5 rounded px-1.5 py-0.5 font-semibold', ROLE_TONE[r])}>{ROLE_INFO[r].label}</span>
-                <span className="text-muted">{ROLE_INFO[r].desc}</span>
-              </p>
-            ))}
+      <Modal open={open} onClose={() => !busy && setOpen(false)} dismissible={!busy} size="lg" title="Masuk dengan akun demo"
+        description="Pilih wilayah, lalu klik salah satu akun. Data demo: Polda Metro Jaya.">
+        <ModalBody className="space-y-0 p-0">
+          <div className="grid sm:grid-cols-[11.5rem_1fr]">
+            <nav aria-label="Wilayah" className="flex gap-1 overflow-x-auto border-b border-line p-3 sm:flex-col sm:overflow-visible sm:border-b-0 sm:border-r sm:bg-surface-2/60">
+              <p className="hidden px-2.5 pb-1 pt-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted sm:block">Wilayah</p>
+              {groups.map((g) => (
+                <button key={g} type="button" aria-current={g === active} onClick={() => setGroup(g)}
+                  className={cn('shrink-0 whitespace-nowrap rounded-lg px-2.5 py-2 text-left text-[13px] transition',
+                    g === active ? 'bg-primary font-semibold text-white shadow-sm' : 'text-muted hover:bg-surface hover:text-ink')}>
+                  {g}
+                </button>
+              ))}
+            </nav>
+            <ul className="max-h-[min(26rem,60vh)] divide-y divide-line overflow-y-auto">
+              {accounts.filter((a) => a.group === active).map((a) => {
+                const { icon: Icon, tone } = ROLE_STYLE[a.role];
+                return (
+                  <li key={a.key}>
+                    <button type="button" disabled={!!busy} onClick={() => loginAs(a.key)}
+                      className={cn('group flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-primary-soft/40 disabled:opacity-60', busy === a.key && 'bg-primary-soft/50')}>
+                      <span className={cn('grid size-10 shrink-0 place-items-center rounded-xl', tone)}><Icon size={18} /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-baseline gap-2">
+                          <span className="truncate text-sm font-semibold">{a.label}</span>
+                          <span className="hidden truncate text-xs text-muted sm:inline">{a.hint}</span>
+                        </span>
+                        <span className="block truncate text-[13px]">{a.nama}</span>
+                        <span className="block truncate text-xs text-muted sm:hidden">{a.hint}</span>
+                        <span className="hidden truncate text-xs text-muted sm:block">{ROLE_INFO[a.role].desc}</span>
+                      </span>
+                      <span className="hidden shrink-0 rounded-md bg-surface-2 px-2 py-1 font-mono text-[11px] text-muted sm:block">{a.nrp}</span>
+                      <span className="grid size-8 shrink-0 place-items-center rounded-full text-muted transition group-hover:bg-primary group-hover:text-white">
+                        {busy === a.key ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
-          <div className="flex flex-wrap gap-1.5" role="tablist">
-            {groups.map((g) => (
-              <button key={g} type="button" role="tab" aria-selected={g === active} onClick={() => setGroup(g)}
-                className={cn('rounded-full border px-3 py-1 text-xs font-medium transition', g === active ? 'border-primary bg-primary text-white' : 'border-line text-muted hover:border-primary/40 hover:text-ink')}>
-                {g}
-              </button>
-            ))}
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {accounts.filter((a) => a.group === active).map((a) => (
-              <button key={a.key} type="button" disabled={!!busy} onClick={() => loginAs(a.key)}
-                className={cn('group flex items-center gap-3 rounded-xl border border-line px-3 py-2.5 text-left transition hover:border-primary/50 hover:bg-primary-soft/40 disabled:opacity-60', busy === a.key && 'border-primary bg-primary-soft/40')}>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5">
-                    <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide', ROLE_TONE[a.role])}>{a.label}</span>
-                    <span className="font-mono text-[11px] text-muted">{a.nrp}</span>
-                  </span>
-                  <span className="mt-1 block truncate text-sm font-semibold">{a.nama}</span>
-                  <span className="block truncate text-xs text-muted">{a.hint}</span>
-                </span>
-                <span className="shrink-0 text-xs font-semibold text-primary opacity-0 transition group-hover:opacity-100">
-                  {busy === a.key ? 'Masuk…' : <ArrowRight size={16} />}
-                </span>
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-muted">Semua akun memakai sandi <span className="font-mono font-semibold text-ink">BrsDemo2026</span>. Bhabinkamtibmas juga tersedia di aplikasi Android.</p>
+          <p className="flex items-center gap-2 border-t border-line px-6 py-3 text-xs text-muted">
+            <LockKeyhole size={13} /> Sandi semua akun: <span className="font-mono font-semibold text-ink">BrsDemo2026</span>
+            <span className="hidden sm:inline">· Bhabinkamtibmas juga bisa masuk di aplikasi Android.</span>
+          </p>
         </ModalBody>
       </Modal>
     </>

@@ -1,2 +1,5 @@
 /// URL API diatur saat build: --dart-define=API_URL=https://...
 const apiUrl = String.fromEnvironment('API_URL', defaultValue: 'http://10.0.2.2:3000/api/v1');
+
+/// APK demo: tombol login cepat akun Bhabin demo di halaman masuk (--dart-define=DEMO_LOGIN=true).
+const demoLogin = bool.fromEnvironment('DEMO_LOGIN');

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/api_client.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/forms/form_schema.dart';
+import '../../core/location/tracking_banner.dart';
 import '../../core/ui/format.dart';
 import '../../core/ui/theme.dart';
 import '../../core/ui/skeleton.dart';
@@ -97,7 +98,9 @@ class HomePage extends ConsumerWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
+            const TrackingBanner(),
+            const SizedBox(height: 10),
             const Text('Buat laporan', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             const SizedBox(height: 10),
             schemas.when(

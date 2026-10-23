@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   Map,
   MapPinned,
+  Navigation,
   TrendingUp,
   LucideIcon,
   ShoppingBasket,
@@ -41,6 +42,7 @@ const ICONS = {
   family: HeartPulse,
   monthly: CalendarRange,
   stuntingMap: Layers,
+  tracking: Navigation,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

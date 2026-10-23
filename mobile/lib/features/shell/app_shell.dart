@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/location/tracker.dart';
 import '../../core/ui/theme.dart';
 
 /// Kerangka utama: navigasi bawah + tombol Lapor di tengah (selaras tampilan web Bhabin).
-class AppShell extends StatelessWidget {
+class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.location, required this.child});
   final String location;
   final Widget child;
@@ -17,7 +19,8 @@ class AppShell extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(trackerProvider); // pelacakan jam dinas hidup selama sesi
     final index = _tabs.indexWhere((t) => t.$1 == location).clamp(0, _tabs.length - 1);
     return Scaffold(
       body: child,

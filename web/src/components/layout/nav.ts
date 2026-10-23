@@ -42,6 +42,7 @@ export function navFor(role: string): NavSection[] {
       items: [
         { href: '/kinerja', label: 'Kinerja Bhabin', icon: 'performance' },
         { href: '/absensi', label: 'Absensi', icon: 'attendance' },
+        ...(role === 'AUDITOR' ? [] : [{ href: '/pantau', label: 'Pantau Personel', icon: 'tracking' as const }]),
       ],
     },
   ];

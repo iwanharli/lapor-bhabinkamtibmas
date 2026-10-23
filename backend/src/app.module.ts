@@ -11,6 +11,7 @@ import { CryptoModule } from './common/crypto/crypto.module';
 import { StorageModule } from './common/storage/storage.module';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
 import { AttendancesModule } from './modules/attendances/attendances.module';
+import { TrackingModule } from './modules/tracking/tracking.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ExportsModule } from './modules/exports/exports.module';
 import { AggregatesModule } from './modules/aggregates/aggregates.module';
@@ -47,6 +48,7 @@ import { RegionsModule } from './modules/regions/regions.module';
     AnalyticsModule,
     AttachmentsModule,
     AttendancesModule,
+    TrackingModule,
     NotificationsModule,
     AggregatesModule,
     ExportsModule,

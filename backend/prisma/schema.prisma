@@ -543,3 +543,24 @@ model Notification {
   @@index([userId, createdAt(sort: Desc)])
   @@map("notifications")
 }
+
+/// Jejak lokasi Bhabin selama jam dinas (check-in s.d. check-out). Dihapus otomatis setelah 30 hari.
+model LocationPing {
+  id             BigInt   @id @default(autoincrement())
+  userId         String   @map("user_id") @db.Uuid
+  unitId         String   @map("unit_id") @db.Uuid
+  workDate       DateTime @map("work_date") @db.Date
+  clientTime     DateTime @map("client_time") @db.Timestamptz(3)
+  serverTime     DateTime @default(now()) @map("server_time") @db.Timestamptz(3)
+  lat            Float
+  lng            Float
+  gpsAccuracyM   Float?   @map("gps_accuracy_m") @db.Real
+  isMockLocation Boolean  @default(false) @map("is_mock_location")
+  battery        Int?     @db.SmallInt
+
+  @@unique([userId, clientTime])
+  @@index([userId, workDate, clientTime])
+  @@index([unitId, workDate])
+  @@index([clientTime])
+  @@map("location_pings")
+}

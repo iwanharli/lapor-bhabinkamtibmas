@@ -28,7 +28,7 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
         <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-danger/15 bg-danger-soft text-danger">
           <ShieldAlert size={30} strokeWidth={1.8} />
         </div>
-        <p className="mt-6 font-mono text-sm font-bold tracking-[0.2em] text-danger">KESALAHAN 500</p>
+        <p className="mt-6 font-mono text-6xl font-bold tracking-[-0.08em] text-danger sm:text-7xl">500</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-ink sm:text-4xl">Halaman sedang bermasalah</h1>
         <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted">
           Maaf, halaman ini tidak dapat dimuat dengan baik. Coba muat ulang, atau kembali ke halaman utama.

@@ -26,7 +26,10 @@ export const DEFAULT_RANGE_DAYS = 7;
  * `rentang=30` untuk 30 hari, `rentang=semua` tanpa batas tanggal.
  */
 export function resolveRange(sp: ReportSearch, tz?: string): { from?: string; to?: string; preset: RangePreset } {
-  if (sp.from || sp.to) return { from: sp.from, to: sp.to, preset: 'custom' };
+  // Tanggal di URL tidak valid (diketik manual/terpotong) diabaikan, bukan membuat halaman galat.
+  const day = (d?: string) => (d && /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d)) ? d : undefined);
+  const from = day(sp.from), to = day(sp.to);
+  if (from || to) return { from, to, preset: 'custom' };
   if (sp.rentang === 'semua') return { preset: 'semua' };
   const days = sp.rentang === '30' ? 30 : DEFAULT_RANGE_DAYS;
   return { from: localDateStr(-(days - 1), tz), to: localDateStr(0, tz), preset: days === 30 ? '30' : '7' };

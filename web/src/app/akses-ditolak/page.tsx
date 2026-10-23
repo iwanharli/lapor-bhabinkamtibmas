@@ -10,7 +10,7 @@ export default function AccessDeniedPage() {
         <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-danger-soft text-danger">
           <ShieldX size={30} strokeWidth={1.8} />
         </div>
-        <p className="mt-6 font-mono text-sm font-bold tracking-[0.2em] text-danger">KESALAHAN 403</p>
+        <p className="mt-6 font-mono text-6xl font-bold tracking-[-0.08em] text-danger sm:text-7xl">403</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-ink">Akses dibatasi</h1>
         <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted">
           Akun Anda tidak memiliki izin untuk membuka informasi ini. Jika Anda merasa seharusnya memiliki akses, hubungi administrator unit.

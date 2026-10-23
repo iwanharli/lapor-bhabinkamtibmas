@@ -1,4 +1,5 @@
-import { Alert, Card, PageHeader, Pagination, SearchInput, Stack, UrlSelect } from '@/components/ui';
+import { AccessDenied } from '@/components/layout/access-denied';
+import { Card, PageHeader, Pagination, SearchInput, Stack, UrlSelect } from '@/components/ui';
 import { actionLabel } from '@/features/audit/actions';
 import { AuditTable, type AuditRow } from '@/features/audit/audit-table';
 import { apiGet, getSessionUser } from '@/lib/api/server';
@@ -12,12 +13,7 @@ type Search = { q?: string; action?: string; periode?: string; page?: string; li
 export default async function AuditPage({ searchParams }: { searchParams: Promise<Search> }) {
   const me = await getSessionUser();
   if (!me || !['SUPERADMIN', 'AUDITOR', 'ADMIN_UNIT'].includes(me.role)) {
-    return (
-      <>
-        <PageHeader title="Audit log" />
-        <Alert>Halaman ini hanya untuk auditor, admin unit, dan superadmin.</Alert>
-      </>
-    );
+    return <AccessDenied who="auditor, admin unit, dan superadmin" />;
   }
 
   const sp = await searchParams;

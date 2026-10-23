@@ -55,8 +55,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final nrp = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true, // bawaan dibatasi ±setengah layar sehingga daftar terpotong
+      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
       builder: (ctx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        child: ListView(shrinkWrap: true, children: [
           const Padding(
             padding: EdgeInsets.fromLTRB(20, 0, 20, 4),
             child: Text('Login cepat Bhabin (demo)', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
@@ -69,7 +71,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             ListTile(
               leading: CircleAvatar(backgroundColor: success.withValues(alpha: 0.12), child: const Icon(Icons.local_police_outlined, color: success)),
               title: Text(nama, style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: Text('$desa · $nrp'),
+              subtitle: Text('$desa\nNRP $nrp', style: const TextStyle(height: 1.35)),
+              isThreeLine: true,
               trailing: const Icon(Icons.arrow_forward, size: 18),
               onTap: () => Navigator.pop(ctx, nrp),
             ),

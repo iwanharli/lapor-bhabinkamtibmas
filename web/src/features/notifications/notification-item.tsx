@@ -25,7 +25,7 @@ export function NotificationItem({ n, onOpen, compact }: { n: AppNotification; o
         <span className="min-w-0 flex-1">
           <span className={cn('block text-sm leading-snug', unread ? 'font-semibold text-ink' : 'text-ink/85')}>{n.title}</span>
           {n.body && <span className="mt-0.5 line-clamp-2 block text-xs text-muted">{n.body}</span>}
-          <span className="mt-1 block text-[11px] text-muted" title={tanggalJam(n.createdAt)}>{relatif(n.createdAt)}</span>
+          <span className="mt-1 block text-[11px] text-muted" title={tanggalJam(n.createdAt)} suppressHydrationWarning>{relatif(n.createdAt)}</span>
         </span>
         {unread && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Belum dibaca" />}
       </button>
@@ -39,7 +39,7 @@ export function NotificationItem({ n, onOpen, compact }: { n: AppNotification; o
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
           <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide', meta.cls)}>{meta.label}</span>
-          <span className="text-xs text-muted" title={tanggalJam(n.createdAt)}>{jam(n.createdAt)} · {relatif(n.createdAt)}</span>
+          <span className="text-xs text-muted" title={tanggalJam(n.createdAt)} suppressHydrationWarning>{jam(n.createdAt)} · {relatif(n.createdAt)}</span>
           {unread && <span className="ml-auto h-2.5 w-2.5 shrink-0 rounded-full bg-primary ring-4 ring-primary/15" aria-label="Belum dibaca" />}
         </span>
         <span className={cn('mt-1.5 block leading-snug', unread ? 'font-semibold text-ink' : 'text-ink/85')}>{n.title}</span>

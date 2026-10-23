@@ -136,7 +136,7 @@ export function PriorityStrip({ items }: { items: MapPoint[] }) {
                     <span className="inline-flex items-center gap-1.5 font-semibold uppercase tracking-wide text-danger">
                       <span className="h-1.5 w-1.5 rounded-full bg-danger" /> Urgensi tinggi
                     </span>
-                    <span title={tanggalJam(p.occurred_at, p.timezone)}>{relatif(p.occurred_at, p.timezone)}</span>
+                    <span title={tanggalJam(p.occurred_at, p.timezone)} suppressHydrationWarning>{relatif(p.occurred_at, p.timezone)}</span>
                   </span>
                   <span className="mt-1.5 flex items-center gap-1.5 truncate text-sm font-semibold text-ink group-hover:text-danger">
                     <MapPin size={14} className="shrink-0 text-danger" /> {p.desa}

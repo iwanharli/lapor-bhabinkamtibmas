@@ -43,3 +43,6 @@ next-env.d.ts
 # Playwright
 /test-results/
 /playwright-report/
+
+# APK demo diunggah langsung ke server, tidak masuk repo
+/public/unduh/

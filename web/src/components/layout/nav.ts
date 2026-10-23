@@ -35,6 +35,7 @@ export function navFor(role: string): NavSection[] {
       items: [
         { href: '/peta', label: 'Peta Sebaran', icon: 'map' },
         { href: '/peta-stunting', label: 'Peta Stunting', icon: 'stuntingMap' },
+        ...(role === 'AUDITOR' ? [] : [{ href: '/pantau', label: 'Monitoring Personel', icon: 'tracking' as const }]),
       ],
     },
     {
@@ -42,7 +43,6 @@ export function navFor(role: string): NavSection[] {
       items: [
         { href: '/kinerja', label: 'Kinerja Bhabin', icon: 'performance' },
         { href: '/absensi', label: 'Absensi', icon: 'attendance' },
-        ...(role === 'AUDITOR' ? [] : [{ href: '/pantau', label: 'Pantau Personel', icon: 'tracking' as const }]),
       ],
     },
   ];

@@ -15,7 +15,7 @@ export default async function PantauPage({ searchParams }: { searchParams: Promi
   return (
     <>
       <PageHeader
-        title="Pantau Personel"
+        title="Monitoring Personel"
         subtitle="Posisi terkini Bhabinkamtibmas selama jam dinas"
         actions={<UrlUnitFilter emptyLabel="Semua wilayah" className="w-64" />}
       />

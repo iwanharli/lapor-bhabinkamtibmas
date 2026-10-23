@@ -103,7 +103,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
                     else
                       const Text('Absen hari ini lengkap. Terima kasih!', textAlign: TextAlign.center, style: TextStyle(color: success, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
-                    const Text('Swafoto kamera depan & lokasi GPS dicek terhadap desa binaan. Lewat 08.00 tercatat terlambat. Selama jam dinas (masuk s.d. pulang) lokasi dipantau satuan.', textAlign: TextAlign.center, style: TextStyle(color: muted, fontSize: 12)),
+                    const Text('Swafoto kamera depan & lokasi GPS dicek terhadap desa binaan. Lewat 08.00 tercatat terlambat. Selama jam dinas (masuk s.d. pulang) posisi terkini terlihat oleh satuan.', textAlign: TextAlign.center, style: TextStyle(color: muted, fontSize: 12)),
                   ]),
                 ),
               ),

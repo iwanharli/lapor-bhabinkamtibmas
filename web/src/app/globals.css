@@ -241,8 +241,7 @@ dialog.modal::backdrop {
   }
 }
 
-/* Pantau personel: denyut posisi aktif & pin absen masuk/pulang */
+/* Pantau personel: denyut posisi aktif */
 .track-live { animation: track-ping 2s ease-out infinite; }
 @keyframes track-ping { 0% { box-shadow: 0 0 0 0 rgb(22 163 74 / 0.55); } 100% { box-shadow: 0 0 0 14px rgb(22 163 74 / 0); } }
-.track-pin { width: 26px; height: 26px; border-radius: 9999px; border: 2px solid #fff; color: #fff; font: 700 11px/22px system-ui, sans-serif; text-align: center; box-shadow: 0 2px 6px rgb(15 23 42 / 0.35); }
 @media (prefers-reduced-motion: reduce) { .track-live { animation: none; } }

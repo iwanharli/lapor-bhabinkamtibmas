@@ -15,8 +15,8 @@ class TrackingBanner extends ConsumerWidget {
     if (s == TrackStatus.off) return const SizedBox.shrink();
     final ok = s == TrackStatus.active;
     final (icon, title, text) = switch (s) {
-      TrackStatus.active => (Icons.my_location, 'Pelacakan jam dinas aktif', 'Lokasi dikirim ke satuan tiap 5 menit atau saat berpindah 100 m, sampai absen pulang. Disimpan 30 hari.'),
-      TrackStatus.gpsOff => (Icons.location_disabled, 'GPS mati', 'Nyalakan lokasi agar pelacakan jam dinas berjalan.'),
+      TrackStatus.active => (Icons.my_location, 'Posisi jam dinas aktif', 'Posisi terkini terlihat oleh satuan sampai absen pulang. Riwayat perjalanan tidak disimpan.'),
+      TrackStatus.gpsOff => (Icons.location_disabled, 'GPS mati', 'Nyalakan lokasi agar posisi jam dinas terkirim.'),
       _ => (Icons.location_off, 'Izin lokasi diperlukan', 'Izinkan lokasi "Sepanjang waktu" agar tetap berjalan saat layar terkunci.'),
     };
     final c = ok ? success : warn;

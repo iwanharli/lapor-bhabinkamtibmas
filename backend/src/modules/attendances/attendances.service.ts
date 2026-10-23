@@ -8,6 +8,7 @@ import { localDate } from '../../common/time';
 import { PrismaService } from '../../prisma/prisma.service';
 import { sniff } from '../attachments/attachments.service';
 import { AuditService } from '../audit/audit.service';
+import { TrackingService } from '../tracking/tracking.service';
 import { UnitsService } from '../units/units.service';
 
 /** Toleransi jarak ke batas desa binaan (m). */
@@ -39,6 +40,7 @@ export class AttendancesService {
     private storage: StorageService,
     private units: UnitsService,
     private audit: AuditService,
+    private tracking: TrackingService,
   ) {}
 
   /** Check-in / check-out Bhabin. Idempoten per clientUuid; maks. satu per jenis per hari kerja. */
@@ -77,6 +79,7 @@ export class AttendancesService {
         selfieId, lateSync: now - clientTime.getTime() > LATE_SYNC_MS,
       },
     });
+    if (dto.type === AttendanceType.CHECK_OUT) await this.tracking.clear(me.id); // selesai dinas: posisi tidak disimpan
     await this.audit.log({ actorId: me.id, action: 'ATTENDANCE_RECORD', entity: 'attendance', entityId: att.id, meta: { type: dto.type, insideVillage: att.insideVillage } });
     const village = att.villageId ? await this.prisma.village.findUnique({ where: { id: att.villageId }, select: { nama: true } }) : null;
     return { ...this.toDto(att), villageName: village?.nama ?? null };

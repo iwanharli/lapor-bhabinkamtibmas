@@ -121,7 +121,7 @@ export default async function RingkasanPage({ searchParams }: { searchParams: Pr
                 tone="success"
                 value={t.tidakAktif7}
                 footer={t.tidakAktif7 > 0 ? <span className="font-medium text-danger">perlu ditindaklanjuti</span> : 'semua Bhabin aktif'}
-                href="/admin/pengguna?role=BHABIN"
+                href="/kinerja"
               />
               <StatCard
                 title="Rata-rata / Bhabin"

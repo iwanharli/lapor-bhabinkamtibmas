@@ -2,6 +2,7 @@
  * Lampiran contoh (gambar sintetis bertanda air) untuk laporan demo — JANGAN dijalankan di produksi.
  *   npm run seed:demo-attachments            # lewati bila sudah ada lampiran
  *   npm run seed:demo-attachments -- --reset
+ *   npm run seed:demo-attachments -- --reset --semua   # termasuk laporan contoh nasional (DEMO-*)
  */
 import { AttachmentSource, PrismaClient } from '@prisma/client';
 import { createHash, randomUUID } from 'crypto';
@@ -63,9 +64,10 @@ async function main() {
     return;
   }
 
-  // Hanya laporan Polres Contoh; laporan contoh nasional (unit DEMO-*) terlalu banyak untuk dibuatkan foto.
+  // Bawaan hanya laporan Polres Contoh; laporan contoh nasional (unit DEMO-*) terlalu banyak untuk dibuatkan foto.
+  // `--semua`: semua laporan (untuk data demo yang kecil, mis. satu provinsi).
   const reports = await prisma.report.findMany({
-    where: { unit: { kode: { not: { startsWith: 'DEMO-' } } } },
+    where: process.argv.includes('--semua') ? {} : { unit: { kode: { not: { startsWith: 'DEMO-' } } } },
     select: { id: true, nomor: true, category: true, occurredAt: true, lat: true, lng: true },
   });
   let total = 0;

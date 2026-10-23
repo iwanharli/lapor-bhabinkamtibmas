@@ -4,12 +4,12 @@ import { randomUUID } from 'crypto';
 export const API = process.env.API_URL ?? 'http://localhost:3000/api/v1';
 export const PASSWORD = 'BrsDemo2026';
 
-/** Akun demo (Polres Bogor; Bhabin desa Situ Udik, Polsek Cibungbulang). */
+/** Akun demo Polres Metro Jakarta Selatan (Bhabin Menteng Dalam, Polsek Tebet). */
 export const ACCOUNTS = {
-  bhabin: '90000001',
-  pimpinanPolsek: '90000002',
-  pimpinan: '90000003',
-  admin: '90000004',
+  bhabin: '31740005',
+  pimpinanPolsek: '31740004',
+  pimpinan: '31740001',
+  admin: '31740002',
 };
 
 export async function login(page: Page, nrp: string, password = PASSWORD) {
@@ -50,7 +50,7 @@ export async function createSubmittedReport(note = 'E2E', opts: { category?: str
       schemaVersion: 1,
       villageId,
       occurredAt: new Date(Date.now() - 30 * 60_000).toISOString(),
-      location: { lat: -6.61824, lng: 106.65272 },
+      location: { lat: -6.23157, lng: 106.84122 },
       gpsAccuracyM: 8,
       data: opts.data ?? {
         jenis_sasaran: 'Tokoh Masyarakat',
@@ -76,7 +76,7 @@ export async function createSubmittedReport(note = 'E2E', opts: { category?: str
 export async function createUser(role = 'PIMPINAN') {
   const token = await apiLogin(ACCOUNTS.admin);
   const units = await api<{ id: string; kode: string }[]>('/units', { token });
-  const unit = units.find((u) => u.kode === 'DEMO-SEK-320116')!;
+  const unit = units.find((u) => u.kode === 'SEK-317401')!;
   const nrp = `97${String(Date.now()).slice(-8)}`;
   const res = await api<{ temporaryPassword: string; user: { id: string } }>('/admin/users', {
     method: 'POST',

@@ -37,7 +37,7 @@ test('pengguna baru wajib mengganti sandi sementara', async ({ page }) => {
 test('admin melihat menu administrasi, pimpinan tidak', async ({ page }) => {
   await login(page, ACCOUNTS.admin);
   await expect(page.getByRole('link', { name: 'Pengguna' })).toBeVisible();
-  await page.getByRole('button', { name: /Dewi Lestari/ }).click();
+  await page.getByRole('button', { name: /Siti Rahmawati/ }).click();
   await page.getByRole('button', { name: 'Keluar' }).click();
   await login(page, ACCOUNTS.pimpinanPolsek);
   await expect(page.getByRole('link', { name: 'Pengguna' })).toHaveCount(0);

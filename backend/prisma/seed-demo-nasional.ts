@@ -211,7 +211,8 @@ async function main() {
     FROM jsonb_to_recordset($1::jsonb) AS x(client_uuid uuid, nomor text, category text, version int, user_id uuid, unit_id uuid, village_id uuid,
                                            priority boolean, data jsonb, occurred_at timestamptz, submitted_at timestamptz, outside boolean, mock boolean, gps int)
     JOIN villages v ON v.id = x.village_id
-    CROSS JOIN LATERAL (SELECT (ST_Dump(ST_GeneratePoints(v.geom, 1))).geom AS g) pt`, 'Laporan');
+    -- Desa pulau-pulau kecil: ST_GeneratePoints bisa kosong, pakai titik di permukaan agar laporan tidak hilang.
+    CROSS JOIN LATERAL (SELECT coalesce((SELECT (ST_Dump(ST_GeneratePoints(v.geom, 1))).geom LIMIT 1), ST_PointOnSurface(v.geom)) AS g) pt`, 'Laporan');
 
   await bulk(items, `
     INSERT INTO report_items (report_id, commodity_id, harga, satuan, stok)

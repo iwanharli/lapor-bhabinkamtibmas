@@ -3,19 +3,32 @@
 import { ArrowRight, Eye, EyeOff, FlaskConical, LockKeyhole, UserRound } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-import { Alert, Button, Checkbox, cn, ErrorText, Field, Input } from '@/components/ui';
+import { Alert, Button, Checkbox, cn, ErrorText, Field, Input, Modal, ModalBody } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
-import type { DevAccount } from '@/lib/dev-accounts';
+import { ROLE_INFO, type DemoRole, type DevAccount } from '@/lib/dev-accounts';
 
-/** Tombol login cepat akun percobaan; hanya tampil bila server mengizinkan (lokal). */
-function DevLogin({ onError }: { onError: (m: string) => void }) {
+const ROLE_TONE: Record<DemoRole, string> = {
+  SUPERADMIN: 'bg-violet-500/12 text-violet-700 dark:text-violet-300',
+  PIMPINAN: 'bg-primary/10 text-primary',
+  ADMIN_UNIT: 'bg-orange-500/12 text-orange-700 dark:text-orange-300',
+  AUDITOR: 'bg-slate-500/12 text-slate-600 dark:text-slate-300',
+  BHABIN: 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300',
+};
+
+/** Tombol kecil "Akun demo" → modal semua akun demo per wilayah; sekali klik untuk masuk. Hanya bila server mengizinkan. */
+function DemoLogin({ onError }: { onError: (m: string) => void }) {
   const router = useRouter();
   const [accounts, setAccounts] = useState<DevAccount[]>([]);
+  const [open, setOpen] = useState(false);
+  const [group, setGroup] = useState<string>();
   const [busy, setBusy] = useState<string>();
   useEffect(() => {
     fetch('/api/auth/dev-login').then((r) => (r.ok ? r.json() : [])).then(setAccounts).catch(() => undefined);
   }, []);
   if (!accounts.length) return null;
+
+  const groups = [...new Set(accounts.map((a) => a.group))];
+  const active = group ?? groups[0];
 
   async function loginAs(key: string) {
     setBusy(key);
@@ -24,34 +37,67 @@ function DevLogin({ onError }: { onError: (m: string) => void }) {
       const res = await fetch('/api/auth/dev-login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key }) });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        onError(body?.error?.message ?? 'Login percobaan gagal');
+        onError(body?.error?.message ?? 'Login akun demo gagal');
         setBusy(undefined);
+        setOpen(false);
         return;
       }
       router.replace('/');
       router.refresh();
     } catch {
       setBusy(undefined);
+      setOpen(false);
       onError('Tidak dapat terhubung ke server. Coba lagi.');
     }
   }
 
   return (
-    <div className="rounded-xl border border-dashed border-warn/45 bg-warn-soft/35 p-4">
-      <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-warn">
-        <FlaskConical size={15} /> Akun percobaan · lokal
-      </p>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {accounts.map((a) => (
-          <button key={a.key} type="button" disabled={!!busy} onClick={() => loginAs(a.key)} title={`NRP ${a.nrp}`}
-            className={cn('rounded-lg border border-line/80 bg-surface px-3 py-2.5 text-left transition hover:border-primary/40 hover:bg-primary-soft/40 disabled:opacity-60', busy === a.key && 'border-primary')}>
-            <span className="block text-sm font-semibold leading-tight">{busy === a.key ? 'Masuk…' : a.label}</span>
-            <span className="mt-0.5 block truncate text-xs text-muted">{a.hint}</span>
-          </button>
-        ))}
-      </div>
-      <p className="mt-3 text-xs leading-5 text-muted">Bhabinkamtibmas juga dapat masuk di sini (web/HP) untuk membuat laporan dan absensi.</p>
-    </div>
+    <>
+      <button type="button" onClick={() => setOpen(true)}
+        className="mx-auto flex items-center gap-1.5 rounded-full border border-dashed border-warn/50 bg-warn-soft/40 px-3 py-1.5 text-xs font-semibold text-warn transition hover:bg-warn-soft">
+        <FlaskConical size={13} /> Akun demo · masuk 1 klik
+      </button>
+      <Modal open={open} onClose={() => !busy && setOpen(false)} dismissible={!busy} size="lg" title="Akun demo"
+        description="Pilih wilayah lalu klik akun untuk langsung masuk. Data demo: Polda Metro Jaya (6 kabupaten/kota DKI Jakarta).">
+        <ModalBody className="space-y-4">
+          <div className="grid gap-1.5 rounded-xl bg-surface-2 p-3 text-xs sm:grid-cols-2">
+            {(Object.keys(ROLE_INFO) as DemoRole[]).map((r) => (
+              <p key={r} className="leading-5">
+                <span className={cn('mr-1.5 rounded px-1.5 py-0.5 font-semibold', ROLE_TONE[r])}>{ROLE_INFO[r].label}</span>
+                <span className="text-muted">{ROLE_INFO[r].desc}</span>
+              </p>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5" role="tablist">
+            {groups.map((g) => (
+              <button key={g} type="button" role="tab" aria-selected={g === active} onClick={() => setGroup(g)}
+                className={cn('rounded-full border px-3 py-1 text-xs font-medium transition', g === active ? 'border-primary bg-primary text-white' : 'border-line text-muted hover:border-primary/40 hover:text-ink')}>
+                {g}
+              </button>
+            ))}
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {accounts.filter((a) => a.group === active).map((a) => (
+              <button key={a.key} type="button" disabled={!!busy} onClick={() => loginAs(a.key)}
+                className={cn('group flex items-center gap-3 rounded-xl border border-line px-3 py-2.5 text-left transition hover:border-primary/50 hover:bg-primary-soft/40 disabled:opacity-60', busy === a.key && 'border-primary bg-primary-soft/40')}>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5">
+                    <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide', ROLE_TONE[a.role])}>{a.label}</span>
+                    <span className="font-mono text-[11px] text-muted">{a.nrp}</span>
+                  </span>
+                  <span className="mt-1 block truncate text-sm font-semibold">{a.nama}</span>
+                  <span className="block truncate text-xs text-muted">{a.hint}</span>
+                </span>
+                <span className="shrink-0 text-xs font-semibold text-primary opacity-0 transition group-hover:opacity-100">
+                  {busy === a.key ? 'Masuk…' : <ArrowRight size={16} />}
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted">Semua akun memakai sandi <span className="font-mono font-semibold text-ink">BrsDemo2026</span>. Bhabinkamtibmas juga tersedia di aplikasi Android.</p>
+        </ModalBody>
+      </Modal>
+    </>
   );
 }
 
@@ -141,7 +187,7 @@ function LoginForm() {
 
             <ErrorText>{error}</ErrorText>
             <Button type="submit" size="lg" className="h-12 w-full rounded-xl shadow-md shadow-primary/20" loading={loading} loadingText="Memeriksa akun…" icon={!loading ? <ArrowRight size={17} /> : undefined}>Masuk ke dashboard</Button>
-            <DevLogin onError={setError} />
+            <DemoLogin onError={setError} />
           </form>
           <p className="mt-5 flex items-center justify-center gap-2 text-xs text-muted"><LockKeyhole size={13} /> Akses untuk petugas yang berwenang</p>
         </div>

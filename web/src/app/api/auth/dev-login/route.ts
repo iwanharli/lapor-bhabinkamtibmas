@@ -7,7 +7,7 @@ const notFound = () => NextResponse.json({ error: { code: 'NOT_FOUND' } }, { sta
 /** Daftar akun percobaan (tanpa sandi) — 404 di luar lingkungan lokal. */
 export async function GET() {
   if (!devLoginEnabled()) return notFound();
-  return NextResponse.json(devAccounts().map(({ key, nrp, label, hint }) => ({ key, nrp, label, hint })));
+  return NextResponse.json(devAccounts().map(({ key, nrp, label, hint, nama, role, group }) => ({ key, nrp, label, hint, nama, role, group })));
 }
 
 /** Login sebagai akun percobaan; sandi diambil di server, tidak pernah dikirim ke browser. */

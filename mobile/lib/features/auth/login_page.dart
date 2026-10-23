@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../app/config.dart';
 import '../../core/api/api_client.dart';
@@ -16,6 +17,8 @@ const _demoBhabin = [
   ('31740005', 'Aipda Dedi Pratama', 'Menteng Dalam · Jakarta Selatan'),
   ('31750005', 'Brigpol Ketut Sitompul', 'Utan Kayu Selatan · Jakarta Timur'),
 ];
+
+final _appVersion = FutureProvider((_) async => (await PackageInfo.fromPlatform()).version);
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -143,6 +146,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     label: const Text('Login cepat Bhabin (demo)'),
                   ),
                 ],
+                const SizedBox(height: 18),
+                Text('Versi ${ref.watch(_appVersion).valueOrNull ?? '-'}${demoLogin ? ' · demo' : ''}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
               ]),
             ),
           ),

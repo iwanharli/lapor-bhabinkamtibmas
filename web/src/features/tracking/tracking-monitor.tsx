@@ -58,7 +58,7 @@ export function TrackingMonitor({ unitId }: { unitId?: string }) {
       if (cancelled || !el.current || map.current) return;
       lib.current = L;
       map.current = L.map(el.current).fitBounds(INDONESIA);
-      L.tileLayer(TILE_URL, { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>' }).addTo(map.current);
+      L.tileLayer(TILE_URL, { maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>' }).addTo(map.current);
       layer.current = L.layerGroup().addTo(map.current);
       setReady(true);
     })();

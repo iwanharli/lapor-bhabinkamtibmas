@@ -19,7 +19,7 @@ export function BoundaryMap({ data, highlightId }: { data: VillageGeoJson; highl
       if (cancelled || !el.current) return;
       if (!map.current) {
         map.current = L.map(el.current).setView([-2.5, 118], 5);
-        L.tileLayer(TILE_URL, { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map.current);
+        L.tileLayer(TILE_URL, { maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin', attribution: '&copy; OpenStreetMap' }).addTo(map.current);
       }
       const m = map.current;
       m.eachLayer((l) => {

@@ -21,7 +21,7 @@ export function MapFrame({ lat, lng, mapUrl }: { lat: number; lng: number; mapUr
       if (cancelled || !el.current || map.current) return;
       const m = L.map(el.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: false }).setView([lat, lng], 16);
       m.attributionControl.setPrefix(false);
-      L.tileLayer(TILE_URL, { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OSM</a>' }).addTo(m);
+      L.tileLayer(TILE_URL, { maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin', attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OSM</a>' }).addTo(m);
       L.circle([lat, lng], { radius: 40, color: '#2563eb', weight: 1, fillOpacity: 0.12 }).addTo(m);
       L.circleMarker([lat, lng], { radius: 8, color: '#fff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }).addTo(m);
       map.current = m;

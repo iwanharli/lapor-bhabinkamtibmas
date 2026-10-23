@@ -268,7 +268,7 @@ export function ReportMap({ filters }: { filters: MapFilters }) {
         mm.fitBounds(INDONESIA, { paddingTopLeft: initialInsets.topLeft, paddingBottomRight: initialInsets.bottomRight });
         fitIndonesia();
         mm.on('resize', fitIndonesia);
-        L.tileLayer(TILE_URL, { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · Kemendagri 2025' }).addTo(map.current);
+        L.tileLayer(TILE_URL, { maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · Kemendagri 2025' }).addTo(map.current);
         const detachBoundaries = attachBoundaries(L, map.current);
         const showIndonesia = () => {
           const { topLeft, bottomRight } = mapInsets();

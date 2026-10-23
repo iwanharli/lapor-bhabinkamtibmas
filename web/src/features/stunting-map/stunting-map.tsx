@@ -98,8 +98,11 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
   );
   const total = useMemo(() => features.reduce((t, f) => {
     const p = f.properties;
-    return { kk: t.kk + p.kk, balita: t.balita + p.balita, stunting: t.stunting + p.stunting, berisiko: t.berisiko + p.berisiko, belum: t.belum + p.belum_ditangani };
-  }, { kk: 0, balita: 0, stunting: 0, berisiko: 0, belum: 0 }), [features]);
+    return {
+      kk: t.kk + p.kk, balita: t.balita + p.balita, stunting: t.stunting + p.stunting, berisiko: t.berisiko + p.berisiko, belum: t.belum + p.belum_ditangani,
+      jamban: t.jamban + p.jamban_tidak_layak, air: t.air + p.air_tidak_layak, kkSanitasi: t.kkSanitasi + p.kk_sanitasi,
+    };
+  }, { kk: 0, balita: 0, stunting: 0, berisiko: 0, belum: 0, jamban: 0, air: 0, kkSanitasi: 0 }), [features]);
 
   const drill = (p: AreaStats) => {
     if (leaf) return setPicked(p);
@@ -107,6 +110,12 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
   };
   const goTo = (i: number) => { autoDrill.current = false; setCrumbs((c) => c.slice(0, i + 1)); };
   const shown = picked ?? hover?.p ?? null;
+  const detail = shown
+    ? { sub: LEVEL[shown.level], nama: shown.nama, chain: shown.chain, stats: shown }
+    : {
+        sub: `Gabungan · ${n(features.length)} ${LEVEL[data?.level ?? here.level].toLowerCase()}`, nama: here.nama, chain: '',
+        stats: { ...total, belum_ditangani: total.belum, jamban_tidak_layak: total.jamban, air_tidak_layak: total.air, kk_sanitasi: total.kkSanitasi } as unknown as AreaStats,
+      };
   const legend = [
     { color: COLORS[0], label: m.unit === '%' ? `< ${breaks[0]}%` : '0' },
     ...breaks.map((b, i) => ({
@@ -116,12 +125,6 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
     ...(m.unit === '%' ? [{ color: FEW, label: 'data sedikit' }] : []),
     { color: 'var(--map-empty)', label: 'belum ada data' },
   ];
-  const stat = (Icon: typeof Home, label: string, value: string, alert = false) => (
-    <div key={label} className="rounded-xl bg-bg/70 px-3 py-2">
-      <p className="flex items-center gap-1 text-[11px] text-muted"><Icon size={11} /> {label}</p>
-      <p className={cn('font-bold tabular-nums', alert && 'text-danger')}>{value}</p>
-    </div>
-  );
 
   return (
     <div className="grid h-full min-h-0 grid-cols-1 gap-4 overflow-y-auto p-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:overflow-hidden">
@@ -141,13 +144,20 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
           </span>
         </nav>
 
-        <div ref={box} className="relative min-h-0 flex-1" onMouseLeave={() => setHover(null)}>
+        <div ref={box} className="peta-laut relative min-h-0 flex-1" onMouseLeave={() => setHover(null)}>
           {error ? (
             <p className="grid h-full place-items-center p-8 text-sm text-muted">{error}</p>
           ) : proj ? (
             <svg key={`${here.level}-${here.parent}`} viewBox={`0 0 ${W} ${proj.H.toFixed(0)}`} preserveAspectRatio="xMidYMid meet"
               className={cn('stunting-svg h-full w-full transition-opacity duration-300', busy && 'opacity-40')}
               role="img" aria-label={`Peta ${m.label} per ${LEVEL[data!.level].toLowerCase()}`}>
+              <defs>
+                {/* Bayangan lembut di bawah daratan agar pulau tampak "terangkat" dari laut. */}
+                <filter id="daratan" x="-5%" y="-5%" width="110%" height="115%">
+                  <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#0f2a5c" floodOpacity="0.28" />
+                </filter>
+              </defs>
+              <g filter="url(#daratan)">
               {paths.map(({ f, d }) => {
                 const p = f.properties;
                 return (
@@ -162,6 +172,7 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
                   </path>
                 );
               })}
+              </g>
               {/* Wilayah yang disorot digambar ulang di atas agar garis tepinya tidak tertutup tetangga. */}
               {shown && paths.filter(({ f }) => f.properties.kode === shown.kode).map(({ d }) => (
                 <path key="sorot" d={d} fill="none" stroke="currentColor" strokeWidth={2.4} vectorEffect="non-scaling-stroke" pointerEvents="none" className="text-ink" />
@@ -190,53 +201,46 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
       </section>
 
       <aside className="flex min-h-0 flex-col gap-4 lg:overflow-y-auto">
-        <section className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted">{here.nama}</p>
-          <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-            {stat(Home, 'Keluarga', n(total.kk))}
-            {stat(Baby, 'Balita', n(total.balita))}
-            {stat(Siren, 'Stunting · berisiko', `${n(total.stunting)} · ${n(total.berisiko)}`)}
-            {stat(Siren, 'Belum ditangani', n(total.belum), total.belum > 0)}
+        {/* Satu kartu rincian bertinggi tetap: wilayah yang disorot/diklik, atau gabungan wilayah yang sedang dilihat. */}
+        <section className="rounded-2xl border border-line bg-surface shadow-sm">
+          <div className="flex items-start gap-2 border-b border-line px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">{detail.sub}</p>
+              <p className="truncate font-semibold">{detail.nama}</p>
+              <p className="truncate text-xs text-muted">{detail.chain || '\u00a0'}</p>
+            </div>
+            {picked && <button type="button" onClick={() => setPicked(null)} className="rounded-md px-1.5 py-0.5 text-xs text-muted hover:bg-bg">Tutup</button>}
+          </div>
+          <div className="px-4 py-3">
+            <p className="text-xs text-muted">{m.label}</p>
+            <p className="text-2xl font-bold tabular-nums">{detail.stats.kk ? fmt(m.value(detail.stats), m.unit) : '—'}</p>
+          </div>
+          <dl className="grid grid-cols-2 gap-px border-t border-line bg-line text-sm">
+            {([
+              [Home, 'Keluarga', n(detail.stats.kk)], [Baby, 'Balita', n(detail.stats.balita)],
+              [Siren, 'Stunting · berisiko', `${n(detail.stats.stunting)} · ${n(detail.stats.berisiko)}`], [Siren, 'Belum ditangani', n(detail.stats.belum_ditangani)],
+              [Home, 'Jamban tak layak', `${n(detail.stats.jamban_tidak_layak)} KK`], [Droplets, 'Air tak layak', `${n(detail.stats.air_tidak_layak)} KK`],
+            ] as [typeof Home, string, string][]).map(([Icon, label, v]) => (
+              <div key={label} className="bg-surface px-4 py-2">
+                <dt className="flex items-center gap-1 text-[11px] text-muted"><Icon size={11} /> {label}</dt>
+                <dd className={cn('font-semibold tabular-nums', label === 'Belum ditangani' && detail.stats.belum_ditangani > 0 && 'text-danger')}>{v}</dd>
+              </div>
+            ))}
+          </dl>
+          <div className="flex min-h-[3.25rem] items-center border-t border-line px-3 py-2">
+            {picked && leaf ? (
+              <Link href={withParams('/laporan', { category: 'MAPPING_KK', villageId: picked.kode, rentang: 'semua' })}
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-white hover:brightness-110">
+                Lihat laporan Mapping desa ini <ArrowRight size={15} />
+              </Link>
+            ) : (
+              <p className="flex items-center gap-2 px-1 text-xs text-muted">
+                <MapPinned size={14} className="shrink-0" />
+                {shown ? (leaf ? 'Klik desa untuk membuka laporannya.' : `Klik untuk melihat ${LEVEL[here.level + 1].toLowerCase()}.`) : 'Arahkan kursor ke wilayah untuk rinciannya.'}
+              </p>
+            )}
           </div>
         </section>
-
-        {shown ? (
-          <section className="rounded-2xl border border-line bg-surface shadow-sm">
-            <div className="border-b border-line px-4 py-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">{LEVEL[shown.level]}</p>
-              <p className="font-semibold">{shown.nama}</p>
-              {shown.chain && <p className="truncate text-xs text-muted">{shown.chain}</p>}
-            </div>
-            <div className="px-4 py-3">
-              <p className="text-xs text-muted">{m.label}</p>
-              <p className="text-2xl font-bold tabular-nums">{shown.kk ? fmt(m.value(shown), m.unit) : '—'}</p>
-            </div>
-            <dl className="grid grid-cols-2 gap-px border-t border-line bg-line text-sm">
-              {([
-                [Home, 'Keluarga', n(shown.kk)], [Baby, 'Balita', n(shown.balita)],
-                [Siren, 'Stunting · berisiko', `${n(shown.stunting)} · ${n(shown.berisiko)}`], [Siren, 'Belum ditangani', n(shown.belum_ditangani)],
-                [Home, 'Jamban tak layak', `${n(shown.jamban_tidak_layak)} KK`], [Droplets, 'Air tak layak', `${n(shown.air_tidak_layak)} KK`],
-              ] as [typeof Home, string, string][]).map(([Icon, label, v]) => (
-                <div key={label} className="bg-surface px-4 py-2">
-                  <dt className="flex items-center gap-1 text-[11px] text-muted"><Icon size={11} /> {label}</dt>
-                  <dd className={cn('font-semibold tabular-nums', label === 'Belum ditangani' && shown.belum_ditangani > 0 && 'text-danger')}>{v}</dd>
-                </div>
-              ))}
-            </dl>
-            {picked && leaf && (
-              <div className="border-t border-line p-3">
-                <Link href={withParams('/laporan', { category: 'MAPPING_KK', villageId: picked.kode, rentang: 'semua' })}
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-white hover:brightness-110">
-                  Lihat laporan Mapping desa ini <ArrowRight size={15} />
-                </Link>
-              </div>
-            )}
-          </section>
-        ) : (
-          <p className="flex items-center gap-2 rounded-2xl border border-dashed border-line px-4 py-3 text-xs text-muted">
-            <MapPinned size={14} className="shrink-0" /> Arahkan kursor ke wilayah untuk rinciannya; klik untuk menelusuri ke tingkat berikutnya.
-          </p>
-        )}
 
         <section className="rounded-2xl border border-line bg-surface shadow-sm">
           <p className="flex items-center gap-2 border-b border-line px-4 py-2.5 text-sm font-semibold"><Trophy size={15} className="text-warn" /> Tertinggi · {m.short}</p>

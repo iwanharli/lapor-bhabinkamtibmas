@@ -1,11 +1,10 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
-import { ArrayMaxSize, IsArray, IsOptional, IsString, IsUUID, Length, MaxLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsOptional, IsString, Length, MaxLength } from 'class-validator';
 import { AuthUser, CurrentUser, Roles } from '../../common/decorators/auth.decorators';
 import { IntegrationTokensService } from './integration-tokens.service';
 
 class CreateTokenDto {
-  @IsUUID() userId: string;
   @IsString() @Length(2, 120) nama: string;
   @IsOptional() @IsArray() @ArrayMaxSize(50) @IsString({ each: true }) @MaxLength(50, { each: true }) allowedIps?: string[];
 }

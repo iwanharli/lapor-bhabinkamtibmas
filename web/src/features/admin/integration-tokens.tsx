@@ -3,7 +3,7 @@
 import { Check, Copy, KeyRound, Pencil, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Alert, Badge, Button, Card, ConfirmDialog, EmptyState, ErrorText, Field, Input, Modal, ModalBody, Select, Stack, Table, Td, Textarea, Th, THead, Tr, cn } from '@/components/ui';
+import { Badge, Button, Card, ConfirmDialog, EmptyState, ErrorText, Field, Input, Modal, ModalBody, Stack, Table, Td, Textarea, Th, THead, Tr, cn } from '@/components/ui';
 import { callApi } from '@/lib/api/client';
 import { tanggalJam } from '@/lib/format';
 import type { IntegrationTokenItem, IntegrationTokenList } from '@/lib/types';
@@ -75,11 +75,6 @@ export function IntegrationTokens({ list, tz }: { list: IntegrationTokenList; tz
 
   return (
     <Stack>
-      {!list.accounts.length && (
-        <Alert tone="warn" title="Belum ada akun Integrasi">
-          Buat dulu akun berperan Integrasi di menu Pengguna; token selalu terikat ke satu akun Integrasi.
-        </Alert>
-      )}
       <Card title="Token" subtitle={`${active.length} aktif · klik token untuk menyalin (tercatat di audit log)`} bodyClassName="p-0">
         {list.tokens.length === 0 ? (
           <EmptyState icon={<KeyRound size={24} />} tone="neutral" title="Belum ada token" className="py-16">Buat token untuk dipasang di server Command Center Pusat.</EmptyState>
@@ -98,7 +93,7 @@ export function IntegrationTokens({ list, tz }: { list: IntegrationTokenList; tz
                 <Tr key={t.id} className={cn(t.revokedAt && 'opacity-60')}>
                   <Td className="pl-5">
                     <span className="block font-medium">{t.nama}</span>
-                    <span className="block text-xs text-muted">Akun {t.user.nrp} · dibuat {tanggalJam(t.createdAt, tz)}</span>
+                    <span className="block text-xs text-muted">Dibuat oleh {t.user.nama} ({t.user.nrp}) · {tanggalJam(t.createdAt, tz)}</span>
                   </Td>
                   <Td>
                     {t.copyable
@@ -204,10 +199,9 @@ function IpField({ value, onChange }: { value: string; onChange: (v: string) => 
   );
 }
 
-export function CreateTokenButton({ accounts, defaultIps }: { accounts: IntegrationTokenList['accounts']; defaultIps: string[] }) {
+export function CreateTokenButton({ defaultIps }: { defaultIps: string[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [userId, setUserId] = useState('');
   const [nama, setNama] = useState('');
   const [ips, setIps] = useState('');
   const [busy, setBusy] = useState(false);
@@ -215,7 +209,6 @@ export function CreateTokenButton({ accounts, defaultIps }: { accounts: Integrat
   const [created, setCreated] = useState<{ prefix: string; token: string } | null>(null);
 
   function show() {
-    setUserId(accounts.length === 1 ? accounts[0].id : '');
     setNama('Command Center Pusat');
     setIps('');
     setError('');
@@ -230,14 +223,13 @@ export function CreateTokenButton({ accounts, defaultIps }: { accounts: Integrat
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!userId) return setError('Pilih akun Integrasi.');
     if (nama.trim().length < 2) return setError('Nama wajib diisi.');
     const list = parseIps(ips);
     if (!list.length && !defaultIps.length) return setError('Isi minimal satu IP: server belum punya INTEGRATION_ALLOWED_IPS, sehingga token tanpa IP akan selalu ditolak.');
     setBusy(true);
     setError('');
     try {
-      setCreated(await callApi<{ prefix: string; token: string }>('/admin/integration-tokens', { method: 'POST', body: { userId, nama: nama.trim(), allowedIps: list } }));
+      setCreated(await callApi<{ prefix: string; token: string }>('/admin/integration-tokens', { method: 'POST', body: { nama: nama.trim(), allowedIps: list } }));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -247,7 +239,7 @@ export function CreateTokenButton({ accounts, defaultIps }: { accounts: Integrat
 
   return (
     <>
-      <Button icon={<Plus size={18} />} onClick={show} disabled={!accounts.length}>Buat token</Button>
+      <Button icon={<Plus size={18} />} onClick={show}>Buat token</Button>
       <Modal open={open} onClose={close} dismissible={!busy} size="sm" title={created ? 'Token dibuat' : 'Buat token integrasi'}
         footer={created
           ? <Button onClick={close}>Selesai</Button>
@@ -266,14 +258,6 @@ export function CreateTokenButton({ accounts, defaultIps }: { accounts: Integrat
         ) : (
           <form id="create-token-form" onSubmit={submit}>
             <ModalBody>
-              <Field label="Akun Integrasi" required>
-                {(id) => (
-                  <Select id={id} value={userId} onChange={(e) => setUserId(e.target.value)}>
-                    <option value="">Pilih akun…</option>
-                    {accounts.map((a) => <option key={a.id} value={a.id}>{a.nama} ({a.nrp})</option>)}
-                  </Select>
-                )}
-              </Field>
               <Field label="Nama" required hint="Untuk mengenali token, mis. lingkungan atau server pemakainya.">
                 {(id) => <Input id={id} value={nama} onChange={(e) => setNama(e.target.value)} />}
               </Field>

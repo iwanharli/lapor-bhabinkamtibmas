@@ -228,7 +228,6 @@ export interface IntegrationTokenItem {
 
 export interface IntegrationTokenList {
   tokens: IntegrationTokenItem[];
-  accounts: { id: string; nrp: string; nama: string }[];
   /** INTEGRATION_ALLOWED_IPS di server, dipakai token tanpa daftar IP sendiri. */
   defaultIps: string[];
 }

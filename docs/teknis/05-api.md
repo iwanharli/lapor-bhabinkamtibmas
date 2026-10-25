@@ -238,8 +238,9 @@ Satu notifikasi per jenis per laporan per penerima (ralat tidak menggandakan). I
 API baca-saja untuk Baharkam Command Center (Pusat), mengikuti usulan Pusat v0.1 (`docs/API-Integrasi-lapor-bhabinkamtibmas.md`). Semua `GET` di `/api/v1/integration/*`.
 
 ### Akses
-- **Token**: `Authorization: Bearer lbi_…`, token statis milik akun peran `INTEGRASI` (bukan JWT login). Disimpan sebagai SHA-256, hanya tampil sekali saat dibuat. Kelola dengan `npm run integrasi:token -- buat --nrp <akun> --ip <ip,cidr> | daftar | cabut <id|prefix>`. Rotasi: buat token baru → pasang di Pusat → cabut token lama.
-- **Peran `INTEGRASI`** tidak bisa login (`WRONG_CLIENT`) dan JWT berperan ini ditolak di endpoint lain.
+- **Token**: `Authorization: Bearer lbi_…`, dibuat dan dimiliki Superadmin (bukan JWT login dan tidak memerlukan akun Integrasi terpisah). Aplikasi lain yang memegang token dapat membaca API sesuai allowlist IP. Hash token disimpan sebagai SHA-256 dan salinannya dienkripsi agar Superadmin dapat menyalinnya lagi. Kelola dengan `npm run integrasi:token -- buat --nrp <NRP-superadmin> --ip <ip,cidr> | daftar | cabut <id|prefix>`. Rotasi: buat token baru → pasang di Pusat → cabut token lama.
+- Akun pemilik token harus aktif; menonaktifkannya memblokir token-token miliknya.
+- Peran lama `INTEGRASI` tidak diperlukan untuk alur token ini; jika masih ada, peran tersebut tidak bisa login (`WRONG_CLIENT`) dan JWT-nya ditolak di endpoint lain.
 - **Allowlist IP**: daftar IP/CIDR per token, atau `INTEGRATION_ALLOWED_IPS` bila token tidak punya daftar. Tanpa keduanya semua permintaan ditolak.
 - **Batas laju**: `INTEGRATION_RATE_LIMIT` (bawaan 120/menit per IP).
 - **Galat**: `401 UNAUTHENTICATED` (token salah/dicabut), `403 FORBIDDEN`/`IP_NOT_ALLOWED`, `429 RATE_LIMITED`, `400 VALIDATION_FAILED`/`INVALID_CURSOR`/`INVALID_UPDATED_SINCE`; isi `{ "error": { "code", "message" } }`.

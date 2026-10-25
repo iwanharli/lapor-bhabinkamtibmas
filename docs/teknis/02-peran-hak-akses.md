@@ -26,7 +26,7 @@ MABES (Baharkam)
 | `ADMIN_UNIT` | Admin unit | Web | Polres / Polda |
 | `SUPERADMIN` | Admin sistem | Web | Mabes |
 | `AUDITOR` | Pengawas / auditor | Web | Polda / Mabes |
-| `INTEGRASI` | Akun mesin Command Center; hanya `/integration/*` lewat token integrasi, tidak bisa login | API | Mabes |
+| `INTEGRASI` | Peran lama; tidak diperlukan untuk token API integrasi dan tidak bisa login | — | — |
 
 Satu pengguna memiliki satu peran. Jika perlu peran ganda, buat akun terpisah agar audit tetap jelas.
 

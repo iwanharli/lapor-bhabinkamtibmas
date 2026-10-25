@@ -1,8 +1,8 @@
 /**
  * Kelola token integrasi Command Center Pusat (/integration/*) dari server, cadangan bagi halaman
- * Admin › Token Integrasi (superadmin). Akun pemilik harus berperan INTEGRASI (dibuat superadmin di menu Pengguna).
+ * Admin › Token Integrasi (superadmin). NRP pada perintah buat harus milik superadmin aktif yang membuat token.
  *
- *   npm run integrasi:token -- buat --nrp INTEGRASI-PUSAT --nama "Pusat produksi" [--ip 10.1.2.3,10.9.0.0/16]
+ *   npm run integrasi:token -- buat --nrp 00000001 --nama "Pusat produksi" [--ip 10.1.2.3,10.9.0.0/16]
  *   npm run integrasi:token -- daftar
  *   npm run integrasi:token -- cabut <id atau prefix lbi_xxxxxxxx>
  *
@@ -30,9 +30,9 @@ async function main() {
       const nrp = arg('nrp');
       if (!nrp) throw new Error('--nrp wajib diisi');
       const user = await prisma.user.findUnique({ where: { nrp } });
-      if (!user) throw new Error(`Akun ${nrp} tidak ada`);
+      if (!user || user.role !== 'SUPERADMIN' || !user.active) throw new Error(`NRP ${nrp} bukan superadmin aktif`);
       const ips = (arg('ip') ?? '').split(',');
-      const t = await tokens.create(null, { userId: user.id, nama: arg('nama') ?? 'Command Center Pusat', allowedIps: ips });
+      const t = await tokens.create(user.id, { nama: arg('nama') ?? 'Command Center Pusat', allowedIps: ips });
       console.log(`Token dibuat (${t.id}). Bisa juga disalin lagi dari halaman Admin › Token Integrasi:\n\n${t.token}\n`);
       if (!ips.some((s) => s.trim()) && !process.env.INTEGRATION_ALLOWED_IPS) console.warn('Peringatan: tanpa --ip dan INTEGRATION_ALLOWED_IPS kosong, token ini akan selalu ditolak.');
     } else if (cmd === 'daftar') {
@@ -46,7 +46,7 @@ async function main() {
       if (!t) throw new Error('Token tidak ditemukan');
       console.log((await tokens.revoke(null, t.id)) ? `Token ${t.prefix}… dicabut.` : 'Token sudah dicabut sebelumnya.');
     } else {
-      console.log('Pemakaian: buat --nrp <NRP> [--nama <nama>] [--ip <ip,cidr>] | daftar | cabut <id|prefix>');
+      console.log('Pemakaian: buat --nrp <NRP-superadmin> [--nama <nama>] [--ip <ip,cidr>] | daftar | cabut <id|prefix>');
       process.exitCode = 1;
     }
   } catch (e) {

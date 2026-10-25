@@ -20,7 +20,7 @@ Data ini dipakai untuk: Ringkasan Command Center, Profil Wilayah, Laporan Execut
 | Metode | `GET` saja. Tidak ada tulis, ubah, atau hapus |
 | Autentikasi | Header `Authorization: Bearer <token>`. Token khusus klien "Pusat", hak baca-saja, bisa dirotasi, dapat dicabut |
 | Pembatasan | Daftar IP yang diizinkan (IP server Pusat). Batas laju minimal 60 permintaan per menit |
-| Peran | Tambahkan peran `INTEGRASI` (sudah direncanakan di repo Anda). Peran ini tidak boleh mengakses endpoint lain |
+| Pemilik token | Superadmin instance membuat dan mengelola token. Klien Pusat memakai token bearer untuk membaca API; tidak perlu akun Integrasi terpisah |
 | Format | JSON, UTF-8. Waktu dalam ISO 8601 beserta zona waktu, contoh `2026-10-25T08:30:00+07:00` |
 | Paginasi | Kursor. Parameter `limit` (bawaan 500, maksimal 2000) dan `cursor`. Respons memuat `nextCursor` (null bila habis) |
 | Sinkron bertahap | Parameter `updatedSince` (ISO 8601). Hanya baris yang dibuat atau diubah sejak waktu itu. Wajib ada kolom `updatedAt` di setiap baris |
@@ -227,7 +227,7 @@ Bila definisi tiap angka di repo Anda berbeda, mohon dituliskan di dokumen API a
 ## 4. Yang kami butuhkan dari tim repo
 
 1. Persetujuan bentuk respons di atas, atau usulan perubahan. Mohon jangan mengubah nama kolom tanpa kabar.
-2. Pembuatan peran `INTEGRASI` dan penerbitan token untuk Pusat per instance Polda.
+2. Penerbitan token oleh Superadmin untuk Pusat per instance Polda.
 3. Dokumentasi di `05-api`, termasuk definisi tiap angka ringkasan.
 4. Kode resmi Polda di setiap instance (`kodePolda`) untuk pemetaan wilayah.
 5. Instance uji (staging) dengan data contoh agar pengembangan Pusat bisa berjalan sebelum produksi.

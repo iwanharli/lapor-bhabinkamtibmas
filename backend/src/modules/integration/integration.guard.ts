@@ -1,5 +1,4 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
 import { createHash } from 'crypto';
 import { BlockList, isIP } from 'net';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -27,7 +26,7 @@ const allowed = (list: BlockList, ip: string) => {
 };
 
 /**
- * Autentikasi /integration/*: token statis klien Pusat (bukan JWT login), akun peran INTEGRASI yang aktif,
+ * Autentikasi /integration/*: token statis yang dibuat Superadmin, pemilik aktif,
  * dan IP pemanggil di allowlist token (atau INTEGRATION_ALLOWED_IPS). Tanpa allowlist sama sekali → ditolak.
  */
 @Injectable()
@@ -43,7 +42,7 @@ export class IntegrationGuard implements CanActivate {
 
     const t = await this.prisma.integrationToken.findUnique({ where: { tokenHash: hashToken(token) }, include: { user: true } });
     if (!t || t.revokedAt) throw new UnauthorizedException({ code: 'UNAUTHENTICATED', message: 'Token integrasi tidak valid' });
-    if (t.user.role !== UserRole.INTEGRASI || !t.user.active) throw new ForbiddenException({ code: 'FORBIDDEN', message: 'Peran tidak diizinkan' });
+    if (!t.user.active) throw new ForbiddenException({ code: 'FORBIDDEN', message: 'Pemilik token tidak aktif' });
 
     const ips = t.allowedIps.length ? t.allowedIps : this.defaultIps;
     if (!allowed(ipList(ips), req.ip ?? '')) throw new ForbiddenException({ code: 'IP_NOT_ALLOWED', message: 'IP tidak diizinkan' });

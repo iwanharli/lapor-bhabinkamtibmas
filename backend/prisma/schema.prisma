@@ -567,7 +567,7 @@ model LastLocation {
   @@map("last_locations")
 }
 
-/// Token baca-saja klien Command Center Pusat (peran INTEGRASI), hanya untuk /integration/*. Disimpan sebagai SHA-256.
+/// Token baca-saja klien Command Center Pusat, dibuat dan dimiliki Superadmin. Disimpan sebagai SHA-256.
 /// Dikelola lewat `npm run integrasi:token`.
 model IntegrationToken {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid

@@ -39,26 +39,18 @@ Daftar endpoint:
 
 ## 2. Menyiapkan akses (Superadmin instance Polda)
 
-### 2.1 Buat akun Integrasi
-1. Masuk web sebagai **Superadmin**.
-2. Buka **Administrasi › Pengguna › Tambah pengguna**.
-3. Isi NRP (bebas, mis. `INTEGRASI-PUSAT`), nama (mis. `Command Center Pusat`), peran **Integrasi**, unit tertinggi instance.
-
-Akun ini **tidak bisa login** ke web maupun aplikasi. Akun hanya menjadi pemilik token. Menonaktifkan akun ini langsung memblokir semua tokennya.
-
-### 2.2 Terbitkan token
+### 2.1 Terbitkan token
 1. Buka **Administrasi › Token Integrasi** (hanya terlihat oleh Superadmin).
 2. Klik **Buat token**, lalu isi:
-   - **Akun Integrasi**: akun dari langkah 2.1.
    - **Nama**: penanda pemakai token, mis. `Pusat produksi` atau `Pusat staging`.
    - **IP diizinkan**: IP publik server Pusat, satu per baris. Boleh CIDR, mis. `10.9.0.0/16`.
 3. Klik **Buat token**. **Klik token untuk menyalin**, lalu kirim ke tim Pusat lewat kanal aman. Jangan kirim lewat chat grup atau email biasa.
 
-Token yang belum dicabut bisa **disalin lagi kapan saja** dengan mengklik token di daftar. Setiap penyalinan tercatat di audit log (`INTEGRATION_TOKEN_COPIED`).
+Token dimiliki oleh Superadmin yang membuatnya. Aplikasi lain hanya memakai token bearer untuk membaca API; token tidak memerlukan akun Integrasi terpisah. Token yang belum dicabut bisa **disalin lagi kapan saja** dengan mengklik token di daftar. Setiap penyalinan tercatat di audit log (`INTEGRATION_TOKEN_COPIED`). Menonaktifkan akun pemilik akan memblokir tokennya.
 
 > **IP kosong?** Token memakai daftar bawaan server `INTEGRATION_ALLOWED_IPS`. Kalau daftar itu juga kosong, semua permintaan ditolak. Halaman admin memperingatkan hal ini.
 
-### 2.3 Mengubah IP, rotasi, dan pencabutan
+### 2.2 Mengubah IP, rotasi, dan pencabutan
 
 | Kebutuhan | Langkah |
 |---|---|
@@ -68,11 +60,11 @@ Token yang belum dicabut bisa **disalin lagi kapan saja** dengan mengklik token 
 
 Kolom **Terakhir dipakai** diperbarui paling sering sekali per menit.
 
-### 2.4 Lewat server (cadangan)
+### 2.3 Lewat server (cadangan)
 Jika web tidak bisa diakses, jalankan di folder `backend`:
 
 ```bash
-npm run integrasi:token -- buat --nrp INTEGRASI-PUSAT --nama "Pusat produksi" --ip 203.0.113.10,10.9.0.0/16
+npm run integrasi:token -- buat --nrp 00000001 --nama "Pusat produksi" --ip 203.0.113.10,10.9.0.0/16
 npm run integrasi:token -- daftar
 npm run integrasi:token -- cabut lbi_AbCdEfGh      # prefix 12 karakter, atau id token
 ```
@@ -430,7 +422,7 @@ Isi selalu:
 | 400 | `INVALID_CURSOR` | Kursor rusak atau dibuat sendiri | Mulai ulang tanpa `cursor` |
 | 401 | `UNAUTHENTICATED` | Token salah, tidak dikirim, atau sudah dicabut | Minta token baru ke Superadmin Polda |
 | 403 | `IP_NOT_ALLOWED` | IP pemanggil tidak terdaftar | Minta Superadmin menambah IP |
-| 403 | `FORBIDDEN` | Akun Integrasi pemilik token dinonaktifkan | Hubungi Superadmin Polda |
+| 403 | `FORBIDDEN` | Akun Superadmin pemilik token dinonaktifkan | Hubungi Superadmin Polda |
 | 429 | `RATE_LIMITED` | Terlalu banyak permintaan | Tunggu lalu ulangi dengan *backoff* |
 | 5xx | `INTERNAL_ERROR` | Galat server | Ulangi dengan *backoff*; laporkan bila berulang |
 

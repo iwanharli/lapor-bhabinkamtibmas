@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { SensitiveDataService } from '../../common/crypto/sensitive-data.service';
@@ -12,34 +12,30 @@ export class IntegrationTokensService {
   constructor(private prisma: PrismaService, private crypto: SensitiveDataService, private audit: AuditService) {}
 
   async list() {
-    const [tokens, accounts] = await Promise.all([
-      this.prisma.integrationToken.findMany({
-        include: { user: { select: { id: true, nrp: true, nama: true, active: true } } },
-        orderBy: [{ revokedAt: { sort: 'desc', nulls: 'first' } }, { createdAt: 'desc' }],
-      }),
-      this.prisma.user.findMany({ where: { role: UserRole.INTEGRASI, active: true }, select: { id: true, nrp: true, nama: true }, orderBy: { nrp: 'asc' } }),
-    ]);
+    const tokens = await this.prisma.integrationToken.findMany({
+      include: { user: { select: { id: true, nrp: true, nama: true, active: true } } },
+      orderBy: [{ revokedAt: { sort: 'desc', nulls: 'first' } }, { createdAt: 'desc' }],
+    });
     return {
       tokens: tokens.map(({ tokenHash: _h, tokenEnc, ...t }) => ({ ...t, copyable: !!tokenEnc && !t.revokedAt })),
-      accounts,
       defaultIps: (process.env.INTEGRATION_ALLOWED_IPS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     };
   }
 
-  async create(actorId: string | null, dto: { userId: string; nama: string; allowedIps?: string[] }) {
-    const user = await this.prisma.user.findUnique({ where: { id: dto.userId } });
-    if (!user || user.role !== UserRole.INTEGRASI || !user.active) {
-      throw new BadRequestException({ code: 'INVALID_ACCOUNT', message: 'Akun harus berperan Integrasi dan aktif' });
+  async create(actorId: string, dto: { nama: string; allowedIps?: string[] }) {
+    const owner = await this.prisma.user.findUnique({ where: { id: actorId } });
+    if (!owner || owner.role !== UserRole.SUPERADMIN || !owner.active) {
+      throw new ForbiddenException({ code: 'FORBIDDEN', message: 'Token hanya dapat dibuat oleh superadmin aktif' });
     }
     const allowedIps = this.ips(dto.allowedIps);
     const token = `${TOKEN_PREFIX}${randomBytes(32).toString('base64url')}`;
     const t = await this.prisma.integrationToken.create({
       data: {
-        userId: user.id, nama: dto.nama.trim(), prefix: token.slice(0, 12), tokenHash: hashToken(token),
+        userId: owner.id, nama: dto.nama.trim(), prefix: token.slice(0, 12), tokenHash: hashToken(token),
         tokenEnc: Buffer.from(this.crypto.encrypt({ token })), allowedIps,
       },
     });
-    await this.audit.log({ actorId: actorId ?? user.id, action: 'INTEGRATION_TOKEN_CREATED', entity: 'integration_token', entityId: t.id, meta: { nama: t.nama, prefix: t.prefix, akun: user.nrp, allowedIps } });
+    await this.audit.log({ actorId: owner.id, action: 'INTEGRATION_TOKEN_CREATED', entity: 'integration_token', entityId: t.id, meta: { nama: t.nama, prefix: t.prefix, pemilik: owner.nrp, allowedIps } });
     return { id: t.id, prefix: t.prefix, token };
   }
 

@@ -13,8 +13,8 @@ export default async function TokenIntegrasiPage() {
     <>
       <PageHeader
         title="Token Integrasi"
-        subtitle="Akses baca-saja Baharkam Command Center (Pusat) ke /integration/*"
-        actions={<CreateTokenButton accounts={list.accounts} defaultIps={list.defaultIps} />}
+        subtitle="Akses baca-saja Baharkam Command Center (Pusat). Token dibuat oleh Superadmin; tidak perlu akun Integrasi terpisah."
+        actions={<CreateTokenButton defaultIps={list.defaultIps} />}
       />
       <IntegrationTokens list={list} tz={me.unit.timezone} />
     </>

@@ -36,7 +36,7 @@ const POLRES = [
     orang: ['Kombes Pol Fikri Maulana', 'Bripka Yoga Pratama', 'Kompol Wulan Anggraini', 'Kompol Irfan Hakim', 'Brigpol Ketut Sitompul'] },
 ];
 
-/** NRP 31·KK·000·P — KK kode kab/kota, P: 1 Pimpinan Polres, 2 Admin, 3 Auditor, 4 Pimpinan Polsek, 5 Bhabin. */
+/** NRP 31·KK·00·P — KK kode kab/kota, P: 1 Pimpinan Polres, 2 Admin, 3 Auditor, 4 Pimpinan Polsek, 5 Bhabin. */
 export function devAccounts(): (DevAccount & { password: string })[] {
   const pusat = 'Pusat & Polda';
   const list: DevAccount[] = [
@@ -48,11 +48,11 @@ export function devAccounts(): (DevAccount & { password: string })[] {
     ...POLRES.flatMap((r) => {
       const base = { group: r.nama };
       return [
-        { ...base, key: `${r.kk}-1`, nrp: `31${r.kk}0001`, role: 'PIMPINAN' as const, label: 'Kapolres', nama: r.orang[0], hint: r.polres },
-        { ...base, key: `${r.kk}-2`, nrp: `31${r.kk}0002`, role: 'ADMIN_UNIT' as const, label: 'Admin Polres', nama: r.orang[1], hint: r.polres },
-        { ...base, key: `${r.kk}-3`, nrp: `31${r.kk}0003`, role: 'AUDITOR' as const, label: 'Auditor Polres', nama: r.orang[2], hint: r.polres },
-        { ...base, key: `${r.kk}-4`, nrp: `31${r.kk}0004`, role: 'PIMPINAN' as const, label: 'Kapolsek', nama: r.orang[3], hint: r.polsek },
-        { ...base, key: `${r.kk}-5`, nrp: `31${r.kk}0005`, role: 'BHABIN' as const, label: 'Bhabinkamtibmas', nama: r.orang[4], hint: `Desa ${r.bhabin} · ${r.polsek}` },
+        { ...base, key: `${r.kk}-1`, nrp: `31${r.kk}001`, role: 'PIMPINAN' as const, label: 'Kapolres', nama: r.orang[0], hint: r.polres },
+        { ...base, key: `${r.kk}-2`, nrp: `31${r.kk}002`, role: 'ADMIN_UNIT' as const, label: 'Admin Polres', nama: r.orang[1], hint: r.polres },
+        { ...base, key: `${r.kk}-3`, nrp: `31${r.kk}003`, role: 'AUDITOR' as const, label: 'Auditor Polres', nama: r.orang[2], hint: r.polres },
+        { ...base, key: `${r.kk}-4`, nrp: `31${r.kk}004`, role: 'PIMPINAN' as const, label: 'Kapolsek', nama: r.orang[3], hint: r.polsek },
+        { ...base, key: `${r.kk}-5`, nrp: `31${r.kk}005`, role: 'BHABIN' as const, label: 'Bhabinkamtibmas', nama: r.orang[4], hint: `Desa ${r.bhabin} · ${r.polsek}` },
       ];
     }),
   ];

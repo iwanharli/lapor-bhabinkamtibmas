@@ -48,11 +48,11 @@ export function devAccounts(): (DevAccount & { password: string })[] {
     ...POLRES.flatMap((r) => {
       const base = { group: r.nama };
       return [
-        { ...base, key: `${r.kk}-1`, nrp: `31${r.kk}001`, role: 'PIMPINAN' as const, label: 'Kapolres', nama: r.orang[0], hint: r.polres },
-        { ...base, key: `${r.kk}-2`, nrp: `31${r.kk}002`, role: 'ADMIN_UNIT' as const, label: 'Admin Polres', nama: r.orang[1], hint: r.polres },
-        { ...base, key: `${r.kk}-3`, nrp: `31${r.kk}003`, role: 'AUDITOR' as const, label: 'Auditor Polres', nama: r.orang[2], hint: r.polres },
-        { ...base, key: `${r.kk}-4`, nrp: `31${r.kk}004`, role: 'PIMPINAN' as const, label: 'Kapolsek', nama: r.orang[3], hint: r.polsek },
-        { ...base, key: `${r.kk}-5`, nrp: `31${r.kk}005`, role: 'BHABIN' as const, label: 'Bhabinkamtibmas', nama: r.orang[4], hint: `Desa ${r.bhabin} · ${r.polsek}` },
+        { ...base, key: `${r.kk}-1`, nrp: `31${r.kk}00${1}`, role: 'PIMPINAN' as const, label: 'Kapolres', nama: r.orang[0], hint: r.polres },
+        { ...base, key: `${r.kk}-2`, nrp: `31${r.kk}00${2}`, role: 'ADMIN_UNIT' as const, label: 'Admin Polres', nama: r.orang[1], hint: r.polres },
+        { ...base, key: `${r.kk}-3`, nrp: `31${r.kk}00${3}`, role: 'AUDITOR' as const, label: 'Auditor Polres', nama: r.orang[2], hint: r.polres },
+        { ...base, key: `${r.kk}-4`, nrp: `31${r.kk}00${4}`, role: 'PIMPINAN' as const, label: 'Kapolsek', nama: r.orang[3], hint: r.polsek },
+        { ...base, key: `${r.kk}-5`, nrp: `31${r.kk}00${5}`, role: 'BHABIN' as const, label: 'Bhabinkamtibmas', nama: r.orang[4], hint: `Desa ${r.bhabin} · ${r.polsek}` },
       ];
     }),
   ];

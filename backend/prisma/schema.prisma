@@ -578,7 +578,7 @@ model IntegrationToken {
   tokenHash  String    @unique @map("token_hash") @db.Char(64)
   /// Token terenkripsi (SensitiveDataService) untuk disalin ulang di halaman admin; null = token lama, tidak bisa disalin.
   tokenEnc   Bytes?    @map("token_enc")
-  /// IP/CIDR yang diizinkan; kosong = memakai INTEGRATION_ALLOWED_IPS.
+  /// IP/CIDR yang diizinkan; kosong = memakai INTEGRATION_ALLOWED_IPS, atau semua IP bila bawaan juga kosong.
   allowedIps String[]  @default([]) @map("allowed_ips")
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz(3)

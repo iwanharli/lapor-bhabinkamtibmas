@@ -64,7 +64,7 @@ function IpList({ ips, defaultIps }: { ips: string[]; defaultIps: string[] }) {
   if (ips.length) return <span className="font-mono text-xs">{ips.join(', ')}</span>;
   return defaultIps.length
     ? <span className="text-xs text-muted">Bawaan server: <span className="font-mono">{defaultIps.join(', ')}</span></span>
-    : <span className="text-xs text-danger">Tidak ada — semua permintaan ditolak</span>;
+    : <span className="text-xs text-warn">Semua IP diizinkan</span>;
 }
 
 export function IntegrationTokens({ list, tz }: { list: IntegrationTokenList; tz?: string }) {
@@ -193,7 +193,7 @@ function EditTokenModal({ token, onClose }: { token: IntegrationTokenItem | null
 
 function IpField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <Field label="IP diizinkan" hint="Satu IP atau CIDR per baris (mis. 10.1.2.3 atau 10.9.0.0/16). Kosong = memakai INTEGRATION_ALLOWED_IPS server.">
+    <Field label="IP diizinkan" hint="Satu IP atau CIDR per baris (mis. 10.1.2.3 atau 10.9.0.0/16). Kosong = memakai INTEGRATION_ALLOWED_IPS server; jika bawaan juga kosong, semua IP diizinkan.">
       {(id) => <Textarea id={id} rows={3} className="font-mono text-sm" value={value} onChange={(e) => onChange(e.target.value)} placeholder="10.1.2.3" />}
     </Field>
   );
@@ -225,7 +225,6 @@ export function CreateTokenButton({ defaultIps }: { defaultIps: string[] }) {
     e.preventDefault();
     if (nama.trim().length < 2) return setError('Nama wajib diisi.');
     const list = parseIps(ips);
-    if (!list.length && !defaultIps.length) return setError('Isi minimal satu IP: server belum punya INTEGRATION_ALLOWED_IPS, sehingga token tanpa IP akan selalu ditolak.');
     setBusy(true);
     setError('');
     try {

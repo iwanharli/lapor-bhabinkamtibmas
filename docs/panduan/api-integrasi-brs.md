@@ -48,7 +48,7 @@ Daftar endpoint:
 
 Token dimiliki oleh Superadmin yang membuatnya. Aplikasi lain hanya memakai token bearer untuk membaca API; token tidak memerlukan akun Integrasi terpisah. Token yang belum dicabut bisa **disalin lagi kapan saja** dengan mengklik token di daftar. Setiap penyalinan tercatat di audit log (`INTEGRATION_TOKEN_COPIED`). Menonaktifkan akun pemilik akan memblokir tokennya.
 
-> **IP kosong?** Token memakai daftar bawaan server `INTEGRATION_ALLOWED_IPS`. Kalau daftar itu juga kosong, semua permintaan ditolak. Halaman admin memperingatkan hal ini.
+> **IP kosong?** Token memakai daftar bawaan server `INTEGRATION_ALLOWED_IPS`. Jika daftar token dan daftar bawaan server sama-sama kosong, token dapat dipakai dari **semua IP**. Batasi IP pada token atau isi `INTEGRATION_ALLOWED_IPS` bila akses harus dibatasi.
 
 ### 2.2 Mengubah IP, rotasi, dan pencabutan
 
@@ -523,13 +523,24 @@ if __name__ == "__main__":
 - **Banyak instance Polda**: setiap instance punya token, IP, dan watermark sendiri. ID (UUID) unik per instance, jadi simpan bersama penanda instance (mis. `kodePolda`).
 - **Kerahasiaan**: respons `reports` kategori `MAPPING_KK` memuat nomor KK dan nama warga. Batasi akses di sisi Pusat, simpan terenkripsi, dan catat siapa yang membukanya.
 
+### 7.1 Menangani penolakan dan koreksi
+
+- Untuk `reports`, `deleted: true` berarti laporan berstatus `REJECTED`; tandai tidak berlaku atau hapus dari tampilan aktif di Pusat.
+- Untuk `prices`, `deleted: true` berlaku bagi baris harga yang masih ada pada laporan yang ditolak. Jika laporan harga diralat dan satu komoditas dihapus, API tidak mengirim tombstone untuk komoditas yang hilang. Saat menerima hasil baru untuk `laporanId`, ganti seluruh rincian lama laporan itu.
+- `family-summary` adalah ringkasan keadaan akhir periode, bukan daftar perubahan per KK. Jika ada koreksi laporan lama, tarik ulang periode terkait secara penuh untuk memastikan angka dan desa yang sudah tidak memiliki data ikut tersinkron.
+- `/units` dan `/commodities` tidak memiliki `updatedSince`. Tarik ulang berkala; untuk unit, bandingkan daftar sebelumnya karena unit yang dihapus tidak memiliki tombstone.
+
+### 7.2 Validasi respons
+
+Sebelum menyimpan satu halaman, periksa bahwa respons memiliki `data` berupa array dan `nextCursor` berupa string atau `null`. Teruskan cursor persis seperti diterima dan gunakan filter yang sama sampai halaman terakhir. Jika respons gagal di tengah proses, jangan memajukan watermark; ulangi sinkronisasi dengan watermark sebelumnya agar rentang data tetap tercakup.
+
 ---
 
 ## 8. Pemecahan masalah
 
 | Gejala | Kemungkinan penyebab |
 |---|---|
-| Selalu `403 IP_NOT_ALLOWED` padahal IP sudah didaftarkan | Server membaca IP proksi, bukan IP Pusat. Periksa `TRUST_PROXY` dan `X-Forwarded-For` di instance (bagian 2.4). Pastikan juga yang didaftarkan IP **publik keluar** server Pusat (NAT) |
+| `403 IP_NOT_ALLOWED` | IP pemanggil tidak cocok dengan allowlist token atau `INTEGRATION_ALLOWED_IPS`. Jika keduanya kosong, pembatasan IP tidak berlaku. Periksa `TRUST_PROXY` dan `X-Forwarded-For` (bagian 2.3), serta IP **publik keluar** server Pusat (NAT) |
 | `401` mendadak | Token dicabut atau dirotasi. Tanyakan ke Superadmin Polda |
 | Data lama tidak muncul di tarikan berkala | Sudah benar: `updatedSince` hanya mengirim perubahan. Lakukan tarikan penuh tanpa `updatedSince` bila perlu memulai ulang |
 | Baris yang sama datang dua kali | Wajar karena jendela tumpang-tindih. Lakukan upsert berdasarkan kunci |

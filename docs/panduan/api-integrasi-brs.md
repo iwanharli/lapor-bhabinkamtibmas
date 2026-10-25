@@ -16,7 +16,7 @@ API ini **baca-saja**. Pusat hanya menarik data, tidak bisa menulis, mengubah, a
 | Alamat dasar | `https://<domain-instance-polda>/api/v1/integration` |
 | Metode | `GET` saja |
 | Autentikasi | Header `Authorization: Bearer lbi_…` (token integrasi) |
-| Pembatasan | Hanya dari IP/CIDR yang didaftarkan untuk token |
+| Pembatasan | IP/CIDR yang didaftarkan pada token, atau `INTEGRATION_ALLOWED_IPS` bila token tidak punya daftar. Bila keduanya kosong, semua IP diizinkan |
 | Batas laju | 120 permintaan/menit per IP (bawaan, bisa diubah instance) |
 | Format | JSON UTF-8. Waktu ISO 8601 dengan offset zona, mis. `2026-10-25T08:30:00+07:00` |
 | Paginasi | Kursor: `limit` (bawaan 500, maks. 2000) dan `cursor` |
@@ -269,7 +269,7 @@ Parameter: `updatedSince`, `category`, `from`, `to`, `limit`, `cursor`.
 | `urgensi` | `RENDAH` \| `SEDANG` \| `TINGGI`, hanya untuk `DETEKSI_DINI`. Kategori lain `null` |
 | `prioritas` | Tanda prioritas, mis. Deteksi Dini urgensi tinggi |
 | `akurasiGps` | Akurasi GPS dalam meter |
-| `lokasiDicek` | `true` bila lokasi perlu diperiksa: GPS palsu (*mock location*) **atau** di luar desa binaan |
+| `lokasiDicek` | `true` bila lokasi perlu diperiksa: GPS palsu (*mock location*) **atau** di luar desa binaan. Bila posisi terhadap desa tidak dapat ditentukan, hanya GPS palsu yang dipertimbangkan |
 | `jumlahFoto` | Jumlah lampiran. Berkas foto tidak dikirim |
 | `skemaVersi` | Versi skema form yang dipakai `isian` |
 | `isian` | Isian form sesuai skema kategori (lihat 4.4.1) |
@@ -310,7 +310,7 @@ Satu baris per Bhabin per tanggal kerja, gabungan absen masuk dan pulang.
 |---|---|
 | `id` | `ABS-<YYYYMMDD>-<bhabinId>`, stabil |
 | `jamMasuk` / `jamPulang` | Waktu absen menurut perangkat. `null` bila belum absen |
-| `lokasiMasuk` / `lokasiPulang` | `null` bila belum absen. `didalamDesa`: di dalam salah satu desa binaan (toleransi 200 m) |
+| `lokasiMasuk` / `lokasiPulang` | `null` bila belum absen. `didalamDesa`: di dalam salah satu desa binaan (toleransi 200 m); `null` bila tidak dapat ditentukan (mis. tidak ada desa pembanding) |
 | `lokasiPalsu` | `true` bila salah satu absen memakai GPS palsu |
 
 Baris yang sama dikirim lagi dengan `updatedAt` baru ketika absen pulang masuk. Simpan dengan upsert berdasarkan `id`.
@@ -486,6 +486,8 @@ def main():
     tarik("units")                     # kecil, selalu penuh
     tarik("commodities")
 
+    # Bulan menurut jam server Pusat; di sekitar pergantian bulan bisa berbeda dengan zona instance (WITA/WIT).
+    # Tanpa parameter periode, instance memakai bulan berjalan menurut zonanya sendiri.
     periode = dt.date.today().strftime("%Y-%m")
     for path, extra in [("villages", None), ("bhabins", None), ("reports", None),
                         ("attendance", None), ("prices", None),

@@ -152,20 +152,22 @@ Batas desa demo Polres Contoh (kode `99.*`) ada di `backend/prisma/demo/*.geojso
 
 ## Akun uji
 
-Sandi semua akun contoh: `Demo#12345`.
+Akun demo memakai data Polda Metro Jaya (server demo dan basis data dev). Sandi semua akun: `BrsDemo2026`. Daftar lengkap ada di `web/src/lib/dev-accounts.ts`.
 
 | NRP | Peran | Unit |
 |---|---|---|
-| 90000001 | Bhabinkamtibmas (web `/bhabin` & mobile) | Polsek Contoh |
-| 90000002 | Pimpinan | Polsek Contoh |
-| 90000003 | Pimpinan | Polres Contoh |
-| 90000004 | Admin Unit | Polres Contoh |
-| 90000005 | Auditor | Polda Contoh |
-| 90000007 | Pimpinan | Mabes — **melihat seluruh Indonesia** (data contoh nasional) |
-| 00000001 | Superadmin | Mabes (sandi dari `SEED_SUPERADMIN_PASSWORD`, wajib diganti) |
-| `99` + kode provinsi, mis. 99000035 | Pimpinan Polda (data nasional) | Polda Jawa Timur |
-| `97` + kode kab/kota, mis. 97003314 | Pimpinan Polres (data nasional) | Polres Sragen |
-| `98` + kode kecamatan, mis. 98331409 | Bhabinkamtibmas (data nasional) | Polsek Karangmalang |
+| 00000001 | Superadmin | Mabes, seluruh Indonesia |
+| 90000007 | Pimpinan | Mabes, **melihat seluruh Indonesia** |
+| 31000001 | Pimpinan (Kapolda) | Polda Metro Jaya |
+| 31000002 | Admin Unit | Polda Metro Jaya |
+| 31000003 | Auditor | Polda Metro Jaya |
+| `31` + KK + `000` + P | Lima peran per Polres | Polres Kepulauan Seribu (KK `01`), Jakarta Pusat (`71`), Utara (`72`), Barat (`73`), Selatan (`74`), Timur (`75`) |
+
+Akhiran P pada akun Polres: `1` Kapolres (Pimpinan), `2` Admin Polres, `3` Auditor Polres, `4` Kapolsek (Pimpinan), `5` Bhabinkamtibmas (web `/bhabin` & mobile). Contoh: `31740005` adalah Bhabin Desa Menteng Dalam, Polsek Tebet, Polres Metro Jakarta Selatan.
+
+> Akun ini **tidak** dibuat oleh `npm run seed`. Seeder masih membuat akun contoh lama (`90000001`–`90000005`, sandi `Demo#12345`) dan superadmin dari `SEED_SUPERADMIN_PASSWORD`. Di basis data dev, akun lama itu sudah dinonaktifkan.
+>
+> Sandi demo ditampilkan di halaman login, termasuk sandi Superadmin. Jangan pakai akun ini di instance dengan data asli.
 
 **Login cepat (hanya lokal):**
 - Saat `npm run dev`, halaman login menampilkan tombol akun percobaan per peran. Sandinya tetap di server dan tidak dikirim ke browser.

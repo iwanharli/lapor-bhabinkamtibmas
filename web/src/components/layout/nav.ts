@@ -53,6 +53,7 @@ export function navFor(role: string): NavSection[] {
         { href: '/admin/pengguna', label: 'Pengguna', icon: 'users' },
         { href: '/admin/unit', label: 'Unit', icon: 'units' },
         { href: '/admin/desa', label: 'Desa', icon: 'villages' },
+        ...(role === 'SUPERADMIN' ? [{ href: '/admin/token-integrasi', label: 'Token Integrasi', icon: 'integration' as const }] : []),
         { href: '/audit', label: 'Audit log', icon: 'audit' },
       ],
     });

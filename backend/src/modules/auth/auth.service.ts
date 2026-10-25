@@ -51,6 +51,11 @@ export class AuthService {
       return fail('bad_password');
     }
 
+    // Akun mesin Command Center hanya memakai token integrasi di /integration/*, tidak bisa masuk.
+    if (user.role === UserRole.INTEGRASI) {
+      throw new ForbiddenException({ code: 'WRONG_CLIENT', message: 'Akun integrasi hanya untuk API integrasi' });
+    }
+
     // Aplikasi mobile hanya untuk Bhabin; Bhabin juga boleh memakai versi web (/bhabin), peran lain hanya web.
     const isMobile = !!dto.device;
     if (isMobile && user.role !== UserRole.BHABIN) {

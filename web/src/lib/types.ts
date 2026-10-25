@@ -212,3 +212,23 @@ export interface DeviceRow {
   lastSeenAt: string | null;
   revokedAt: string | null;
 }
+
+export interface IntegrationTokenItem {
+  id: string;
+  nama: string;
+  prefix: string;
+  allowedIps: string[];
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  /** Token tersimpan terenkripsi & belum dicabut: bisa disalin. */
+  copyable: boolean;
+  user: { id: string; nrp: string; nama: string; active: boolean };
+}
+
+export interface IntegrationTokenList {
+  tokens: IntegrationTokenItem[];
+  accounts: { id: string; nrp: string; nama: string }[];
+  /** INTEGRATION_ALLOWED_IPS di server, dipakai token tanpa daftar IP sendiri. */
+  defaultIps: string[];
+}

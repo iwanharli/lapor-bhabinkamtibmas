@@ -1,4 +1,4 @@
-import { localDate, localDateTime, tzOf } from './time';
+import { isoLocal, localDate, localDateTime, tzOf } from './time';
 
 describe('zona waktu', () => {
   // 22 Okt 2026 16:30 UTC = 23.30 WIB (22 Okt) = 00.30 WITA & 01.30 WIT (23 Okt).
@@ -19,5 +19,14 @@ describe('zona waktu', () => {
   it('zona tak dikenal kembali ke WIB', () => {
     expect(tzOf('Europe/Paris')).toBe('Asia/Jakarta');
     expect(tzOf(null)).toBe('Asia/Jakarta');
+  });
+});
+
+describe('isoLocal', () => {
+  it('menulis waktu lokal beserta offset zona', () => {
+    const d = new Date('2026-10-25T01:30:00Z');
+    expect(isoLocal(d, 'Asia/Jakarta')).toBe('2026-10-25T08:30:00+07:00');
+    expect(isoLocal(d, 'Asia/Jayapura')).toBe('2026-10-25T10:30:00+09:00');
+    expect(isoLocal(null)).toBeNull();
   });
 });

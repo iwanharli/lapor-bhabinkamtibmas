@@ -55,11 +55,11 @@ model Unit {
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz
 
-  parent   Unit?     @relation("UnitTree", fields: [parentId], references: [id])
-  children Unit[]    @relation("UnitTree")
-  users    User[]
-  villages Village[]
-  reports  Report[]
+  parent      Unit?        @relation("UnitTree", fields: [parentId], references: [id])
+  children    Unit[]       @relation("UnitTree")
+  users       User[]
+  villages    Village[]
+  reports     Report[]
   attendances Attendance[]
 
   @@index([parentId])
@@ -67,17 +67,19 @@ model Unit {
 }
 
 model Village {
-  id          String                                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  kodeWilayah String                                       @unique @map("kode_wilayah") @db.VarChar(13)
-  nama        String                                       @db.VarChar(120)
-  kecamatan   String                                       @db.VarChar(120)
-  kabupaten   String                                       @db.VarChar(120)
-  provinsi    String                                       @db.VarChar(120)
+  id            String                                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kodeWilayah   String                                       @unique @map("kode_wilayah") @db.VarChar(13)
+  nama          String                                       @db.VarChar(120)
+  kecamatan     String                                       @db.VarChar(120)
+  kabupaten     String                                       @db.VarChar(120)
+  provinsi      String                                       @db.VarChar(120)
   /// Kode kecamatan Kemendagri (regions.kode, level 3); diisi seeder wilayah.
-  kecamatanKode String?                                    @map("kecamatan_kode") @db.VarChar(13)
-  polsekId    String?                                      @map("polsek_id") @db.Uuid
-  geom        Unsupported("geometry(MultiPolygon, 4326)")?
-  centroid    Unsupported("geography(Point, 4326)")?
+  kecamatanKode String?                                      @map("kecamatan_kode") @db.VarChar(13)
+  polsekId      String?                                      @map("polsek_id") @db.Uuid
+  geom          Unsupported("geometry(MultiPolygon, 4326)")?
+  centroid      Unsupported("geography(Point, 4326)")?
+  /// Diperbarui trigger database (termasuk saat desa binaan berubah); dipakai sinkron integrasi.
+  updatedAt     DateTime                                     @default(now()) @map("updated_at") @db.Timestamptz(3)
 
   polsek       Unit?         @relation(fields: [polsekId], references: [id])
   userVillages UserVillage[]
@@ -86,6 +88,7 @@ model Village {
 
   @@index([polsekId])
   @@index([kecamatanKode])
+  @@index([updatedAt])
   @@map("villages")
 }
 
@@ -107,19 +110,21 @@ model User {
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
-  unit          Unit                  @relation(fields: [unitId], references: [id])
-  villages      UserVillage[]
-  devices       Device[]
-  refreshTokens RefreshToken[]
-  exportJobs    ExportJob[]
-  attendances   Attendance[]
-  notifications Notification[]
-  auditLogs     AuditLog[]
-  reports       Report[]              @relation("ReportAuthor")
-  reviewed      Report[]              @relation("ReportReviewer")
-  statusChanges ReportStatusHistory[]
+  unit              Unit                  @relation(fields: [unitId], references: [id])
+  villages          UserVillage[]
+  devices           Device[]
+  refreshTokens     RefreshToken[]
+  exportJobs        ExportJob[]
+  attendances       Attendance[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  reports           Report[]              @relation("ReportAuthor")
+  reviewed          Report[]              @relation("ReportReviewer")
+  statusChanges     ReportStatusHistory[]
+  integrationTokens IntegrationToken[]
 
   @@index([unitId])
+  @@index([updatedAt])
   @@map("users")
 }
 
@@ -326,7 +331,7 @@ model Attachment {
   watermarked Boolean          @default(false)
   createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz
 
-  report Report? @relation(fields: [reportId], references: [id])
+  report      Report?      @relation(fields: [reportId], references: [id])
   attendances Attendance[]
 
   @@index([reportId])
@@ -492,29 +497,29 @@ enum AttendanceType {
 
 /// Absensi lapangan Bhabin: maks. satu CHECK_IN & satu CHECK_OUT per hari kerja (tanggal lokal unit).
 model Attendance {
-  id             String                                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clientUuid     String                                     @unique @map("client_uuid") @db.Uuid
-  userId         String                                     @map("user_id") @db.Uuid
-  unitId         String                                     @map("unit_id") @db.Uuid
+  id             String                                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientUuid     String                                 @unique @map("client_uuid") @db.Uuid
+  userId         String                                 @map("user_id") @db.Uuid
+  unitId         String                                 @map("unit_id") @db.Uuid
   type           AttendanceType
   /// Tanggal lokal (zona unit) dari client_time.
-  workDate       DateTime                                   @map("work_date") @db.Date
-  clientTime     DateTime                                   @map("client_time") @db.Timestamptz(3)
-  serverTime     DateTime                                   @default(now()) @map("server_time") @db.Timestamptz(3)
+  workDate       DateTime                               @map("work_date") @db.Date
+  clientTime     DateTime                               @map("client_time") @db.Timestamptz(3)
+  serverTime     DateTime                               @default(now()) @map("server_time") @db.Timestamptz(3)
   lat            Float
   lng            Float
   /// Dihitung database dari lat/lng.
   location       Unsupported("geography(Point, 4326)")?
-  gpsAccuracyM   Float?                                     @map("gps_accuracy_m") @db.Real
-  isMockLocation Boolean                                    @default(false) @map("is_mock_location")
+  gpsAccuracyM   Float?                                 @map("gps_accuracy_m") @db.Real
+  isMockLocation Boolean                                @default(false) @map("is_mock_location")
   /// Di dalam salah satu desa binaan (toleransi 200 m).
-  insideVillage  Boolean?                                   @map("inside_village")
+  insideVillage  Boolean?                               @map("inside_village")
   /// Desa binaan terdekat.
-  villageId      String?                                    @map("village_id") @db.Uuid
-  distanceM      Float?                                     @map("distance_m") @db.Real
-  selfieId       String?                                    @map("selfie_id") @db.Uuid
+  villageId      String?                                @map("village_id") @db.Uuid
+  distanceM      Float?                                 @map("distance_m") @db.Real
+  selfieId       String?                                @map("selfie_id") @db.Uuid
   /// Dikirim > 15 menit setelah client_time (offline).
-  lateSync       Boolean                                    @default(false) @map("late_sync")
+  lateSync       Boolean                                @default(false) @map("late_sync")
 
   user    User        @relation(fields: [userId], references: [id], onDelete: Restrict)
   unit    Unit        @relation(fields: [unitId], references: [id], onDelete: Restrict)
@@ -523,6 +528,7 @@ model Attendance {
 
   @@unique([userId, workDate, type])
   @@index([unitId, workDate])
+  @@index([serverTime])
   @@map("attendances")
 }
 
@@ -559,4 +565,27 @@ model LastLocation {
 
   @@index([unitId])
   @@map("last_locations")
+}
+
+/// Token baca-saja klien Command Center Pusat (peran INTEGRASI), hanya untuk /integration/*. Disimpan sebagai SHA-256.
+/// Dikelola lewat `npm run integrasi:token`.
+model IntegrationToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  nama       String    @db.VarChar(120)
+  /// Awal token (mis. "lbi_ab12cd34") untuk dikenali di daftar & log tanpa membuka token.
+  prefix     String    @db.VarChar(16)
+  tokenHash  String    @unique @map("token_hash") @db.Char(64)
+  /// Token terenkripsi (SensitiveDataService) untuk disalin ulang di halaman admin; null = token lama, tidak bisa disalin.
+  tokenEnc   Bytes?    @map("token_enc")
+  /// IP/CIDR yang diizinkan; kosong = memakai INTEGRATION_ALLOWED_IPS.
+  allowedIps String[]  @default([]) @map("allowed_ips")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz(3)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@map("integration_tokens")
 }

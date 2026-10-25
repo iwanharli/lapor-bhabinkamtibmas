@@ -21,7 +21,8 @@
     "seed:semua": "ts-node prisma/seed-semua.ts",
     "notifications:isi": "ts-node prisma/backfill-notifications.ts",
     "mapping:enkripsi-kesehatan": "ts-node prisma/encrypt-health.ts",
-    "crypto:rotasi": "ts-node prisma/rotate-keys.ts"
+    "crypto:rotasi": "ts-node prisma/rotate-keys.ts",
+    "integrasi:token": "ts-node prisma/integration-token.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

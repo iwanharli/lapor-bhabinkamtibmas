@@ -233,12 +233,63 @@ Satu notifikasi per jenis per laporan per penerima (ralat tidak menggandakan). I
 `POST /exports` `{ "type": "reports", "format": "xlsx", "filters": { … } }` → `{ "jobId": "…" }`. Ekspor diproses worker.
 `GET /exports/:jobId` → status + URL unduh (presigned, 1 jam). Setiap ekspor dicatat di audit log.
 
-## 9. Integrasi Command Center (fase 5)
+## 9. Integrasi Command Center
 
-- Autentikasi: akun `INTEGRASI` dengan *client credentials* (`POST /auth/token`) + allowlist IP.
-- `GET /integration/reports?updatedSince=&category=`: data teragregasi/teranonimkan (tanpa NIK dan nama warga).
-- `GET /integration/prices?date=`: rekap harga harian per kabupaten.
-- Opsional: webhook `report.priority_created` untuk Deteksi Dini urgensi tinggi.
+API baca-saja untuk Baharkam Command Center (Pusat), mengikuti usulan Pusat v0.1 (`docs/API-Integrasi-lapor-bhabinkamtibmas.md`). Semua `GET` di `/api/v1/integration/*`.
+
+### Akses
+- **Token**: `Authorization: Bearer lbi_…`, token statis milik akun peran `INTEGRASI` (bukan JWT login). Disimpan sebagai SHA-256, hanya tampil sekali saat dibuat. Kelola dengan `npm run integrasi:token -- buat --nrp <akun> --ip <ip,cidr> | daftar | cabut <id|prefix>`. Rotasi: buat token baru → pasang di Pusat → cabut token lama.
+- **Peran `INTEGRASI`** tidak bisa login (`WRONG_CLIENT`) dan JWT berperan ini ditolak di endpoint lain.
+- **Allowlist IP**: daftar IP/CIDR per token, atau `INTEGRATION_ALLOWED_IPS` bila token tidak punya daftar. Tanpa keduanya semua permintaan ditolak.
+- **Batas laju**: `INTEGRATION_RATE_LIMIT` (bawaan 120/menit per IP).
+- **Galat**: `401 UNAUTHENTICATED` (token salah/dicabut), `403 FORBIDDEN`/`IP_NOT_ALLOWED`, `429 RATE_LIMITED`, `400 VALIDATION_FAILED`/`INVALID_CURSOR`/`INVALID_UPDATED_SINCE`; isi `{ "error": { "code", "message" } }`.
+- **Audit**: setiap pemanggilan dicatat (`INTEGRATION_READ`, meta: endpoint, parameter, jumlah baris, id token).
+
+### Konvensi
+- Respons: `{ data, nextCursor, generatedAt }`. Waktu ISO 8601 dengan offset zona unit (`+07:00`/`+08:00`/`+09:00`); tanggal `YYYY-MM-DD` = tanggal lokal unit.
+- **ID** memakai UUID internal (stabil); kode manusiawi ada di kolom terpisah (`kode`, `nrp`, `nomor`, `kodeDesa`).
+- Paginasi kursor: `limit` (bawaan 500, maks. 2000), `cursor`. Urutan stabil `updatedAt` lalu `id`.
+- `updatedSince` (ISO 8601): baris dengan `updatedAt >= updatedSince`. Saran untuk Pusat: tarik dengan jendela tumpang-tindih beberapa menit (transaksi yang selesai belakangan) — baris ganda aman karena berkunci `id`.
+- Parameter tak dikenal ditolak `400`.
+
+### Endpoint
+| Endpoint | Parameter | Isi |
+|---|---|---|
+| `units` | – | Pohon unit (`MABES`/`POLDA`/`POLRES`/`POLSEK`): `id, kode, level, nama, parentId, zonaWaktu, kodePolda` (= `kode` unit Polda leluhurnya) |
+| `villages` | `updatedSince` | `id, nama, kodeKabupaten (4), kodeKecamatan (6), kodeDesa (10, tanpa titik), lat/lng (centroid), polsekId, bhabinId (Bhabin aktif), updatedAt`. `updatedAt` diperbarui trigger, termasuk saat desa binaan berubah |
+| `bhabins` | `updatedSince` | `id, pangkat, nama, nrp, polsekId (unit), desaIds (desa binaan aktif), aktif, updatedAt`. Tanpa telepon/alamat |
+| `reports` | `updatedSince, category, from, to` | Laporan non-draft: `id, nomor, kategori, waktu, judul, urgensi, prioritas, lat, lng, akurasiGps, lokasiDicek, desaId, bhabinId, jumlahFoto, skemaVersi, isian, status, updatedAt, deleted` |
+| `attendance` | `updatedSince, date \| from/to` | Satu baris per Bhabin per tanggal kerja: `id (ABS-YYYYMMDD-<bhabinId>), bhabinId, tanggal, jamMasuk, jamPulang, lokasiMasuk, lokasiPulang ({lat,lng,didalamDesa}), lokasiPalsu, updatedAt` |
+| `prices` | `updatedSince, date \| from/to` | Satu baris per komoditas per laporan Harga Pangan (tidak dirata-rata): `id (<laporanId>:<komoditas>), laporanId, tanggal, komoditas, namaKomoditas, satuan, harga, stok, desaId, bhabinId, updatedAt, deleted` |
+| `commodities` | – | `komoditas, namaKomoditas, satuan, aktif` |
+| `family-summary` | `updatedSince, periode (YYYY-MM)` | Angka per desa, tanpa data per orang (definisi di bawah) |
+
+Rincian `reports`:
+- `judul`: diturunkan dari isian (Deteksi Dini: kategori kerawanan; Problem Solving: pokok masalah; Sambang: jenis sasaran; Penyuluhan: tema; Harga Pangan: nama pasar/jenis lokasi; Ketahanan Pangan: jenis usaha; Mapping KK: nama kepala keluarga), selain itu nama kategori.
+- `urgensi`: `RENDAH|SEDANG|TINGGI`, hanya Deteksi Dini (lainnya `null`).
+- `lokasiDicek`: lokasi palsu (*mock location*) **atau** di luar desa binaan.
+- `deleted: true` untuk status `REJECTED`. Draft tidak pernah dikirim (dan hanya draft yang bisa dihapus permanen).
+- `isian`: data biasa sesuai skema form (`skemaVersi`). Untuk `MAPPING_KK` ditambah **No. KK terdekripsi** (`no_kk`); nama anggota memang tersimpan sebagai data biasa. NIK dan isian kesehatan per orang (`status_stunting`, `stunting_ditangani`, `stunting_ket`, `risiko_ibu`, `kk_risiko_ibu`) **tidak** dikirim. Isian sensitif kategori lain tidak dikirim.
+- `prices`: bila laporan diralat dan sebuah komoditas dihapus, barisnya tidak muncul lagi — Pusat sebaiknya mengganti semua baris dengan `laporanId` yang sama saat laporan itu berubah.
+
+### Definisi `family-summary`
+Sumber: laporan Mapping Data Keluarga v2 berstatus terkirim dengan waktu kegiatan **sebelum akhir `periode`** (zona unit; bawaan bulan berjalan). KK yang dilaporkan lebih dari sekali (No. KK sama, lewat sidik `kk_hash`) dihitung dari laporan terbarunya. Umur dihitung terhadap waktu kegiatan. Sama dengan dashboard Stunting.
+
+| Kolom | Arti |
+|---|---|
+| `kk` | Jumlah KK terdata |
+| `balita` | Anggota berumur < 5 tahun |
+| `stunting` | Balita berstatus "Stunting" |
+| `berisikoStunting` | Balita berstatus "Berisiko stunting" |
+| `belumDitangani` | Balita stunting/berisiko dengan penanganan "Belum" |
+| `ibuHamil` | Anggota/KK dengan risiko ibu "Ibu hamil" atau "Ibu hamil KEK/anemia" |
+| `kek` | Risiko ibu "Ibu hamil KEK/anemia" (KEK dan anemia ibu hamil tidak dipisah di form) |
+| `anemia` | Risiko ibu "Remaja putri anemia" |
+| `calonPengantin` | Anggota dengan isian calon pengantin "Ya" |
+| `sanitasiLayak` | KK dengan jamban "Jamban sendiri dengan septic tank" |
+| `sanitasiTidakLayak` | KK dengan isian jamban selain itu (KK tanpa isian jamban tidak dihitung di keduanya) |
+
+`updatedAt` = perubahan terakhir laporan yang dihitung di desa itu.
 
 ## 10. Rate limit (default)
 

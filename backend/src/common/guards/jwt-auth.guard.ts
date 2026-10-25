@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
+import { UserRole } from '@prisma/client';
 import { ALLOW_PENDING_PASSWORD, AuthUser, IS_PUBLIC } from '../decorators/auth.decorators';
 
 @Injectable()
@@ -22,6 +23,8 @@ export class JwtAuthGuard implements CanActivate {
     } catch {
       throw new UnauthorizedException({ code: 'TOKEN_EXPIRED' });
     }
+    // Peran INTEGRASI hanya boleh /integration/* (token integrasi), walau sesi lama masih berlaku.
+    if (user.role === UserRole.INTEGRASI) throw new ForbiddenException({ code: 'FORBIDDEN', message: 'Peran tidak diizinkan' });
     req.user = user;
 
     // Sandi sementara: hanya profil, ganti sandi, dan logout yang boleh diakses.

@@ -26,6 +26,7 @@ import { UnitsModule } from './modules/units/units.module';
 import { UsersModule } from './modules/users/users.module';
 import { VillagesModule } from './modules/villages/villages.module';
 import { RegionsModule } from './modules/regions/regions.module';
+import { IntegrationModule } from './modules/integration/integration.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { RegionsModule } from './modules/regions/regions.module';
     AggregatesModule,
     ExportsModule,
     HealthModule,
+    IntegrationModule,
   ],
   providers: [
     // Urutan penting: autentikasi dulu agar pembatas laju menghitung per akun.

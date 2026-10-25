@@ -1,5 +1,5 @@
 /**
- * Rotasi kunci enkripsi: enkripsi ulang semua data sensitif laporan dengan kunci AKTIF (entri pertama
+ * Rotasi kunci enkripsi: enkripsi ulang semua data sensitif laporan (dan token integrasi) dengan kunci AKTIF (entri pertama
  * DATA_ENCRYPTION_KEYS) dan hitung ulang sidik No. KK. Setelah selesai, kunci lama boleh dihapus dari env.
  *
  *   1. DATA_ENCRYPTION_KEYS="k2:<kunci-baru>,k1:<kunci-lama>"  lalu restart layanan (data baru memakai k2)
@@ -41,7 +41,14 @@ async function main() {
     rotated += todo.length;
     process.stdout.write(`\r${rotated.toLocaleString('id-ID')} dienkripsi ulang, ${skipped.toLocaleString('id-ID')} sudah memakai kunci ${active}`);
   }
-  console.log(`\nSelesai. Semua data sensitif laporan memakai kunci "${active}".`);
+  // Token integrasi tersimpan terenkripsi (untuk disalin ulang di halaman admin).
+  const tokens = await prisma.integrationToken.findMany({ where: { tokenEnc: { not: null } }, select: { id: true, tokenEnc: true } });
+  const staleTokens = tokens.filter((t) => crypto.keyIdOf(Buffer.from(t.tokenEnc!)) !== active);
+  await prisma.$transaction(staleTokens.map((t) => prisma.integrationToken.update({
+    where: { id: t.id }, data: { tokenEnc: Buffer.from(crypto.encrypt(crypto.decrypt(Buffer.from(t.tokenEnc!)))) },
+  })));
+  console.log(`\n${staleTokens.length} token integrasi dienkripsi ulang.`);
+  console.log(`Selesai. Semua data sensitif laporan memakai kunci "${active}".`);
   await app.close();
 }
 main().catch((e) => {

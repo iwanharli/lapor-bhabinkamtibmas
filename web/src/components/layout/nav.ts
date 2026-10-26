@@ -1,5 +1,6 @@
 import type { NavSection } from './sidebar';
 import { CATEGORY_LABEL } from '@/lib/format';
+import { ATTENDANCE_WEB } from '@/lib/flags';
 
 const ADMIN_ROLES = ['SUPERADMIN', 'ADMIN_UNIT'];
 const AUDIT_ROLES = ['SUPERADMIN', 'ADMIN_UNIT', 'AUDITOR'];
@@ -42,7 +43,7 @@ export function navFor(role: string): NavSection[] {
       title: 'Personel',
       items: [
         { href: '/kinerja', label: 'Kinerja Bhabin', icon: 'performance' },
-        { href: '/absensi', label: 'Absensi', icon: 'attendance' },
+        ...(ATTENDANCE_WEB ? [{ href: '/absensi', label: 'Absensi', icon: 'attendance' as const }] : []),
       ],
     },
   ];

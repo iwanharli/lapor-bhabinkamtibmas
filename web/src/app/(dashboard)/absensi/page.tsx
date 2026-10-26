@@ -1,6 +1,6 @@
 import { UserCheck } from 'lucide-react';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { cn, EmptyState, PageHeader, Pagination, SearchInput, Stack } from '@/components/ui';
 import { AttendanceTable } from '@/features/attendance/attendance-table';
 import { DateFilter } from '@/features/attendance/date-filter';
@@ -10,6 +10,7 @@ import { UrlUnitFilter } from '@/features/units/unit-combobox';
 import { apiGet, getSessionUser } from '@/lib/api/server';
 import { localDateStr } from '@/lib/format';
 import { withParams } from '@/lib/url';
+import { ATTENDANCE_WEB } from '@/lib/flags';
 
 const SIZES = [20, 50, 100];
 type Search = { tanggal?: string; unitId?: string; q?: string; status?: string; page?: string; limit?: string };
@@ -18,6 +19,7 @@ const tanggalPanjang = (d: string) =>
   new Date(`${d}T00:00:00Z`).toLocaleDateString('id-ID', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
 export default async function AbsensiPage({ searchParams }: { searchParams: Promise<Search> }) {
+  if (!ATTENDANCE_WEB) notFound();
   const me = await getSessionUser();
   if (me?.role === 'BHABIN') redirect('/bhabin/absensi');
 

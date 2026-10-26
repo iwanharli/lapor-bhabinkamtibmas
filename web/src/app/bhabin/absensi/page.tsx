@@ -1,9 +1,11 @@
 import { AlarmClock, CalendarCheck, CircleCheck, CircleDashed, Clock, LogIn, LogOut, MapPinX } from 'lucide-react';
+import { notFound } from 'next/navigation';
 import { cn } from '@/components/ui';
 import { AttendancePanel, type MyAttendance } from '@/features/bhabin/attendance-panel';
 import { getMe } from '@/features/bhabin/data';
 import { apiGet } from '@/lib/api/server';
 import { localDateStr } from '@/lib/format';
+import { ATTENDANCE_WEB } from '@/lib/flags';
 
 const LATE_AFTER = '08:00';
 const DAYS = 14;
@@ -18,6 +20,7 @@ const durasi = (min: number) => `${Math.floor(min / 60)} j ${String(Math.round(m
 const LATE_MIN = Number(LATE_AFTER.split(':')[0]) * 60 + Number(LATE_AFTER.split(':')[1]);
 
 export default async function AbsensiSayaPage() {
+  if (!ATTENDANCE_WEB) notFound();
   const [me, rows] = await Promise.all([getMe(), apiGet<MyAttendance[]>('/attendances/me')]);
   const tz = me.unit.timezone;
   const today = localDateStr(0, tz);

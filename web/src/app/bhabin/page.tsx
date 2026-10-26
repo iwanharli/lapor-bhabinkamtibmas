@@ -6,6 +6,7 @@ import { activeSchemas, getMe, slugOf } from '@/features/bhabin/data';
 import { ReportCard } from '@/features/bhabin/report-card';
 import { CategoryIcon } from '@/features/reports/category-icon';
 import { apiGet } from '@/lib/api/server';
+import { ATTENDANCE_WEB } from '@/lib/flags';
 import { localDateStr, localDayToIso } from '@/lib/format';
 import type { Paged, ReportListItem } from '@/lib/types';
 
@@ -26,7 +27,7 @@ export default async function BerandaBhabinPage() {
   const month = `${today.slice(0, 8)}01`;
   const [schemas, attendance, recent, week, thisMonth, drafts] = await Promise.all([
     activeSchemas(),
-    apiGet<MyAttendance[]>('/attendances/me'),
+    ATTENDANCE_WEB ? apiGet<MyAttendance[]>('/attendances/me') : Promise.resolve([] as MyAttendance[]),
     apiGet<Paged<ReportListItem>>('/reports?limit=5'),
     apiGet<Paged<ReportListItem>>(`/reports?status=SUBMITTED&limit=1&from=${encodeURIComponent(localDayToIso(localDateStr(-6, tz), tz))}`),
     apiGet<Paged<ReportListItem>>(`/reports?status=SUBMITTED&limit=1&from=${encodeURIComponent(localDayToIso(month, tz))}`),
@@ -53,7 +54,7 @@ export default async function BerandaBhabinPage() {
         </div>
       </section>
 
-      <Link href="/bhabin/absensi" className={cn('mt-3 flex items-center gap-3 rounded-2xl border p-3.5 shadow-sm transition active:scale-[0.99]', checkIn ? 'border-success/30 bg-success-soft/40' : 'border-warn/40 bg-warn-soft/50')}>
+      {ATTENDANCE_WEB && <Link href="/bhabin/absensi" className={cn('mt-3 flex items-center gap-3 rounded-2xl border p-3.5 shadow-sm transition active:scale-[0.99]', checkIn ? 'border-success/30 bg-success-soft/40' : 'border-warn/40 bg-warn-soft/50')}>
         <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-full', checkIn ? 'bg-success/15 text-success' : 'bg-warn/15 text-warn')}><UserCheck size={20} /></span>
         <span className="min-w-0 flex-1 text-sm">
           <span className="block font-semibold">{!checkIn ? 'Belum absen masuk hari ini' : !checkOut ? 'Sudah absen masuk' : 'Absensi hari ini lengkap'}</span>
@@ -63,7 +64,7 @@ export default async function BerandaBhabinPage() {
           </span>
         </span>
         <ChevronRight size={18} className="text-muted" />
-      </Link>
+      </Link>}
 
       <h2 className="mb-2 mt-5 text-sm font-semibold">Buat laporan</h2>
       <div className="grid grid-cols-3 gap-2.5">

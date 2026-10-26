@@ -7,12 +7,13 @@ import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
 import { NotificationBell } from '@/features/notifications/notification-bell';
+import { ATTENDANCE_WEB } from '@/lib/flags';
 
 const TABS = [
   { href: '/bhabin', label: 'Beranda', icon: Home, exact: true },
   { href: '/bhabin/laporan', label: 'Laporan', icon: ClipboardList },
   { href: '/bhabin/lapor', label: 'Lapor', icon: Plus, primary: true },
-  { href: '/bhabin/absensi', label: 'Absensi', icon: UserCheck },
+  ...(ATTENDANCE_WEB ? [{ href: '/bhabin/absensi', label: 'Absensi', icon: UserCheck }] : []),
 ];
 
 const initials = (nama: string) => nama.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
@@ -71,7 +72,7 @@ export function FieldShell({ user, children }: { user: { nama: string; pangkat?:
       <main className="mx-auto max-w-xl px-4 pb-28 pt-4">{children}</main>
 
       <nav aria-label="Menu utama" className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
-        <div className="mx-auto grid h-16 max-w-xl grid-cols-4">
+        <div className="mx-auto grid h-16 max-w-xl" style={{ gridTemplateColumns: `repeat(${TABS.length}, minmax(0, 1fr))` }}>
           {TABS.map((t) => {
             const on = active(t);
             return t.primary ? (

@@ -24,9 +24,16 @@ export interface MonthlyUnitRow {
   hadir: number; terlambat: number; kehadiranPersen: number | null;
 }
 export interface MonthlyReport {
-  unit: { id: string; nama: string; level: string; levelLabel: string; timezone: string };
+  unit: { id: string; kode: string; nama: string; level: string; levelLabel: string; timezone: string };
   bulan: string; bulanLabel: string; dari: string; sampai: string; hariKerja: number; berjalan: boolean;
+  /** Periode pembanding setara: bulan lalu penuh, atau tanggal yang sama di bulan lalu bila bulan ini masih berjalan. */
+  pembanding: { dari: string; sampai: string; label: string };
   dibuat: Date; dibuatOleh: string;
+  /** Kepala surat (KEPOLISIAN NEGARA REPUBLIK INDONESIA › DAERAH … › RESOR …) dan nomor dokumen. */
+  kop: string[]; nomor: string;
+  /** Penandatangan = pengguna yang membuat laporan. */
+  penandatangan: { jabatan: string; nama: string; pangkatNrp: string };
+  harian: { hari: string; jumlah: number }[];
   ringkasan: {
     laporan: number; laporanSebelumnya: number; prioritas: number; prioritasSebelumnya: number; lokasiJanggal: number;
     bhabin: number; bhabinAktif: number; hadir: number; terlambat: number; kehadiranPersen: number | null;
@@ -44,6 +51,19 @@ export interface MonthlyReport {
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+/** Nama satuan → baris kop surat: "Polres Metro Jakarta Selatan" → "RESOR METRO JAKARTA SELATAN". */
+const KOP_PREFIX: Record<string, [RegExp, string]> = {
+  POLDA: [/^polda\s+/i, 'DAERAH '], POLRES: [/^(polres(ta(bes)?)?)\s+/i, 'RESOR '], POLSEK: [/^(polsek(ta)?)\s+/i, 'SEKTOR '],
+};
+const kopLine = (level: string, nama: string) => (KOP_PREFIX[level] ? KOP_PREFIX[level][1] + nama.replace(KOP_PREFIX[level][0], '') : nama).toUpperCase();
+/** Jabatan singkat dari peran & satuan: Pimpinan Polres X → KAPOLRES X. */
+function jabatanOf(role: string, level: string, nama: string) {
+  const sisa = KOP_PREFIX[level] ? nama.replace(KOP_PREFIX[level][0], '') : nama;
+  if (role === 'PIMPINAN') return level === 'MABES' ? 'PIMPINAN MABES POLRI' : `KA${level} ${sisa}`.toUpperCase();
+  if (role === 'SUPERADMIN') return 'ADMINISTRATOR SISTEM';
+  return `${role === 'AUDITOR' ? 'AUDITOR' : 'ADMIN'} ${nama}`.toUpperCase();
+}
 const lastDay = (y: number, m: number) => new Date(Date.UTC(y, m, 0)).getUTCDate();
 
 /** Data laporan bulanan satu satuan (beserta turunannya) — sumber Excel & PDF. Tidak memuat NIK maupun data kesehatan per orang. */
@@ -55,7 +75,7 @@ export class MonthlyReportService {
     if (!/^\d{4}-\d{2}$/.test(bulan)) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Bulan harus YYYY-MM' });
     const target = unitId ?? me.unitId;
     if (unitId) await this.units.assertInScope(me.unitId, unitId);
-    const unit = await this.prisma.unit.findUniqueOrThrow({ where: { id: target }, select: { id: true, nama: true, level: true, timezone: true } });
+    const unit = await this.prisma.unit.findUniqueOrThrow({ where: { id: target }, select: { id: true, kode: true, nama: true, level: true, timezone: true } });
     const actor = await this.prisma.user.findUniqueOrThrow({ where: { id: me.id }, select: { nama: true, pangkat: true } });
 
     const [y, m] = bulan.split('-').map(Number);
@@ -65,14 +85,18 @@ export class MonthlyReportService {
     const akhir = `${bulan}-${pad(lastDay(y, m))}`;
     const sampai = akhir < today ? akhir : today;
     const [py, pm] = m === 1 ? [y - 1, 12] : [y, m - 1];
-    const pDari = `${py}-${pad(pm)}-01`, pSampai = `${py}-${pad(pm)}-${pad(lastDay(py, pm))}`;
+    // Bulan berjalan dibandingkan dengan tanggal yang sama di bulan lalu (1–26 vs 1–26), bukan bulan lalu penuh.
+    const pDari = `${py}-${pad(pm)}-01`;
+    const pHari = sampai < akhir ? Math.min(Number(sampai.slice(8)), lastDay(py, pm)) : lastDay(py, pm);
+    const pSampai = `${py}-${pad(pm)}-${pad(pHari)}`;
+    const pembanding = { dari: pDari, sampai: pSampai, label: sampai < akhir ? `1–${pHari} ${MONTHS_SHORT[pm - 1]} ${py}` : `${MONTHS[pm - 1]} ${py}` };
     let hariKerja = 0;
     for (let d = new Date(`${dari}T00:00:00Z`); d.toISOString().slice(0, 10) <= sampai; d.setUTCDate(d.getUTCDate() + 1)) if (d.getUTCDay() % 6 !== 0) hariKerja++;
 
     const scope = (col: string) => `${col} IN (SELECT unit_subtree($1::uuid))`;
     const q = <T>(sql: string, ...args: unknown[]) => this.prisma.$queryRawUnsafe<T[]>(sql, target, ...args);
 
-    const [cats, prevCats, bhabinRows, prioritas, harga, prevHarga, [keluarga], childMap] = await Promise.all([
+    const [cats, prevCats, bhabinRows, prioritas, harga, prevHarga, [keluarga], childMap, harianRows, chain, actorFull] = await Promise.all([
       q<{ category: string; jumlah: number; prioritas: number; lokasi: number }>(
         `SELECT category::text, sum(jumlah)::int jumlah, sum(prioritas)::int prioritas, sum(lokasi_janggal)::int lokasi
          FROM agg_unit_daily WHERE ${scope('unit_id')} AND status <> 'DRAFT' AND hari BETWEEN $2::date AND $3::date GROUP BY 1`, dari, sampai),
@@ -135,7 +159,21 @@ export class MonthlyReportService {
            UNION ALL
            SELECT u.id, c.child_id, c.child_nama, c.child_level FROM units u JOIN c ON u.parent_id = c.unit_id WHERE u.deleted_at IS NULL)
          SELECT * FROM c`),
+      q<{ hari: string; jumlah: number }>(
+        `SELECT hari::text, sum(jumlah)::int jumlah FROM agg_unit_daily WHERE ${scope('unit_id')} AND status <> 'DRAFT' AND hari BETWEEN $2::date AND $3::date GROUP BY 1`, dari, sampai),
+      // Rantai satuan dari atas (tanpa Mabes) sampai satuan laporan, untuk kop surat.
+      q<{ level: string; nama: string }>(
+        `WITH RECURSIVE a AS (SELECT id, parent_id, level::text, nama, 0 d FROM units WHERE id = $1::uuid
+           UNION ALL SELECT u.id, u.parent_id, u.level::text, u.nama, a.d + 1 FROM units u JOIN a ON u.id = a.parent_id)
+         SELECT level, nama FROM a WHERE level <> 'MABES' ORDER BY d DESC`),
+      this.prisma.user.findUniqueOrThrow({ where: { id: me.id }, select: { nrp: true, role: true, unit: { select: { level: true, nama: true } } } }),
     ]);
+    const harianBy = new Map(harianRows.map((h) => [h.hari, h.jumlah]));
+    const harian: { hari: string; jumlah: number }[] = [];
+    for (let d = new Date(`${dari}T00:00:00Z`); d.toISOString().slice(0, 10) <= sampai; d.setUTCDate(d.getUTCDate() + 1)) {
+      const k = d.toISOString().slice(0, 10);
+      harian.push({ hari: k, jumlah: harianBy.get(k) ?? 0 });
+    }
 
     const unitReports = await q<{ unit_id: string; jumlah: number; prioritas: number; lokasi: number }>(
       `SELECT unit_id, sum(jumlah)::int jumlah, sum(prioritas)::int prioritas, sum(lokasi_janggal)::int lokasi
@@ -176,8 +214,15 @@ export class MonthlyReportService {
     const prevPrice = new Map(prevHarga.map((h) => [h.commodity_id, h]));
     return {
       unit: { ...unit, level: unit.level, levelLabel: LEVEL_LABEL[unit.level] ?? unit.level },
-      bulan, bulanLabel: `${MONTHS[m - 1]} ${y}`, dari, sampai, hariKerja, berjalan: sampai < akhir,
+      bulan, bulanLabel: `${MONTHS[m - 1]} ${y}`, dari, sampai, hariKerja, berjalan: sampai < akhir, pembanding, harian,
       dibuat: new Date(), dibuatOleh: [actor.pangkat, actor.nama].filter(Boolean).join(' '),
+      kop: ['KEPOLISIAN NEGARA REPUBLIK INDONESIA', ...(unit.level === 'MABES' ? ['MARKAS BESAR'] : chain.map((c) => kopLine(c.level, c.nama)))],
+      nomor: `R/LB-${bulan.replace('-', '')}/${unit.kode}`,
+      penandatangan: {
+        jabatan: jabatanOf(actorFull.role, actorFull.unit.level, actorFull.unit.nama),
+        nama: actor.nama.toUpperCase(),
+        pangkatNrp: [actor.pangkat?.toUpperCase(), `NRP ${actorFull.nrp}`].filter(Boolean).join(' '),
+      },
       ringkasan: {
         laporan: sum(cats, (c) => c.jumlah), laporanSebelumnya: sum(prevCats, (c) => c.jumlah),
         prioritas: sum(cats, (c) => c.prioritas), prioritasSebelumnya: sum(prevCats, (c) => c.prioritas),

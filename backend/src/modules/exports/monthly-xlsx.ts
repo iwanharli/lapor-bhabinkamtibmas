@@ -48,14 +48,14 @@ export async function monthlyXlsx(r: MonthlyReport): Promise<Buffer> {
   };
   put([`Laporan Bulanan Bhabinkamtibmas — ${r.bulanLabel}`], { bold: true, size: 15, color: NAVY });
   put([`${r.unit.levelLabel} · ${r.unit.nama}`], { bold: true, size: 12 });
-  put([`Periode ${periode}`], { color: 'FF64748B' });
+  put([`Nomor ${r.nomor} · Periode ${periode} · pembanding ${r.pembanding.label}`], { color: 'FF64748B' });
   put([`Dibuat ${r.dibuat.toLocaleString('id-ID', { timeZone: r.unit.timezone })} oleh ${r.dibuatOleh}. Tidak memuat NIK/No. KK maupun data kesehatan per orang.`], { color: 'FF64748B' });
   put([]);
   const s = r.ringkasan;
   const kv = (k: string, v: number | string | null, fmt = NUM) => { const x = put([k, v]); x.getCell(2).numFmt = fmt; x.getCell(1).font = { color: { argb: 'FF475569' } }; x.getCell(2).font = { bold: true }; };
   put(['Ringkasan'], { bold: true, color: NAVY });
   kv('Laporan terkirim', s.laporan);
-  kv('Laporan bulan sebelumnya', s.laporanSebelumnya);
+  kv(`Laporan pembanding (${r.pembanding.label})`, s.laporanSebelumnya);
   kv('Laporan prioritas', s.prioritas);
   kv('Lokasi perlu dicek', s.lokasiJanggal);
   kv('Bhabinkamtibmas', s.bhabin);
@@ -63,7 +63,7 @@ export async function monthlyXlsx(r: MonthlyReport): Promise<Buffer> {
   kv('Kehadiran (absen masuk / hari kerja)', s.kehadiranPersen, PCT);
   kv('Absen terlambat', s.terlambat);
   put([]);
-  const head = put(['Kategori', 'Bulan ini', 'Bulan lalu', 'Prioritas'], { bold: true });
+  const head = put(['Kategori', 'Periode ini', `Pembanding (${r.pembanding.label})`, 'Urgensi tinggi'], { bold: true });
   head.eachCell((c) => { c.fill = HEADER_FILL; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; });
   for (const c of r.perKategori) put([c.label, c.jumlah, c.sebelumnya, c.prioritas], { fmt: NUM });
   put([]);
@@ -105,7 +105,7 @@ export async function monthlyXlsx(r: MonthlyReport): Promise<Buffer> {
 
   table(wb, 'Harga Pangan', `Harga pangan — ${r.bulanLabel}`, [
     { header: 'Komoditas', key: 'komoditas', width: 24 }, { header: 'Satuan', key: 'satuan', width: 8 },
-    { header: 'Rata-rata', key: 'rata2', width: 14, fmt: RP }, { header: 'Bulan lalu', key: 'sebelumnya', width: 14, fmt: RP },
+    { header: 'Rata-rata', key: 'rata2', width: 14, fmt: RP }, { header: 'Pembanding', key: 'sebelumnya', width: 14, fmt: RP },
     { header: 'Perubahan %', key: 'perubahan', width: 12, fmt: '+0.0"%";-0.0"%";0.0"%"' }, { header: 'Terendah', key: 'minimum', width: 13, fmt: RP },
     { header: 'Tertinggi', key: 'maksimum', width: 13, fmt: RP }, { header: 'Sampel', key: 'sampel', width: 9, fmt: NUM },
     { header: 'Stok kosong', key: 'kosong', width: 11, fmt: NUM },

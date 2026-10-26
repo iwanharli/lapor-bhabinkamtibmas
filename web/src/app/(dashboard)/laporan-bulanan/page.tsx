@@ -8,7 +8,7 @@ import { withParams } from '@/lib/url';
 
 type Preview = {
   unit: { nama: string; levelLabel: string };
-  bulanLabel: string; dari: string; sampai: string; hariKerja: number; berjalan: boolean;
+  bulanLabel: string; dari: string; sampai: string; hariKerja: number; berjalan: boolean; pembanding: { label: string };
   ringkasan: { laporan: number; laporanSebelumnya: number; prioritas: number; lokasiJanggal: number; bhabin: number; bhabinAktif: number; kehadiranPersen: number | null; terlambat: number };
   perKategori: { label: string; jumlah: number; sebelumnya: number; prioritas: number }[];
   perSatuan: { nama: string; bhabin: number; bhabinAktif: number; laporan: number; prioritas: number; kehadiranPersen: number | null }[];
@@ -18,7 +18,8 @@ type Preview = {
 
 const n = (x: number) => x.toLocaleString('id-ID');
 const pct = (x: number | null) => (x == null ? '—' : `${x.toLocaleString('id-ID', { maximumFractionDigits: 1 })}%`);
-const change = (a: number, b: number) => (b ? `${a >= b ? '+' : ''}${(((a - b) / b) * 100).toLocaleString('id-ID', { maximumFractionDigits: 1 })}% dari bulan lalu` : 'bulan lalu belum ada data');
+/** Perubahan dibanding periode setara (bulan berjalan: tanggal yang sama di bulan lalu); pembanding < 5 tidak dihitung persennya. */
+const change = (a: number, b: number, label: string) => (b >= 5 ? `${a >= b ? '+' : ''}${(((a - b) / b) * 100).toLocaleString('id-ID', { maximumFractionDigits: 1 })}% vs ${label}` : `${label}: ${n(b)}`);
 
 export const metadata = { title: 'Laporan Bulanan' };
 
@@ -57,7 +58,7 @@ export default async function LaporanBulananPage({ searchParams }: { searchParam
         </section>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:h-full">
-          <StatCard title="Laporan terkirim" icon={<FileText size={20} />} value={n(s.laporan)} footer={change(s.laporan, s.laporanSebelumnya)} />
+          <StatCard title="Laporan terkirim" icon={<FileText size={20} />} value={n(s.laporan)} footer={change(s.laporan, s.laporanSebelumnya, p.pembanding.label)} />
           <StatCard alert={s.prioritas > 0} title="Laporan prioritas" icon={<Flame size={20} />} tone="danger" value={n(s.prioritas)} footer={`${n(s.lokasiJanggal)} lokasi perlu dicek`} />
           <StatCard title="Bhabin melapor" icon={<Users size={20} />} tone="info" value={`${n(s.bhabinAktif)} / ${n(s.bhabin)}`}
             footer={p.bhabinPerhatian ? `${n(p.bhabinPerhatian)} perlu perhatian (rincian di PDF/Excel)` : 'semua aktif'} />
@@ -65,14 +66,14 @@ export default async function LaporanBulananPage({ searchParams }: { searchParam
         </div>
 
         <div className="grid gap-4 xl:grid-cols-2">
-          <Card title="Laporan per kategori" subtitle="Dibanding bulan sebelumnya" bodyClassName="p-0">
+          <Card title="Laporan per kategori" subtitle={`Dibanding ${p.pembanding.label}`} bodyClassName="p-0">
             <table className="w-full text-sm">
               <tbody className="divide-y divide-line/60">
                 {p.perKategori.map((c) => (
                   <tr key={c.label}>
                     <td className="px-5 py-2.5">{c.label}</td>
                     <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{n(c.jumlah)}</td>
-                    <td className="px-3 py-2.5 text-right text-xs text-muted tabular-nums">lalu {n(c.sebelumnya)}</td>
+                    <td className="px-3 py-2.5 text-right text-xs text-muted tabular-nums">pembanding {n(c.sebelumnya)}</td>
                     <td className={cn('px-5 py-2.5 text-right text-xs tabular-nums', c.prioritas ? 'font-semibold text-danger' : 'text-muted/60')}>{c.prioritas ? `${n(c.prioritas)} prioritas` : '—'}</td>
                   </tr>
                 ))}

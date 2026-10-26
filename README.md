@@ -66,7 +66,7 @@ docs/teknis/             Dokumentasi teknis (arsitektur, API, database, keamanan
   - desa (tetapkan desa Kemendagri ke Polsek, impor GeoJSON),
   - audit log.
 - **Notifikasi:** lonceng di topbar (dan header tampilan Bhabin) dengan angka belum dibaca, menu & halaman Notifikasi.
-  - Deteksi Dini urgensi tinggi → Pimpinan & Admin Unit di Polsek, Polres, dan Polda pelapor (Mabes tidak, agar tidak banjir).
+  - Deteksi Dini urgensi tinggi → Pimpinan & Admin Unit di Polsek, Polres, dan Polda pelapor, serta Mabes.
   - Lokasi palsu / di luar desa binaan → Pimpinan & Admin Unit di Polsek dan Polres pelapor.
   - Bhabin diberi tahu saat desa binaannya diubah.
 - **Ekspor CSV** lewat antrean (`export_jobs`): diunduh otomatis saat selesai, berkas disimpan 24 jam.

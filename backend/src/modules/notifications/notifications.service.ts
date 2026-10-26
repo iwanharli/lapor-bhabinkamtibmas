@@ -11,7 +11,7 @@ export const NOTIF = {
 
 /**
  * Notifikasi dalam aplikasi. Penerima laporan dihitung dari unit induk pelapor:
- * prioritas → Pimpinan & Admin Unit di Polsek/Polres/Polda (tanpa Mabes agar tidak banjir secara nasional);
+ * prioritas (deteksi dini urgensi tinggi) → Pimpinan & Admin Unit di Polsek/Polres/Polda dan Mabes;
  * lokasi perlu dicek → Pimpinan & Admin Unit di Polsek/Polres.
  */
 @Injectable()
@@ -25,7 +25,7 @@ export class NotificationsService {
     if (!reportIds.length) return 0;
     try {
       const [priority, location] = await Promise.all([
-        this.fanOut(reportIds, NOTIF.REPORT_PRIORITY, Prisma.sql`r.priority`, ['POLSEK', 'POLRES', 'POLDA'],
+        this.fanOut(reportIds, NOTIF.REPORT_PRIORITY, Prisma.sql`r.priority`, ['POLSEK', 'POLRES', 'POLDA', 'MABES'],
           Prisma.sql`'Deteksi dini urgensi tinggi · ' || v.nama`,
           Prisma.sql`coalesce(r.data->>'kategori_kerawanan', 'Kerawanan') || ' — ' || left(coalesce(r.data->>'uraian', ''), 160) || ' (' || concat_ws(' ', u.pangkat, u.nama) || ')'`),
         this.fanOut(reportIds, NOTIF.REPORT_LOCATION, Prisma.sql`(r.is_mock_location OR r.inside_village = false)`, ['POLSEK', 'POLRES'],

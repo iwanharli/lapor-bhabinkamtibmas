@@ -199,7 +199,7 @@ Pencarian unit dalam cakupan (dengan `path` rantai induk), anak satu cabang untu
 
 ### `GET /notifications?unread=true&page=&limit=` · `GET /notifications/unread-count` · `POST /notifications/:id/read` · `POST /notifications/read-all`
 Notifikasi milik pengguna yang login (`{ data, meta, unread }`). Dibuat otomatis:
-- `REPORT_PRIORITY` — laporan prioritas terkirim → Pimpinan & Admin Unit di Polsek/Polres/Polda pelapor (bukan Mabes).
+- `REPORT_PRIORITY` — laporan prioritas (deteksi dini urgensi tinggi) terkirim → Pimpinan & Admin Unit di Polsek/Polres/Polda pelapor dan Mabes.
 - `REPORT_LOCATION` — lokasi palsu / di luar desa binaan → Pimpinan & Admin Unit di Polsek/Polres pelapor.
 - `VILLAGES_UPDATED` — desa binaan Bhabin diubah admin.
 

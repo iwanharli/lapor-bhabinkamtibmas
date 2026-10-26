@@ -1,4 +1,4 @@
-import { CalendarDays, CalendarCheck, FileStack, UserCheck, UserX } from 'lucide-react';
+import { CalendarDays, CalendarCheck, FileStack, UserCheck } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { Card, ExportButton, PageHeader, Pagination, SearchInput, SegmentedLinks, Stack, StatCard } from '@/components/ui';
 import { CATEGORY_COLOR } from '@/features/map/categories';
@@ -57,16 +57,13 @@ export default async function KinerjaPage({ searchParams }: { searchParams: Prom
         }
       />
       <Stack>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:h-full">
+        <div className="grid gap-4 sm:grid-cols-3 [&>*]:h-full">
           <StatCard title="Bhabin melapor" description="Minimal 1 laporan di periode ini" icon={<UserCheck size={20} />} tone="success"
             value={reporting} suffix={`/ ${summary.bhabin}`} footer={`${summary.bhabin ? Math.round((reporting / summary.bhabin) * 100) : 0}% partisipasi`} />
           <StatCard title="Rata-rata hari aktif" description="Hari dengan minimal 1 laporan" icon={<CalendarCheck size={20} />} tone="accent"
             value={`${Math.round(avgPct)}%`} footer={`dari ${span} hari kalender`} />
           <StatCard title="Total laporan" description="Seluruh Bhabin dalam cakupan" icon={<FileStack size={20} />}
             value={totalReports.toLocaleString('id-ID')} footer={`± ${summary.bhabin ? (totalReports / summary.bhabin).toLocaleString('id-ID', { maximumFractionDigits: 1 }) : 0} per Bhabin`} />
-          <StatCard alert={summary.kurang > 0} title="Kehadiran kurang" description="Hari aktif di bawah 40%" icon={<UserX size={20} />} tone="success"
-            value={summary.kurang}
-            footer={summary.kurang ? <a href={href({ urut: 'hari', page: undefined })} className="font-medium text-danger">lihat urutan hari aktif</a> : 'semua Bhabin aktif'} />
         </div>
 
         <Card

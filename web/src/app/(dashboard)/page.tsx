@@ -1,7 +1,7 @@
 import { CalendarDays, Gauge } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Card, PageHeader, SectionLabel, SegmentedLinks, Stack, StatCard } from '@/components/ui';
+import { Card, Delta, PageHeader, SectionLabel, SegmentedLinks, Stack, StatCard } from '@/components/ui';
 import { DailyByCategoryChart } from '@/features/dashboard/charts';
 import { TotalReportsHero } from '@/features/dashboard/hero';
 import { CategoryBars } from '@/features/dashboard/lists';
@@ -30,6 +30,7 @@ export default async function RingkasanPage({ searchParams }: { searchParams: Pr
   const t = ov.totals;
   const spikes = prices.filter(isSpike);
   const avgPerBhabin = t.bhabinAktif ? t.total / t.bhabinAktif : 0;
+  const prevAvg = ov.previous.bhabinAktif ? ov.previous.total / ov.previous.bhabinAktif : 0;
   // Tautan ke daftar laporan membawa rentang yang sama dengan periode ringkasan.
   const tz = user?.unit.timezone;
   const reportsHref = (q: string) => `/laporan?${q}&from=${localDateStr(-(days - 1), tz)}&to=${localDateStr(0, tz)}`;
@@ -47,7 +48,8 @@ export default async function RingkasanPage({ searchParams }: { searchParams: Pr
         }
       />
 
-      <Stack className="gap-4">
+      {/* Layar lebar: setinggi layar, baris tengah mengisi sisa ruang (tanpa ruang kosong di bawah). */}
+      <Stack className="gap-4 xl:h-[calc(100dvh-13.75rem)] xl:min-h-[660px]">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] [&>*]:min-h-[132px] [&>:first-child]:sm:col-span-2 [&>:first-child]:xl:col-span-1">
           <TotalReportsHero ov={ov} />
           <ParticipationCard ov={ov} />
@@ -57,15 +59,15 @@ export default async function RingkasanPage({ searchParams }: { searchParams: Pr
             icon={<Gauge size={18} />}
             tone="accent"
             value={avgPerBhabin.toLocaleString('id-ID', { maximumFractionDigits: 1 })}
-            footer={`${(t.bhabinAktif ? t.total / t.bhabinAktif : 0).toLocaleString('id-ID', { maximumFractionDigits: 1 })} per Bhabin yang melapor`}
+            footer={<><Delta now={avgPerBhabin} prev={prevAvg} minBase={1} label="vs periode sebelumnya" className="text-xs" /><span className="w-full text-xs">≈ {(avgPerBhabin / days * 7).toLocaleString('id-ID', { maximumFractionDigits: 1 })} laporan per Bhabin per minggu</span></>}
           />
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)]">
-          <Card title="Laporan per hari" subtitle={`Menurut kategori · ${days} hari`} className="lg:col-span-2 xl:col-span-1" bodyClassName="px-3 py-2">
-            <DailyByCategoryChart rows={ov.daily} height={210} />
+        <div className="grid gap-3 lg:grid-cols-2 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)]">
+          <Card title="Laporan per hari" subtitle={`Menurut kategori · ${days} hari`} className="flex flex-col lg:col-span-2 xl:col-span-1" bodyClassName="h-[240px] min-h-0 flex-1 px-3 py-2 xl:h-auto">
+            <DailyByCategoryChart rows={ov.daily} height="100%" />
           </Card>
-          <Card title="Laporan per kategori" subtitle="Klik untuk melihat daftar">
+          <Card title="Laporan per kategori" subtitle="Klik untuk melihat daftar" className="flex flex-col" bodyClassName="min-h-0 flex-1">
             <CategoryBars rows={ov.byCategory} hrefFor={(c) => reportsHref(`category=${c}`)} />
           </Card>
           <PriorityList rows={ov.priority} moreHref={reportsHref('priority=true')} />

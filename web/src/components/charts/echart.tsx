@@ -19,7 +19,8 @@ function useDark() {
   return dark;
 }
 
-export function EChart({ option, height = 280 }: { option: EChartsOption; height?: number }) {
+/** `height`: piksel, atau string CSS (mis. '100%') agar grafik mengisi wadah yang tingginya ditentukan tata letak. */
+export function EChart({ option, height = 280 }: { option: EChartsOption; height?: number | string }) {
   const dark = useDark();
   const text = dark ? '#94a3b8' : '#64748b';
   const line = dark ? '#23314a' : '#e2e8f0';

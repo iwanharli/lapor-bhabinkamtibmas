@@ -3,9 +3,9 @@ import Link from 'next/link';
 import { tanggalJam } from '@/lib/format';
 import type { Overview } from '@/lib/types';
 
-const MAX = 4;
+const MAX = 6;
 
-/** Deteksi dini prioritas terbaru (maks. 4) dengan tautan ke daftar lengkap. */
+/** Deteksi dini prioritas terbaru (maks. 6, bergulir bila kartu pendek) dengan tautan ke daftar lengkap. */
 export function PriorityList({ rows, moreHref }: { rows: Overview['priority']; moreHref: string }) {
   if (rows.length === 0) {
     return (
@@ -29,7 +29,7 @@ export function PriorityList({ rows, moreHref }: { rows: Overview['priority']; m
         </div>
         <span className="rounded-full bg-danger px-2 py-0.5 text-xs font-bold tabular-nums text-white">{rows.length}</span>
       </header>
-      <ul className="flex-1 divide-y divide-danger/10 px-2">
+      <ul className="min-h-0 flex-1 divide-y divide-danger/10 overflow-y-auto px-2">
         {rows.slice(0, MAX).map((r) => (
           <li key={r.id}>
             <Link href={`/laporan/${r.id}`} className="group flex items-start gap-2.5 rounded-lg px-2 py-2 transition hover:bg-danger-soft/50">

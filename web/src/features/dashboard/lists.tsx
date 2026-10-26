@@ -7,7 +7,7 @@ export function CategoryBars({ rows, hrefFor }: { rows: Overview['byCategory']; 
   const max = Math.max(...rows.map((r) => r.jumlah), 1);
   const total = rows.reduce((s, r) => s + r.jumlah, 0) || 1;
   return (
-    <ul className="space-y-2 px-4 py-3">
+    <ul className="flex h-full flex-col justify-around gap-2 px-4 py-3">
       {rows.map((c) => (
         <li key={c.category}>
           <Link href={hrefFor(c.category)} className="group block">

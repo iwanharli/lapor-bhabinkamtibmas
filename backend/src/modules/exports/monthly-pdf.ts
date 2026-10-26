@@ -32,6 +32,8 @@ type Col = {
   title: string; width: number; align?: 'left' | 'right'; get: (row: any) => string; color?: (row: any) => string | undefined;
   /** Batang mini 0..1 di belakang teks sel. */
   bar?: (row: any) => number;
+  /** Ikon segitiga naik/turun di kiri teks (sel rata kanan). */
+  trend?: (row: any) => 'up' | 'down' | 'flat' | null;
 };
 
 export async function monthlyPdf(r: MonthlyReport): Promise<Buffer> {
@@ -108,7 +110,17 @@ export async function monthlyPdf(r: MonthlyReport): Promise<Buffer> {
       cols.forEach((c, i) => {
         const frac = !total && c.bar ? Math.max(0, Math.min(1, c.bar(row))) : 0;
         if (frac > 0) doc.roundedRect(x + 4, ry + h - 5, (widths[i] - 8) * frac, 2.5, 1.2).fill('#93c5fd');
-        doc.fillColor(c.color?.(row) ?? INK).font(font).fontSize(7.5).text(t(c.get(row)), x + 4, ry + 4, { width: widths[i] - 8, align: c.align ?? 'left' });
+        const color = c.color?.(row) ?? INK;
+        const trend = !total ? c.trend?.(row) : null;
+        if (trend) {
+          // Segitiga digambar (font standar PDF tidak punya ▲▼), tepat di kiri angka yang rata kanan.
+          doc.font(font).fontSize(7.5);
+          const tx = x + widths[i] - 4 - doc.widthOfString(t(c.get(row))) - 9, ty = ry + 5.5;
+          if (trend === 'up') doc.polygon([tx, ty + 5], [tx + 6, ty + 5], [tx + 3, ty]).fill(color);
+          else if (trend === 'down') doc.polygon([tx, ty], [tx + 6, ty], [tx + 3, ty + 5]).fill(color);
+          else doc.rect(tx, ty + 2, 6, 1.4).fill(color);
+        }
+        doc.fillColor(color).font(font).fontSize(7.5).text(t(c.get(row)), x + 4, ry + 4, { width: widths[i] - 8, align: c.align ?? 'left' });
         x += widths[i];
       });
       doc.moveTo(M, ry + h).lineTo(M + W, ry + h).lineWidth(0.4).strokeColor(LINE).stroke();
@@ -287,12 +299,14 @@ export async function monthlyPdf(r: MonthlyReport): Promise<Buffer> {
     { title: 'Satuan', width: 8, get: (h) => h.satuan },
     { title: 'Rata-rata', width: 14, align: 'right', get: (h) => rp(h.rata2) },
     { title: 'Pembanding', width: 14, align: 'right', get: (h) => rp(h.sebelumnya) },
-    { title: 'Perubahan', width: 11, align: 'right', get: (h) => (h.perubahan == null ? '—' : `${h.perubahan > 0 ? '+' : ''}${pct(h.perubahan)}`),
-      color: (h) => (h.perubahan == null ? undefined : h.perubahan >= 10 ? RED : h.perubahan <= -10 ? GREEN : undefined) },
+    { title: 'Perubahan', width: 12, align: 'right', get: (h) => (h.perubahan == null ? '—' : `${h.perubahan > 0 ? '+' : ''}${pct(h.perubahan)}`),
+      // Harga naik merugikan warga → merah; turun → hijau; tetap → abu-abu.
+      color: (h) => (h.perubahan == null ? MUTED : h.perubahan > 0 ? RED : h.perubahan < 0 ? GREEN : MUTED),
+      trend: (h) => (h.perubahan == null ? null : h.perubahan > 0 ? 'up' : h.perubahan < 0 ? 'down' : 'flat') },
     { title: 'Rentang', width: 22, align: 'right', get: (h) => (h.minimum == null ? '—' : `${rp(h.minimum)} – ${rp(h.maksimum)}`) },
     { title: 'Sampel', width: 8, align: 'right', get: (h) => n(h.sampel) },
   ], r.harga, { highlight: (h) => h.perubahan != null && h.perubahan >= 10 });
-  note('Baris merah: harga naik 10% atau lebih. Hijau: turun 10% atau lebih.');
+  note('Segitiga merah = harga naik, hijau = turun, garis abu-abu = tetap. Baris bersorot merah: naik 10% atau lebih.');
 
   // ---------- Pengesahan ----------
   if (doc.y > bottom() - 100) doc.addPage();

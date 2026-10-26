@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -84,10 +87,16 @@ final myAttendanceProvider = FutureProvider.autoDispose<List<Map<String, dynamic
   return (res.data as List).map((a) => Map<String, dynamic>.from(a)).toList();
 });
 
-/// Header Authorization untuk gambar terproteksi (lampiran & swafoto).
-final authHeaderProvider = FutureProvider<Map<String, String>>((ref) async {
-  final token = await ref.read(tokenStorageProvider).accessToken;
-  return {if (token != null) 'Authorization': 'Bearer $token'};
+/// Gambar terproteksi (lampiran & swafoto) diunduh lewat Dio agar token yang kedaluwarsa (15 menit) ikut diperbarui;
+/// Image.network dengan header tetap akan ditolak 401 setelah token lama habis. Disimpan 5 menit setelah tak dipakai.
+final _imageBytesProvider = FutureProvider.autoDispose.family<Uint8List, String>((ref, url) async {
+  final res = await ref.read(dioProvider).get<List<int>>(url, options: Options(responseType: ResponseType.bytes));
+  final link = ref.keepAlive();
+  Timer? timer;
+  ref.onCancel(() => timer = Timer(const Duration(minutes: 5), link.close));
+  ref.onResume(() => timer?.cancel());
+  ref.onDispose(() => timer?.cancel());
+  return Uint8List.fromList(res.data!);
 });
 
 String attachmentUrl(String id, {bool thumb = false}) => '$apiUrl/attachments/$id/file${thumb ? '?thumb=1' : ''}';
@@ -110,9 +119,15 @@ class AuthImage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final headers = ref.watch(authHeaderProvider).valueOrNull;
     final placeholder = context.pal.line;
-    if (headers == null) return ColoredBox(color: placeholder);
-    return Image.network(url, headers: headers, fit: fit, errorBuilder: (_, __, ___) => ColoredBox(color: placeholder, child: const Icon(Icons.broken_image_outlined, color: muted)));
+    return ref.watch(_imageBytesProvider(url)).when(
+          loading: () => ColoredBox(color: placeholder),
+          error: (_, __) => InkWell(
+            onTap: () => ref.invalidate(_imageBytesProvider(url)),
+            child: ColoredBox(color: placeholder, child: const Icon(Icons.broken_image_outlined, color: muted)),
+          ),
+          data: (bytes) => Image.memory(bytes, fit: fit, gaplessPlayback: true,
+              errorBuilder: (_, __, ___) => ColoredBox(color: placeholder, child: const Icon(Icons.broken_image_outlined, color: muted))),
+        );
   }
 }

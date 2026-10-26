@@ -60,8 +60,9 @@ class _AuthInterceptor extends QueuedInterceptor {
       final retry = err.requestOptions..extra['retried'] = true;
       retry.headers['Authorization'] = 'Bearer ${res.data['accessToken']}';
       handler.resolve(await _dio.fetch(retry));
-    } on DioException {
-      await _storage.clear();
+    } on DioException catch (e) {
+      // Hanya keluar bila server menolak refresh token; sinyal putus bukan alasan menghapus sesi.
+      if (e.response?.statusCode == 401 || e.response?.statusCode == 403) await _storage.clear();
       handler.next(err);
     }
   }

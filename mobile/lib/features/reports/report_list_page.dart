@@ -8,6 +8,7 @@ import '../../core/api/api_client.dart';
 import '../../core/ui/format.dart';
 import '../../core/ui/theme.dart';
 import '../../core/ui/skeleton.dart';
+import 'outbox_banner.dart';
 import 'report_api.dart';
 import 'report_tile.dart';
 
@@ -117,6 +118,7 @@ class _ReportListPageState extends ConsumerState<ReportListPage> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                const OutboxBanner(),
                 SegmentedButton<String?>(
                   showSelectedIcon: false,
                   segments: const [

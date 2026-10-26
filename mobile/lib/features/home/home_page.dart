@@ -9,6 +9,7 @@ import '../../core/location/tracking_banner.dart';
 import '../../core/ui/format.dart';
 import '../../core/ui/theme.dart';
 import '../../core/ui/skeleton.dart';
+import '../reports/outbox_banner.dart';
 import '../reports/report_api.dart';
 import '../reports/report_tile.dart';
 
@@ -101,6 +102,7 @@ class HomePage extends ConsumerWidget {
             const SizedBox(height: 10),
             const TrackingBanner(),
             const SizedBox(height: 10),
+            const OutboxBanner(),
             const Text('Buat laporan', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             const SizedBox(height: 10),
             schemas.when(

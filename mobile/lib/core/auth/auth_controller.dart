@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../api/api_client.dart';
+import '../offline/cache.dart';
 
 class Me {
   Me(this.json);
@@ -24,13 +25,24 @@ final authControllerProvider = AsyncNotifierProvider<AuthController, Me?>(AuthCo
 class AuthController extends AsyncNotifier<Me?> {
   @override
   Future<Me?> build() async {
-    if (await ref.read(tokenStorageProvider).refreshToken == null) return null;
+    final storage = ref.read(tokenStorageProvider);
+    if (await storage.refreshToken == null) return null;
     try {
-      final res = await ref.read(dioProvider).get('/auth/me');
-      return Me(Map<String, dynamic>.from(res.data));
-    } catch (_) {
+      return await _fetchMe();
+    } catch (e) {
+      // Tanpa sinyal: tetap masuk dengan profil terakhir (laporan masuk antrean offline).
+      if (isNetworkError(e)) {
+        final cached = await storage.cachedMe;
+        if (cached != null) return Me(cached);
+      }
       return null;
     }
+  }
+
+  Future<Me> _fetchMe() async {
+    final json = Map<String, dynamic>.from((await ref.read(dioProvider).get('/auth/me')).data);
+    await ref.read(tokenStorageProvider).saveMe(json);
+    return Me(json);
   }
 
   Future<void> login(String nrp, String password) async {
@@ -48,8 +60,7 @@ class AuthController extends AsyncNotifier<Me?> {
       },
     });
     await storage.save(res.data['accessToken'], res.data['refreshToken']);
-    final me = await dio.get('/auth/me');
-    state = AsyncData(Me(Map<String, dynamic>.from(me.data)));
+    state = AsyncData(await _fetchMe());
   }
 
   /// Ganti sandi (wajib saat login pertama). Server mengembalikan token baru; sesi lain dicabut.
@@ -62,8 +73,7 @@ class AuthController extends AsyncNotifier<Me?> {
   }
 
   Future<void> refreshMe() async {
-    final me = await ref.read(dioProvider).get('/auth/me');
-    state = AsyncData(Me(Map<String, dynamic>.from(me.data)));
+    state = AsyncData(await _fetchMe());
   }
 
   Future<void> logout() async {

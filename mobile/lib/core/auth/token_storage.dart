@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
 
@@ -10,6 +12,7 @@ class TokenStorage {
   static const _access = 'access_token';
   static const _refresh = 'refresh_token';
   static const _deviceId = 'device_id';
+  static const _me = 'me_cache';
 
   Future<String?> get accessToken => _s.read(key: _access);
   Future<String?> get refreshToken => _s.read(key: _refresh);
@@ -22,7 +25,16 @@ class TokenStorage {
   Future<void> clear() async {
     await _s.delete(key: _access);
     await _s.delete(key: _refresh);
+    await _s.delete(key: _me);
   }
+
+  /// Profil terakhir (/auth/me) agar aplikasi tetap terbuka tanpa sinyal.
+  Future<Map<String, dynamic>?> get cachedMe async {
+    final v = await _s.read(key: _me);
+    return v == null ? null : Map<String, dynamic>.from(jsonDecode(v) as Map);
+  }
+
+  Future<void> saveMe(Map<String, dynamic> me) => _s.write(key: _me, value: jsonEncode(me));
 
   Future<String>? _deviceIdFuture;
 

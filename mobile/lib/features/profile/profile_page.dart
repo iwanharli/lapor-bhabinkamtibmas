@@ -8,6 +8,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/ui/theme.dart';
 import '../../core/ui/skeleton.dart';
 import '../auth/change_password_page.dart';
+import '../reports/outbox.dart';
 
 final _profileProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
   final res = await ref.read(dioProvider).get('/auth/profile');
@@ -106,8 +107,12 @@ class ProfilePage extends ConsumerWidget {
                 ListTile(
                   leading: const Icon(Icons.logout, color: danger), title: const Text('Keluar', style: TextStyle(color: danger)),
                   onTap: () async {
+                    final pending = ref.read(outboxProvider.notifier).mine(ref.read(authControllerProvider).valueOrNull?.nrp).length;
                     final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
                       title: const Text('Keluar dari aplikasi?'),
+                      content: pending > 0
+                          ? Text('$pending laporan belum terkirim. Laporan tetap tersimpan di perangkat ini dan baru dikirim setelah Anda masuk lagi dengan akun yang sama.')
+                          : null,
                       actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Keluar'))],
                     ));
                     if (ok == true) await ref.read(authControllerProvider.notifier).logout();

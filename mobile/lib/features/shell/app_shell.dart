@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/location/tracker.dart';
 import '../../core/ui/theme.dart';
+import '../reports/outbox.dart';
 
 /// Kerangka utama: navigasi bawah + tombol Lapor di tengah (selaras tampilan web Bhabin).
 class AppShell extends ConsumerWidget {
@@ -21,6 +22,7 @@ class AppShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(trackerProvider); // pelacakan jam dinas hidup selama sesi
+    ref.watch(outboxAutoSyncProvider); // antrean laporan offline dikirim otomatis saat sinyal kembali
     final index = _tabs.indexWhere((t) => t.$1 == location).clamp(0, _tabs.length - 1);
     return Scaffold(
       body: child,

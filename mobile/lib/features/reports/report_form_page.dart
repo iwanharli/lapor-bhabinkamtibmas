@@ -16,6 +16,7 @@ import '../../core/location/location_service.dart';
 import '../../core/ui/format.dart';
 import '../../core/ui/theme.dart';
 import '../../core/ui/skeleton.dart';
+import 'outbox.dart';
 import 'report_api.dart';
 
 typedef FormRow = Map<String, dynamic>;
@@ -54,7 +55,7 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
   Fix? _fix;
   bool _locating = false;
   String? _locError;
-  /// Jarak (m) titik GPS ke batas desa binaan bila di luar toleransi 200 m.
+  /// Jarak (m) titik GPS ke batas desa binaan bila di luar toleransi 200 m — laporan tidak bisa dikirim (server juga menolak).
   num? _outsideM;
 
   bool get _ralat => _report?['status'] == 'SUBMITTED';
@@ -126,12 +127,13 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
   Future<void> _checkDistance(Fix f) async {
     final villageId = _report?['village']?['id'] ?? ref.read(authControllerProvider).valueOrNull?.villages.firstOrNull?['id'];
     if (villageId == null) return;
+    if (mounted) setState(() => _outsideM = null);
     try {
       final res = await ref.read(dioProvider).get('/villages/$villageId/distance', queryParameters: {'lat': f.lat, 'lng': f.lng});
       final d = res.data as Map;
       if (mounted) setState(() => _outsideM = d['insideVillage'] == false ? d['distanceM'] as num? : null);
     } catch (_) {
-      // Cek jarak hanya informasi; laporan tetap bisa dikirim.
+      // Tanpa sinyal jarak tidak bisa dicek di sini; server memeriksanya lagi saat laporan dikirim dari antrean.
     }
   }
 
@@ -215,7 +217,11 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
     final villageId = _report?['village']?['id'] ?? ref.read(authControllerProvider).valueOrNull?.villages.firstOrNull?['id'];
     if (villageId == null) errs.insert(0, 'Anda belum punya desa binaan. Hubungi admin satuan.');
     if (_report == null && _fix == null) errs.insert(0, 'Lokasi GPS belum didapat. Tekan "Ambil lokasi".');
+    if (send && !_ralat && _outsideM != null) errs.insert(0, 'Titik GPS di luar desa binaan (±${jarak(_outsideM!)}). Laporan hanya dapat dikirim dari dalam desa binaan.');
     if (errs.isNotEmpty) return _showErrors(errs);
+
+    // Laporan baru: lewat antrean agar tetap tersimpan walau sinyal putus, lalu langsung dicoba kirim.
+    if (send && _report == null) return _sendViaOutbox(villageId as String, me: ref.read(authControllerProvider).valueOrNull!);
 
     setState(() => _busy = true);
     final dio = ref.read(dioProvider);
@@ -245,6 +251,38 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
       context.pushReplacement('/laporan/$id');
     } catch (e) {
       _showErrors([apiErrorMessage(e), if (e is DioException && e.response?.data is Map && (e.response!.data['error']?['details'] is List)) ...(e.response!.data['error']['details'] as List).map((x) => x.toString())]);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _sendViaOutbox(String villageId, {required Me me}) async {
+    setState(() => _busy = true);
+    final outbox = ref.read(outboxProvider.notifier);
+    try {
+      await outbox.add(
+        clientUuid: _clientUuid, nrp: me.nrp, category: _schema!.category, schemaVersion: _schema!.version,
+        villageId: villageId, villageName: (me.villages.where((v) => v['id'] == villageId).firstOrNull?['nama'] ?? '') as String,
+        data: _cleanData(), location: {'location': {'lat': _fix!.lat, 'lng': _fix!.lng}, 'gpsAccuracyM': _fix!.accuracy, 'isMockLocation': _fix!.mocked},
+        files: _files,
+      );
+      final res = await outbox.sendNow(_clientUuid);
+      if (!mounted) return;
+      switch (res) {
+        case Sent(:final reportId):
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Laporan terkirim')));
+          context.pushReplacement('/laporan/$reportId');
+        case Queued():
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            duration: Duration(seconds: 6),
+            content: Text('Belum ada sinyal. Laporan disimpan di antrean dan dikirim otomatis saat sinyal kembali.'),
+          ));
+          context.go('/');
+        case Rejected(:final errors):
+          _showErrors(errors);
+      }
+    } catch (e) {
+      _showErrors(['Laporan gagal disimpan di perangkat: $e']);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -314,11 +352,11 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
                   Container(
                     margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                     padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: warn.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                    decoration: BoxDecoration(color: danger.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
                     child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Icon(Icons.warning_amber_rounded, color: warn, size: 18),
+                      const Icon(Icons.wrong_location_outlined, color: danger, size: 18),
                       const SizedBox(width: 8),
-                      Expanded(child: Text('Titik GPS ±${jarak(_outsideM!)} dari batas desa ${desa['nama']} (toleransi 200 m). Laporan tetap bisa dikirim; pimpinan diberi tahu untuk mengecek lokasinya.',
+                      Expanded(child: Text('Titik GPS ±${jarak(_outsideM!)} dari batas desa ${desa['nama']} (toleransi 200 m). Laporan hanya dapat dikirim dari dalam desa binaan. Simpan sebagai draft, lalu kirim setelah berada di desa.',
                           style: const TextStyle(fontSize: 12))),
                     ]),
                   ),

@@ -1,8 +1,8 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
 import '../auth/auth_controller.dart';
+import '../offline/cache.dart';
 
 /// Syarat "wajib & tampil bila field lain bernilai …" (sama dengan validator server).
 class RequiredIf {
@@ -125,10 +125,11 @@ class FormSchema {
 }
 
 /// Dimuat ulang saat pengguna berganti (login/logout) — galat sesi lama tidak tersangkut.
+/// Tanpa sinyal memakai salinan terakhir agar laporan tetap bisa dibuat offline.
 final _schemasProvider = FutureProvider<List<FormSchema>>((ref) async {
   ref.watch(authControllerProvider.select((s) => s.valueOrNull?.nrp));
-  final Response res = await ref.read(dioProvider).get('/form-schemas');
-  return (res.data as List).map((r) => FormSchema.fromJson(Map<String, dynamic>.from(r))).toList();
+  final data = await OfflineCache.fetch('form-schemas', () async => (await ref.read(dioProvider).get('/form-schemas')).data);
+  return (data as List).map((r) => FormSchema.fromJson(Map<String, dynamic>.from(r))).toList();
 });
 
 /// Versi terbaru per kategori (API mengurutkan versi menurun).
@@ -149,6 +150,6 @@ final schemaVersionProvider = FutureProvider.family<FormSchema?, (String, int?)>
 
 final commoditiesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   ref.watch(authControllerProvider.select((s) => s.valueOrNull?.nrp));
-  final res = await ref.read(dioProvider).get('/commodities');
-  return (res.data as List).map((c) => Map<String, dynamic>.from(c)).where((c) => c['active'] != false).toList();
+  final data = await OfflineCache.fetch('commodities', () async => (await ref.read(dioProvider).get('/commodities')).data);
+  return (data as List).map((c) => Map<String, dynamic>.from(c)).where((c) => c['active'] != false).toList();
 });

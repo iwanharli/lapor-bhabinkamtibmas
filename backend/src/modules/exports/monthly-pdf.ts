@@ -17,6 +17,10 @@ const M = 40; // margin
 const KLASIFIKASI = 'TERBATAS';
 /** Persentase perubahan tidak ditampilkan bila pembanding terlalu kecil (mis. 1 → 5 = +400% menyesatkan). */
 const MIN_BASE = 5;
+/** Jarak vertikal (pt): antarbagian, judul → isi, dan blok atas (ringkasan/kotak angka). */
+const GAP_SECTION = 22;
+const GAP_TITLE = 8;
+const GAP_BLOCK = 16;
 const MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
 const n = (x: number | null | undefined) => (x == null ? '—' : x.toLocaleString('id-ID'));
@@ -68,7 +72,7 @@ export async function monthlyPdf(r: MonthlyReport): Promise<Buffer> {
   doc.fillColor(MUTED).fontSize(8).text(t(
     `Nomor: ${r.nomor} · Periode ${tanggal(r.dari)} s.d. ${tanggal(r.sampai)}${r.berjalan ? ' (bulan berjalan)' : ''} · ${r.hariKerja} hari kerja · pembanding ${r.pembanding.label}`,
   ), M, doc.y + 2, { width: W, align: 'center' });
-  doc.y += 10;
+  doc.y += GAP_BLOCK;
 
   /** Blok berposisi tetap (kotak, grafik, grid): pindah halaman dulu bila tidak muat, agar pdfkit tidak memecah per baris. */
   const ensure = (h: number) => {
@@ -79,10 +83,11 @@ export async function monthlyPdf(r: MonthlyReport): Promise<Buffer> {
   };
 
   const section = (title: string, sub?: string, need = 80) => {
-    if (doc.y > bottom() - need) doc.addPage();
-    doc.moveDown(0.7).fillColor(NAVY).font('Helvetica-Bold').fontSize(11.5).text(t(title), M, doc.y);
+    if (doc.y > bottom() - need - GAP_SECTION) doc.addPage();
+    else doc.y += GAP_SECTION;
+    doc.fillColor(NAVY).font('Helvetica-Bold').fontSize(11.5).text(t(title), M, doc.y);
     if (sub) doc.fillColor(MUTED).font('Helvetica').fontSize(7.5).text(t(sub), M, doc.y, { width: W });
-    doc.moveDown(0.35);
+    doc.y += GAP_TITLE;
   };
 
   const tableOf = (cols: Col[], rows: any[], opts: { total?: any; highlight?: (row: any) => boolean } = {}) => {
@@ -158,7 +163,7 @@ export async function monthlyPdf(r: MonthlyReport): Promise<Buffer> {
   doc.rect(M, ny, 3, nh).fill(NAVY);
   doc.fillColor(NAVY).font('Helvetica-Bold').fontSize(8).text('RINGKASAN', M + 12, ny + 8);
   doc.fillColor(INK).font('Helvetica').fontSize(8.5).text(t(kalimat), M + 12, ny + 19, { width: W - 24, lineGap: 1.5 });
-  doc.y = ny + nh + 10;
+  doc.y = ny + nh + GAP_BLOCK;
 
   // ---------- Kotak angka utama ----------
   const deltaText = (now: number, prev: number) => {

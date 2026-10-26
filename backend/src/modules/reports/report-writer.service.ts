@@ -165,7 +165,7 @@ export class ReportWriterService {
           ...(sensitive !== undefined && { sensitive }),
         },
       });
-      if (ralat) await this.finalize(tx, u, schema, full!, commodities);
+      if (ralat) await this.finalize(tx, u, schema, full!, commodities, !!dto.location);
       await this.audit.log({ actorId: me.id, action: 'REPORT_UPDATE', entity: 'report', entityId: id, meta: { ralat } }, tx);
       return tx.report.findUniqueOrThrow({ where: { id } });
     });
@@ -188,7 +188,8 @@ export class ReportWriterService {
   }
 
   /** Item harga, prioritas, dan cek lokasi terhadap desa binaan — saat kirim maupun ralat. */
-  private async finalize(tx: Prisma.TransactionClient, r: Report, schema: FormSchemaJson, data: Record<string, unknown>, commodities: { id: number; satuanDefault: string }[]) {
+  /** `checkLocation`: tolak bila titik GPS di luar desa binaan (kirim laporan, atau ralat yang mengubah lokasi). */
+  private async finalize(tx: Prisma.TransactionClient, r: Report, schema: FormSchemaJson, data: Record<string, unknown>, commodities: { id: number; satuanDefault: string }[], checkLocation = true) {
     if (r.category === ReportCategory.HARGA_PANGAN) {
       const satuan = new Map(commodities.map((c) => [c.id, c.satuanDefault]));
       const items = (data.items as { commodityId: number; harga: number; satuan?: string; stok: 'AMAN' | 'MENIPIS' | 'KOSONG' }[]) ?? [];
@@ -204,6 +205,13 @@ export class ReportWriterService {
       FROM reports r JOIN villages v ON v.id = r.village_id
       WHERE r.id = ${r.id}::uuid AND v.geom IS NOT NULL AND r.location IS NOT NULL`;
     const distance = loc?.distance ?? null;
+    // Desa tanpa batas wilayah (geometri) tidak bisa diperiksa: laporan tetap diterima.
+    if (checkLocation && distance != null && distance > VILLAGE_TOLERANCE_M) {
+      throw new BadRequestException({
+        code: 'OUTSIDE_VILLAGE',
+        message: `Titik GPS ±${distance >= 1000 ? `${(distance / 1000).toFixed(1).replace('.', ',')} km` : `${Math.round(distance)} m`} di luar desa binaan (toleransi ${VILLAGE_TOLERANCE_M} m). Laporan hanya dapat dikirim dari dalam desa binaan.`,
+      });
+    }
     await tx.report.update({
       where: { id: r.id },
       data: {

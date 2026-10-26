@@ -23,8 +23,9 @@ Aplikasi untuk mengirim laporan kegiatan dan absen dari lapangan. Buka di HP lew
 
 1. Tekan tombol **+ Lapor** di bagian bawah, pilih kategori (Sambang, Deteksi Dini, Mapping Data Keluarga, dll.).
 2. **Desa binaan** dan **waktu kegiatan** terisi otomatis dan terkunci.
-3. Tunggu tulisan **"Lokasi didapat"**. Bila muncul peringatan *"Titik GPS … dari batas desa"*, laporan tetap bisa
-   dikirim, tetapi pimpinan akan mengecek lokasinya — pastikan Anda memang di lokasi kegiatan.
+3. Tunggu tulisan **"Lokasi didapat"**. Laporan **hanya bisa dikirim dari dalam desa binaan** (toleransi 200 m dari batas desa).
+   Bila muncul peringatan merah *"Titik GPS … dari batas desa"*, tombol Kirim tidak aktif: simpan sebagai **Draft**,
+   lalu kirim setelah berada di desa binaan (tekan **Ulangi** untuk mengambil lokasi baru).
 4. Isi formulir per langkah, tekan **Lanjut**. Isian bertanda bintang merah (\*) wajib.
 5. Ambil **foto** langsung dari kamera.
 6. Di langkah terakhir tekan **Kirim laporan**.

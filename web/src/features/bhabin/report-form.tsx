@@ -106,12 +106,13 @@ export function ReportForm({
   const saved = new Set(report?.sensitiveFilled ?? []);
   const geo = useGeolocation();
   const [outside, setOutside] = useState<{ distanceM: number } | null>(null);
+  const blocked = !!outside && (!ralat || !!geo.fix);
   const [clientUuid] = useState(() => newUuid());
   // Desa binaan dikunci: 1 Bhabin membina 1 desa (ralat/draft memakai desa laporan itu).
   const village = report ? { id: report.village.id, nama: report.village.nama, kecamatan: report.village.kecamatan } : villages[0];
   const villageId = village?.id ?? '';
 
-  // Cek jarak titik GPS ke batas desa agar Bhabin tahu sebelum mengirim.
+  // Cek jarak titik GPS ke batas desa: laporan baru (atau ralat yang mengambil lokasi baru) di luar desa tidak bisa dikirim.
   const point = geo.fix ?? (report ? { lat: report.lat, lng: report.lng } : null);
   useEffect(() => {
     if (!villageId || !point) return setOutside(null);
@@ -365,11 +366,11 @@ export function ReportForm({
           </button>
         </div>
         {outside && village && (
-          <div className="flex gap-3 rounded-xl border border-warn/30 bg-warn-soft/50 p-3 text-xs leading-relaxed">
-            <TriangleAlert size={16} className="mt-0.5 shrink-0 text-warn" />
+          <div className="flex gap-3 rounded-xl border border-danger/30 bg-danger-soft/50 p-3 text-xs leading-relaxed">
+            <TriangleAlert size={16} className="mt-0.5 shrink-0 text-danger" />
             <p className="text-ink/80">
               Titik GPS laporan berada ±{jarak(outside.distanceM)} dari batas desa {village.nama} (toleransi 200 m).
-              Laporan tetap bisa dikirim; pimpinan diberi tahu untuk mengecek lokasinya.
+              {ralat ? (blocked ? ' Ralat tidak dapat disimpan dengan lokasi baru ini.' : ' Ralat tetap bisa disimpan selama lokasi tidak diubah.') : ' Laporan hanya dapat dikirim dari dalam desa binaan. Simpan sebagai draft, lalu kirim setelah berada di desa.'}
             </p>
           </div>
         )}
@@ -398,7 +399,7 @@ export function ReportForm({
           )}
           {last ? (
             // key berbeda: elemen tombol tidak dipakai ulang saat berganti dari "Lanjut" ke "Kirim" (mencegah kirim tak sengaja).
-            <Button key="submit" type="submit" className="h-12 flex-[2]" disabled={!!busy} loading={busy === 'send'} icon={<Send size={17} />}>
+            <Button key="submit" type="submit" className="h-12 flex-[2]" disabled={!!busy || blocked} loading={busy === 'send'} icon={<Send size={17} />}>
               {ralat ? 'Simpan ralat' : 'Kirim laporan'}
             </Button>
           ) : (

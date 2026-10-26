@@ -206,7 +206,9 @@ Aturan: maks. satu `CHECK_IN` & satu `CHECK_OUT` per hari. Absensi offline diter
 
 ## 6. Alur status laporan
 
-**Tanpa verifikasi** (keputusan 22 Oktober 2026): laporan yang dikirim langsung final. Pengaman kualitas data adalah validasi skema & lampiran saat kirim, cek lokasi otomatis (desa binaan ±200 m, deteksi lokasi palsu), dan audit log.
+**Tanpa verifikasi** (keputusan 22 Oktober 2026): laporan yang dikirim langsung final. Pengaman kualitas data adalah validasi skema & lampiran saat kirim, cek lokasi otomatis (deteksi lokasi palsu), dan audit log.
+
+**Wajib di dalam desa binaan** (keputusan 26 Oktober 2026): laporan ditolak saat dikirim (`400 OUTSIDE_VILLAGE`) bila titik GPS lebih dari 200 m dari batas desa binaan. Draft tetap boleh disimpan di mana saja. Ralat hanya diperiksa bila lokasinya diubah, sehingga laporan lama tetap bisa diralat. Desa yang belum punya batas wilayah (geometri) tidak dapat diperiksa, jadi laporannya tetap diterima.
 
 ```
    (perangkat)

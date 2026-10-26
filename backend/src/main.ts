@@ -13,6 +13,8 @@ async function bootstrap() {
   // IP klien asli dari X-Forwarded-For hanya bila datang lewat proksi tepercaya (nginx/BFF Next.js di mesin yang sama).
   // Jangan percayai seluruh jaringan internal: klien di jaringan itu bisa memalsukan IP (audit & batas login).
   app.set('trust proxy', process.env.TRUST_PROXY ?? 'loopback');
+  // SIGINT/SIGTERM (pm2 reload, systemd stop): tutup koneksi DB & LISTEN dengan rapi.
+  app.enableShutdownHooks();
   app.use(requestContextMiddleware);
   app.setGlobalPrefix('api/v1');
   app.enableCors({ origin: (process.env.CORS_ORIGINS ?? '').split(',').filter(Boolean), credentials: true });

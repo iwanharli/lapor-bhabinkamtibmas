@@ -1,11 +1,11 @@
-import { CalendarDays, Gauge, UserX } from 'lucide-react';
+import { CalendarDays, Gauge } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Card, PageHeader, SectionLabel, SegmentedLinks, Stack, StatCard } from '@/components/ui';
 import { DailyByCategoryChart } from '@/features/dashboard/charts';
 import { TotalReportsHero } from '@/features/dashboard/hero';
 import { CategoryBars } from '@/features/dashboard/lists';
-import { PriorityCarousel } from '@/features/dashboard/priority-carousel';
+import { PriorityList } from '@/features/dashboard/priority-list';
 import { ParticipationCard } from '@/features/dashboard/participation';
 import { isSpike } from '@/features/prices/price-change';
 import { PriceTiles } from '@/features/prices/price-tiles';
@@ -48,7 +48,7 @@ export default async function RingkasanPage({ searchParams }: { searchParams: Pr
       />
 
       <Stack className="gap-4">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-h-[124px]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] [&>*]:min-h-[132px] [&>:first-child]:sm:col-span-2 [&>:first-child]:xl:col-span-1">
           <TotalReportsHero ov={ov} />
           <ParticipationCard ov={ov} />
           <StatCard
@@ -59,16 +59,6 @@ export default async function RingkasanPage({ searchParams }: { searchParams: Pr
             value={avgPerBhabin.toLocaleString('id-ID', { maximumFractionDigits: 1 })}
             footer={`${(t.bhabinAktif ? t.total / t.bhabinAktif : 0).toLocaleString('id-ID', { maximumFractionDigits: 1 })} per Bhabin yang melapor`}
           />
-          <StatCard
-            className="min-h-0"
-            alert={t.tidakAktif7 > 0}
-            title="Tidak melapor 7 hari"
-            icon={<UserX size={18} />}
-            tone="success"
-            value={t.tidakAktif7}
-            footer={t.tidakAktif7 > 0 ? 'Bhabin perlu ditindaklanjuti' : 'semua Bhabin aktif'}
-            href="/kinerja"
-          />
         </div>
 
         <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)]">
@@ -78,7 +68,7 @@ export default async function RingkasanPage({ searchParams }: { searchParams: Pr
           <Card title="Laporan per kategori" subtitle="Klik untuk melihat daftar">
             <CategoryBars rows={ov.byCategory} hrefFor={(c) => reportsHref(`category=${c}`)} />
           </Card>
-          <PriorityCarousel rows={ov.priority} />
+          <PriorityList rows={ov.priority} moreHref={reportsHref('priority=true')} />
         </div>
 
         <Stack className="gap-2">

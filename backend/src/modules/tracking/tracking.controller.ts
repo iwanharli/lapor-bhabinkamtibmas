@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Header, Post, Query, Sse } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { IsBoolean, IsDateString, IsNumber, IsOptional, Max, Min } from 'class-validator';
 import { AuthUser, CurrentUser, Roles } from '../../common/decorators/auth.decorators';
@@ -23,6 +23,15 @@ export class TrackingController {
   @Roles(UserRole.BHABIN)
   location(@CurrentUser() me: AuthUser, @Body() dto: PingDto) {
     return this.tracking.update(me, dto);
+  }
+
+  /** Dorongan realtime (SSE): posisi baru & perubahan daftar dinas dalam cakupan. Tanpa buffer di nginx/kompresi. */
+  @Sse('stream')
+  @Roles(...VIEWERS)
+  @Header('Cache-Control', 'no-cache, no-transform')
+  @Header('X-Accel-Buffering', 'no')
+  stream(@CurrentUser() me: AuthUser, @Query('unitId') unitId?: string) {
+    return this.tracking.stream(me, unitId || undefined);
   }
 
   /** Posisi realtime Bhabin yang sedang dinas hari ini dalam cakupan. */

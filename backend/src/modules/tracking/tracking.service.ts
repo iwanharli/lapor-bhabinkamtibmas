@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, MessageEvent } from '@nestjs/common';
+import { filter, interval, map, merge, Observable, Subject } from 'rxjs';
 import { AuthUser } from '../../common/decorators/auth.decorators';
 import { localDate } from '../../common/time';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -9,10 +10,34 @@ const STALE_MIN = 5;
 
 export interface PingInput { t: string; lat: number; lng: number; acc?: number; mock?: boolean }
 
+/** Perubahan yang didorong ke layar Monitoring: posisi baru, atau daftar dinas berubah (absen masuk/pulang). */
+type LiveEvent =
+  | { type: 'pos'; unitId: string; data: { user_id: string; last_time: string; lat: number; lng: number; acc: number | null; mock: boolean } }
+  | { type: 'roster'; unitId: string; data: { user_id: string } };
+
 /** Posisi realtime Bhabin selama jam dinas. Hanya titik terakhir yang disimpan (ditimpa), tanpa riwayat. */
 @Injectable()
 export class TrackingService {
+  /** Bus di dalam proses (API berjalan sebagai satu proses); untuk beberapa instance API perlu Postgres LISTEN/NOTIFY atau Redis. */
+  private events = new Subject<LiveEvent>();
+
   constructor(private prisma: PrismaService, private units: UnitsService) {}
+
+  /** Aliran SSE untuk Monitoring Personel: hanya Bhabin di dalam cakupan unit penonton, plus detak tiap 20 detik agar proksi tidak memutus. */
+  async stream(me: AuthUser, unitId?: string): Promise<Observable<MessageEvent>> {
+    if (unitId) await this.units.assertInScope(me.unitId, unitId);
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`SELECT unit_subtree(${unitId ?? me.unitId}::uuid)::text AS id`;
+    const scope = new Set(rows.map((r) => r.id));
+    return merge(
+      this.events.pipe(filter((e) => scope.has(e.unitId)), map((e): MessageEvent => ({ type: e.type, data: e.data }))),
+      interval(20_000).pipe(map((): MessageEvent => ({ type: 'ping', data: String(Date.now()) }))),
+    );
+  }
+
+  /** Absen masuk/pulang: layar Monitoring memuat ulang daftar dinas. */
+  rosterChanged(me: AuthUser) {
+    this.events.next({ type: 'roster', unitId: me.unitId, data: { user_id: me.id } });
+  }
 
   /** Simpan titik terbaru bila Bhabin sedang dinas (sudah absen masuk hari ini, belum pulang). */
   async update(me: AuthUser, p: PingInput) {
@@ -24,7 +49,11 @@ export class TrackingService {
     const data = { unitId: me.unitId, clientTime: t, serverTime: new Date(), lat: p.lat, lng: p.lng, gpsAccuracyM: p.acc ?? null, isMockLocation: !!p.mock };
     // Titik lama dari antrean offline tidak menimpa yang lebih baru.
     const n = await this.prisma.lastLocation.updateMany({ where: { userId: me.id, clientTime: { lt: t } }, data });
-    if (!n.count) await this.prisma.lastLocation.createMany({ data: [{ userId: me.id, ...data }], skipDuplicates: true });
+    if (!n.count) {
+      const c = await this.prisma.lastLocation.createMany({ data: [{ userId: me.id, ...data }], skipDuplicates: true });
+      if (!c.count) return { accepted: true }; // titik lebih lama dari yang tersimpan: tidak disiarkan
+    }
+    this.events.next({ type: 'pos', unitId: me.unitId, data: { user_id: me.id, last_time: t.toISOString(), lat: p.lat, lng: p.lng, acc: p.acc ?? null, mock: !!p.mock } });
     return { accepted: true };
   }
 

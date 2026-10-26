@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { apiFetch, clientHeaders } from '@/lib/api/server';
 
-/** Header respons API yang diteruskan ke browser (untuk file, gambar, dan unduhan CSV). */
-const PASS_HEADERS = ['content-type', 'content-disposition', 'cache-control', 'content-length', 'x-content-type-options'];
+/** Header respons API yang diteruskan ke browser (file, gambar, unduhan CSV, dan aliran SSE tanpa buffer). */
+const PASS_HEADERS = ['content-type', 'content-disposition', 'cache-control', 'content-length', 'x-content-type-options', 'x-accel-buffering'];
 
 /** BFF: browser memanggil /api/proxy/*, token API tidak pernah terekspos ke JavaScript. Body diteruskan apa adanya (termasuk biner). */
 async function forward(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {

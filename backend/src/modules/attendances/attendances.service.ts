@@ -80,6 +80,7 @@ export class AttendancesService {
       },
     });
     if (dto.type === AttendanceType.CHECK_OUT) await this.tracking.clear(me.id); // selesai dinas: posisi tidak disimpan
+    this.tracking.rosterChanged(me);
     await this.audit.log({ actorId: me.id, action: 'ATTENDANCE_RECORD', entity: 'attendance', entityId: att.id, meta: { type: dto.type, insideVillage: att.insideVillage } });
     const village = att.villageId ? await this.prisma.village.findUnique({ where: { id: att.villageId }, select: { nama: true } }) : null;
     return { ...this.toDto(att), villageName: village?.nama ?? null };

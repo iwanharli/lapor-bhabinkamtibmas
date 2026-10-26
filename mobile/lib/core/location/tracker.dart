@@ -8,9 +8,9 @@ import '../../features/reports/report_api.dart';
 import '../api/api_client.dart';
 import '../auth/auth_controller.dart';
 
-/// Perbarui posisi bila berpindah ≥ 30 m atau sudah 1 menit sejak kiriman terakhir.
-const _minMoveM = 30.0;
-const _maxGap = Duration(minutes: 1);
+/// Perbarui posisi bila berpindah ≥ 15 m atau sudah 20 detik sejak kiriman terakhir (layar Monitoring menerima seketika).
+const _minMoveM = 15.0;
+const _maxGap = Duration(seconds: 20);
 
 enum TrackStatus { off, active, needPermission, gpsOff }
 
@@ -59,7 +59,7 @@ class Tracker extends Notifier<TrackStatus> {
     _sub = Geolocator.getPositionStream(
       locationSettings: AndroidSettings(
         accuracy: LocationAccuracy.high,
-        intervalDuration: const Duration(seconds: 30),
+        intervalDuration: const Duration(seconds: 5),
         foregroundNotificationConfig: const ForegroundNotificationConfig(
           notificationTitle: 'Pelacakan jam dinas aktif',
           notificationText: 'Posisi terkini terlihat oleh satuan sampai Anda absen pulang.',

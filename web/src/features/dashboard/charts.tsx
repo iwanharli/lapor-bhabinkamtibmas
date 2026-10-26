@@ -6,12 +6,13 @@ import type { Overview } from '@/lib/types';
 
 const dayLabel = (d: string) => `${d.slice(8)}/${d.slice(5, 7)}`;
 
-export function DailyByCategoryChart({ rows }: { rows: Overview['daily'] }) {
+export function DailyByCategoryChart({ rows, height }: { rows: Overview['daily']; height?: number }) {
   const days = [...new Set(rows.map((r) => r.hari))].sort();
   const cats = Object.keys(CATEGORY_LABEL).filter((c) => rows.some((r) => r.category === c));
   const val = new Map(rows.map((r) => [`${r.hari}|${r.category}`, r.jumlah]));
   return (
     <EChart
+      height={height}
       option={{
         xAxis: { type: 'category', data: days.map(dayLabel) },
         yAxis: { type: 'value', minInterval: 1 },

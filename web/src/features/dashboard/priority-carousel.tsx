@@ -20,7 +20,7 @@ export function PriorityCarousel({ rows }: { rows: Overview['priority'] }) {
 
   if (rows.length === 0) {
     return (
-      <div className="flex min-h-[152px] items-center gap-4 rounded-2xl border border-success/20 bg-gradient-to-br from-success-soft/70 to-surface p-5 sm:p-6">
+      <div className="flex h-full items-center gap-3 rounded-2xl border border-success/20 bg-gradient-to-br from-success-soft/70 to-surface p-4">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-success/10 text-success"><Check size={22} /></span>
         <div>
           <p className="font-semibold text-ink">Semua aman untuk saat ini</p>
@@ -33,7 +33,7 @@ export function PriorityCarousel({ rows }: { rows: Overview['priority'] }) {
   const item = rows[active % rows.length];
   return (
     <section
-      className="relative flex min-h-[152px] flex-col justify-between overflow-hidden rounded-2xl border border-danger/20 bg-gradient-to-br from-danger-soft/70 via-surface to-surface p-5 sm:p-6"
+      className="relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-danger/20 bg-gradient-to-br from-danger-soft/70 via-surface to-surface p-4"
       aria-label="Deteksi dini prioritas"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -45,13 +45,13 @@ export function PriorityCarousel({ rows }: { rows: Overview['priority'] }) {
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-danger/10 text-danger"><ShieldAlert size={20} /></span>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-danger">Perlu ditindaklanjuti</p>
-          <Link key={item.id} href={`/laporan/${item.id}`} className="mt-1 block text-lg font-semibold leading-snug text-ink hover:text-danger">
+          <Link key={item.id} href={`/laporan/${item.id}`} className="mt-1 line-clamp-2 block text-base font-semibold leading-snug text-ink hover:text-danger">
             {item.data.kategori_kerawanan || 'Deteksi dini'} <span className="font-normal text-muted">· {item.village.nama}</span>
           </Link>
-          <p className="mt-1 text-sm text-muted">{item.nomor} · {item.user.nama} · {tanggalJam(item.occurredAt, item.unit.timezone)}</p>
+          <p className="mt-1 truncate text-xs text-muted">{item.nomor} · {item.user.nama} · {tanggalJam(item.occurredAt, item.unit.timezone)}</p>
         </div>
       </div>
-      <div className="relative mt-5 flex items-center justify-between gap-3 border-t border-danger/10 pt-3">
+      <div className="relative mt-3 flex items-center justify-between gap-3 border-t border-danger/10 pt-2">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <span className="shrink-0 text-xs font-medium text-muted">{active + 1} / {rows.length}</span>
           {rows.length > 1 && (
@@ -61,8 +61,8 @@ export function PriorityCarousel({ rows }: { rows: Overview['priority'] }) {
           )}
         </div>
         {rows.length > 1 && <div className="flex items-center gap-1">
-          <button type="button" aria-label="Prioritas sebelumnya" onClick={() => setActive((i) => (i - 1 + rows.length) % rows.length)} className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition hover:border-danger/30 hover:text-danger"><ChevronLeft size={17} /></button>
-          <button type="button" aria-label="Prioritas berikutnya" onClick={() => setActive((i) => (i + 1) % rows.length)} className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition hover:border-danger/30 hover:text-danger"><ChevronRight size={17} /></button>
+          <button type="button" aria-label="Prioritas sebelumnya" onClick={() => setActive((i) => (i - 1 + rows.length) % rows.length)} className="grid h-7 w-7 place-items-center rounded-lg border border-line bg-surface text-muted transition hover:border-danger/30 hover:text-danger"><ChevronLeft size={17} /></button>
+          <button type="button" aria-label="Prioritas berikutnya" onClick={() => setActive((i) => (i + 1) % rows.length)} className="grid h-7 w-7 place-items-center rounded-lg border border-line bg-surface text-muted transition hover:border-danger/30 hover:text-danger"><ChevronRight size={17} /></button>
         </div>}
       </div>
       <style jsx>{`

@@ -1,7 +1,7 @@
-import { CalendarDays, Gauge, UserCheck, UserX } from 'lucide-react';
+import { CalendarDays, Gauge, UserX } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Alert, Card, PageHeader, SectionLabel, SegmentedLinks, Stack, StatCard } from '@/components/ui';
+import { Card, PageHeader, SectionLabel, SegmentedLinks, Stack, StatCard } from '@/components/ui';
 import { DailyByCategoryChart } from '@/features/dashboard/charts';
 import { TotalReportsHero } from '@/features/dashboard/hero';
 import { CategoryBars } from '@/features/dashboard/lists';
@@ -47,75 +47,49 @@ export default async function RingkasanPage({ searchParams }: { searchParams: Pr
         }
       />
 
-      <Stack className="gap-6">
-        {spikes.length > 0 && (
-          <Alert tone="danger" title="Lonjakan harga pangan ≥10% dalam 7 hari">
-            <span className="text-ink">{spikes.map((p) => `${p.nama} (${rupiah(p.rata2)}/${p.satuan})`).join(', ')}. </span>
-            <Link href="/harga-pangan" className="font-semibold text-primary hover:underline">Lihat detail →</Link>
-          </Alert>
-        )}
+      <Stack className="gap-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-h-[124px]">
+          <TotalReportsHero ov={ov} />
+          <ParticipationCard ov={ov} />
+          <StatCard
+            className="min-h-0"
+            title="Rata-rata / Bhabin aktif"
+            icon={<Gauge size={18} />}
+            tone="accent"
+            value={avgPerBhabin.toLocaleString('id-ID', { maximumFractionDigits: 1 })}
+            footer={`${(t.bhabinAktif ? t.total / t.bhabinAktif : 0).toLocaleString('id-ID', { maximumFractionDigits: 1 })} per Bhabin yang melapor`}
+          />
+          <StatCard
+            className="min-h-0"
+            alert={t.tidakAktif7 > 0}
+            title="Tidak melapor 7 hari"
+            icon={<UserX size={18} />}
+            tone="success"
+            value={t.tidakAktif7}
+            footer={t.tidakAktif7 > 0 ? 'Bhabin perlu ditindaklanjuti' : 'semua Bhabin aktif'}
+            href="/kinerja"
+          />
+        </div>
 
-        <Stack className="gap-3">
-          <SectionLabel title="Aktivitas laporan" hint="periode terpilih" />
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.8fr)]">
-            <TotalReportsHero ov={ov} />
-            <StatCard
-              title="Rata-rata per Bhabin"
-              description="Laporan per Bhabin yang melapor"
-              icon={<UserCheck size={20} />}
-              tone="accent"
-              value={(t.bhabinAktif ? t.total / t.bhabinAktif : 0).toLocaleString('id-ID', { maximumFractionDigits: 1 })}
-              footer={`${t.bhabinAktif.toLocaleString('id-ID')} Bhabin melapor`}
-            />
-          </div>
-        </Stack>
-
-        <Stack className="gap-3">
-          <SectionLabel title="Perlu perhatian" hint="pantau dan tindak lanjuti" />
+        <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)]">
+          <Card title="Laporan per hari" subtitle={`Menurut kategori · ${days} hari`} className="lg:col-span-2 xl:col-span-1" bodyClassName="px-3 py-2">
+            <DailyByCategoryChart rows={ov.daily} height={210} />
+          </Card>
+          <Card title="Laporan per kategori" subtitle="Klik untuk melihat daftar">
+            <CategoryBars rows={ov.byCategory} hrefFor={(c) => reportsHref(`category=${c}`)} />
+          </Card>
           <PriorityCarousel rows={ov.priority} />
-        </Stack>
+        </div>
 
-        <Stack className="gap-3">
-          <SectionLabel title="Partisipasi Bhabinkamtibmas" hint="dari Bhabin aktif dalam cakupan" />
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-            <ParticipationCard ov={ov} />
-            <div className="grid gap-3 sm:grid-cols-2 [&>*]:h-full">
-              <StatCard
-                alert={t.tidakAktif7 > 0}
-                title="Tidak melapor 7 hari"
-                description="Bhabin tanpa laporan 7 hari terakhir"
-                icon={<UserX size={20} />}
-                tone="success"
-                value={t.tidakAktif7}
-                footer={t.tidakAktif7 > 0 ? <span className="font-medium text-danger">perlu ditindaklanjuti</span> : 'semua Bhabin aktif'}
-                href="/kinerja"
-              />
-              <StatCard
-                title="Rata-rata / Bhabin"
-                description="Laporan per Bhabin aktif"
-                icon={<Gauge size={20} />}
-                tone="accent"
-                value={avgPerBhabin.toLocaleString('id-ID', { maximumFractionDigits: 1 })}
-                footer="laporan per Bhabin aktif"
-              />
-            </div>
+        <Stack className="gap-2">
+          <div className="flex items-center gap-3">
+            <SectionLabel title="Harga pangan" hint="rata-rata 7 hari, dibanding 7 hari sebelumnya" className="flex-1" />
+            {spikes.length > 0 && (
+              <Link href="/harga-pangan" className="shrink-0 rounded-full bg-danger-soft px-2.5 py-0.5 text-xs font-semibold text-danger hover:underline" title={spikes.map((p) => `${p.nama} ${rupiah(p.rata2)}/${p.satuan}`).join(', ')}>
+                {spikes.length} lonjakan ≥10% →
+              </Link>
+            )}
           </div>
-        </Stack>
-
-        <Stack className="gap-3">
-          <SectionLabel title="Tren & kategori" hint={`${days} hari`} />
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,1.8fr)_minmax(300px,0.9fr)]">
-            <Card title="Laporan per hari" subtitle="Menurut kategori" bodyClassName="p-4">
-              <DailyByCategoryChart rows={ov.daily} />
-            </Card>
-            <Card title="Laporan per kategori" subtitle="Klik untuk melihat daftar">
-              <CategoryBars rows={ov.byCategory} hrefFor={(c) => reportsHref(`category=${c}`)} />
-            </Card>
-          </div>
-        </Stack>
-
-        <Stack className="gap-3">
-          <SectionLabel title="Harga pangan" hint="rata-rata 7 hari, dibanding 7 hari sebelumnya" />
           <PriceTiles prices={prices} />
         </Stack>
       </Stack>

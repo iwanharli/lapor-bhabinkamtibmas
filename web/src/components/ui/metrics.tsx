@@ -174,7 +174,7 @@ export function RingProgress({ value, label, size = 128, className }: { value: n
           strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} />
       </svg>
       <div className="absolute inset-0 grid place-content-center text-center">
-        <span className="text-2xl font-bold text-success tabular-nums">{Math.round(pct)}%</span>
+        <span className={cn('font-bold text-success tabular-nums', size < 100 ? 'text-lg' : 'text-2xl')}>{Math.round(pct)}%</span>
         {label && <span className="text-[10px] font-semibold uppercase tracking-wider text-success/80">{label}</span>}
       </div>
     </div>

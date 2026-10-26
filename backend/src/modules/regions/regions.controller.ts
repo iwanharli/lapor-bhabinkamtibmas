@@ -28,6 +28,14 @@ export class RegionsController {
     return this.regions.boundaries(level as RegionLevel, bbox, q.parent || undefined);
   }
 
+  /** GET /regions/shape?kode= — batas satu wilayah untuk sorotan filter peta (null bila belum ada geometri). */
+  @Get('shape')
+  @Roles(...ALL_ROLES)
+  async shape(@Query('kode') kode?: string) {
+    if (!kode || !/^[\d.]{2,13}$/.test(kode)) throw new BadRequestException({ code: 'INVALID_KODE', message: 'kode wilayah tidak valid' });
+    return { shape: await this.regions.shape(kode) };
+  }
+
   /** GET /regions/at?lat=&lng= — rantai provinsi → desa pada satu titik. */
   @Get('at')
   @Roles(...ALL_ROLES)

@@ -245,3 +245,12 @@ dialog.modal::backdrop {
 .track-live { animation: track-ping 2s ease-out infinite; }
 @keyframes track-ping { 0% { box-shadow: 0 0 0 0 rgb(22 163 74 / 0.55); } 100% { box-shadow: 0 0 0 14px rgb(22 163 74 / 0); } }
 @media (prefers-reduced-motion: reduce) { .track-live { animation: none; } }
+
+/* Sorotan wilayah terpilih di Peta Sebaran (focus-layer.ts): area luar diburamkan, garis tepi menyala. z-index di atas .leaflet-map-pane (400), di bawah kontrol (800). */
+.map-focus-veil { position: absolute; inset: 0; z-index: 401; pointer-events: none; opacity: 0; transition: opacity .35s ease; backdrop-filter: blur(2.5px) saturate(.75); -webkit-backdrop-filter: blur(2.5px) saturate(.75); }
+.map-focus-line { filter: drop-shadow(0 0 6px rgb(59 130 246 / .85)); animation: map-focus-breathe 3.2s ease-in-out infinite; }
+@keyframes map-focus-breathe {
+  0%, 100% { fill-opacity: .06; filter: drop-shadow(0 0 4px rgb(59 130 246 / .55)); }
+  50% { fill-opacity: .2; filter: drop-shadow(0 0 10px rgb(59 130 246 / .95)); }
+}
+@media (prefers-reduced-motion: reduce) { .map-focus-veil { transition: none; } .map-focus-line { animation: none; fill-opacity: .12; } }

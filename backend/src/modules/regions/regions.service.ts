@@ -52,6 +52,20 @@ export class RegionsService {
     };
   }
 
+  /** Bentuk satu wilayah (provinsi/kab/kota/kecamatan, atau desa) untuk sorotan filter peta: batas asli disederhanakan sesuai tingkat + kotak (w,s,e,n). */
+  async shape(kode: string) {
+    const [r] = await this.prisma.$queryRaw<{ kode: string; nama: string; level: number; geometry: string | null; w: number; s: number; e: number; n: number }[]>`
+      SELECT kode, nama, level, ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom, CASE level WHEN 1 THEN 0.002 WHEN 2 THEN 0.0005 ELSE 0.0002 END), 5) AS geometry,
+             ST_XMin(geom) AS w, ST_YMin(geom) AS s, ST_XMax(geom) AS e, ST_YMax(geom) AS n
+      FROM regions WHERE kode = ${kode} AND geom IS NOT NULL
+      UNION ALL
+      SELECT kode_wilayah, nama, 4, ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom, ${VILLAGE_SIMPLIFY}), 5), ST_XMin(geom), ST_YMin(geom), ST_XMax(geom), ST_YMax(geom)
+      FROM villages WHERE kode_wilayah = ${kode} AND geom IS NOT NULL
+      LIMIT 1`;
+    if (!r?.geometry) return null;
+    return { kode: r.kode, nama: r.nama, level: r.level, bbox: [r.w, r.s, r.e, r.n] as [number, number, number, number], geometry: JSON.parse(r.geometry) };
+  }
+
   /** Daftar wilayah (tanpa geometri) untuk pemilih bertingkat: tanpa induk = provinsi. */
   async list(parent?: string) {
     return this.prisma.$queryRaw<{ kode: string; nama: string; level: number; desa: number; lat: number | null; lng: number | null }[]>`

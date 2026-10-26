@@ -125,6 +125,30 @@ export class UnitsService {
     return r?.w == null ? null : [r.w, r.s, r.e, r.n];
   }
 
+  private shapes = new Map<string, { at: number; value: Promise<UnitShape | null> }>();
+
+  /**
+   * Bentuk wilayah unit = gabungan desa di bawahnya (disederhanakan), untuk sorotan peta; null untuk tingkat nasional.
+   * Digabung sekali lalu disimpan 10 menit (penggabungan ribuan desa tingkat Polda butuh waktu).
+   */
+  shape(unitId: string): Promise<UnitShape | null> {
+    const hit = this.shapes.get(unitId);
+    if (hit && Date.now() - hit.at < 10 * 60_000) return hit.value;
+    const value = (async () => {
+      const unit = await this.prisma.unit.findUnique({ where: { id: unitId }, select: { parentId: true, nama: true } });
+      if (!unit?.parentId) return null;
+      const [r] = await this.prisma.$queryRaw<{ geometry: string | null; w: number; s: number; e: number; n: number }[]>`
+        SELECT ST_AsGeoJSON(g, 5) AS geometry, ST_XMin(g) AS w, ST_YMin(g) AS s, ST_XMax(g) AS e, ST_YMax(g) AS n
+        FROM (SELECT ST_SimplifyPreserveTopology(ST_Union(ST_SnapToGrid(geom, 0.00005)), 0.0003) AS g
+              FROM villages WHERE geom IS NOT NULL AND polsek_id IN (SELECT unit_subtree(${unitId}::uuid))) x`;
+      if (!r?.geometry) return null;
+      return { nama: unit.nama, bbox: [r.w, r.s, r.e, r.n] as [number, number, number, number], geometry: JSON.parse(r.geometry) };
+    })();
+    value.catch(() => this.shapes.delete(unitId));
+    this.shapes.set(unitId, { at: Date.now(), value });
+    return value;
+  }
+
   async timezoneOf(unitId: string) {
     return (await this.prisma.unit.findUnique({ where: { id: unitId }, select: { timezone: true } }))?.timezone ?? 'Asia/Jakarta';
   }
@@ -149,3 +173,5 @@ export class UnitsService {
     return unit;
   }
 }
+
+interface UnitShape { nama: string; bbox: [number, number, number, number]; geometry: unknown }

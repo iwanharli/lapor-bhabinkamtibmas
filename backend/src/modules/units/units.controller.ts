@@ -56,6 +56,15 @@ export class UnitsController {
     return { bbox: await this.units.bounds(unitId || me.unitId) };
   }
 
+  /** GET /units/shape?unitId= — batas gabungan desa unit untuk sorotan peta; null = nasional/belum ada geometri. */
+  @Get('shape')
+  @Roles(...ALL_ROLES)
+  async shape(@CurrentUser() me: AuthUser, @Query('unitId') unitId?: string) {
+    if (unitId && !/^[0-9a-f-]{36}$/i.test(unitId)) return { shape: null };
+    if (unitId) await this.units.assertInScope(me.unitId, unitId);
+    return { shape: await this.units.shape(unitId || me.unitId) };
+  }
+
   /** GET /units/summary — ringkasan cakupan untuk halaman Unit. */
   @Get('summary')
   @Roles(...ALL_ROLES)

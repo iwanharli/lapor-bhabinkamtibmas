@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, MapPinned, X } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/components/ui';
-import { focusIndonesia, signalMapLoading } from './report-map';
+import { signalMapLoading } from './report-map';
 import { callApi } from '@/lib/api/client';
 
 interface RegionOption { kode: string; nama: string; level: number; lat: number | null; lng: number | null }
@@ -76,20 +76,7 @@ export function MapRegionFilter() {
       next.delete('regionLevel');
     }
 
-    const targetLevel = Number(selectedLevel) as 1 | 2 | 3;
-    const target = targetLevel === 1
-      ? provinces.find((r) => r.kode === selected)
-      : targetLevel === 2
-        ? cities.find((r) => r.kode === selected)
-        : districts.find((r) => r.kode === selected);
-    if (!selected) {
-      // Semua provinsi: kembali ke tampilan seluruh Indonesia.
-      focusIndonesia();
-    } else if (target?.lat != null && target.lng != null) {
-      window.dispatchEvent(new CustomEvent('lapor:map-focus-region', {
-        detail: { lat: target.lat, lng: target.lng, zoom: targetLevel === 1 ? 5.5 : targetLevel === 2 ? 8 : 10.5 },
-      }));
-    }
+    // Peta terbang ke batas wilayah & menyorotnya setelah filter berlaku (ReportMap).
     signalMapLoading();
     router.push(next.size ? `${pathname}?${next}` : pathname);
   }

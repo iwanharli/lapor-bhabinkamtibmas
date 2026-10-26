@@ -1,11 +1,12 @@
 'use client';
 
 import 'leaflet/dist/leaflet.css';
-import type { FeatureGroup, Map as LeafletMap } from 'leaflet';
+import type { FeatureGroup, Map as LeafletMap, Point } from 'leaflet';
 import { useEffect, useRef, useState } from 'react';
 import { CATEGORY_LABEL, STATUS_LABEL, tanggalJam } from '@/lib/format';
 import { withParams } from '@/lib/url';
 import { attachBoundaries } from './boundary-layer';
+import { attachFocus, type FocusShape } from './focus-layer';
 import { CATEGORY_COLOR, type MapCluster, type MapPoint, type MapView } from './categories';
 
 /** Ubin peta; untuk server internal arahkan ke tile server sendiri lewat NEXT_PUBLIC_TILE_URL. */
@@ -181,19 +182,13 @@ export const homeBounds = (b?: [number, number, number, number] | null): [[numbe
 export function ReportMap({ filters, home }: { filters: MapFilters; home?: [number, number, number, number] | null }) {
   const homeRef = useRef(homeBounds(home));
   homeRef.current = homeBounds(home);
-  const homeKey = home?.join(',') ?? '';
-  const firstHome = useRef(true);
-  // Unit di filter berganti → arahkan ke wilayah unit tersebut (tampilan awal sudah ditangani saat peta dibuat).
-  useEffect(() => {
-    if (firstHome.current) {
-      firstHome.current = false;
-      return;
-    }
-    focusIndonesia();
-  }, [homeKey]);
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<LeafletMap | null>(null);
   const detach = useRef<(() => void) | null>(null);
+  const focus = useRef<ReturnType<typeof attachFocus> | null>(null);
+  const insets = useRef<(() => { topLeft: Point; bottomRight: Point }) | null>(null);
+  const firstFocus = useRef(true);
+  const [mapReady, setMapReady] = useState(false);
   // Overlay loading: dari filter diklik (sinyal) / filter berubah sampai titik filter baru selesai digambar.
   const [busy, setBusy] = useState(true);
 
@@ -287,6 +282,9 @@ export function ReportMap({ filters, home }: { filters: MapFilters; home?: [numb
         mm.on('resize', fitIndonesia);
         L.tileLayer(TILE_URL, { maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · Kemendagri 2025' }).addTo(map.current);
         const detachBoundaries = attachBoundaries(L, map.current);
+        focus.current = attachFocus(L, mm);
+        insets.current = mapInsets;
+        setMapReady(true);
         const showIndonesia = () => {
           const { topLeft, bottomRight } = mapInsets();
           mm.flyToBounds(homeRef.current, { paddingTopLeft: topLeft, paddingBottomRight: bottomRight, duration: 0.9, maxZoom: 15 });
@@ -295,6 +293,7 @@ export function ReportMap({ filters, home }: { filters: MapFilters; home?: [numb
         detach.current = () => {
           window.removeEventListener(MAP_INDONESIA_EVENT, showIndonesia);
           detachBoundaries();
+          focus.current?.detach();
         };
       }
       m = map.current;
@@ -324,15 +323,29 @@ export function ReportMap({ filters, home }: { filters: MapFilters; home?: [numb
     map.current = null;
   }, []);
 
+  // Sorotan wilayah: filter wilayah (prov/kab/kec) atau satuan → terbang & perbesar ke batasnya, area lain digelapkan & diburamkan.
+  // Tanpa filter: wilayah satuan akun (akun nasional tanpa sorotan).
   useEffect(() => {
-    const focusRegion = (event: Event) => {
-      const detail = (event as CustomEvent<{ lat: number; lng: number; zoom: number }>).detail;
-      if (!map.current || !detail || !Number.isFinite(detail.lat) || !Number.isFinite(detail.lng)) return;
-      map.current.flyTo([detail.lat, detail.lng], Math.max(map.current.getMinZoom(), detail.zoom), { duration: 0.9 });
-    };
-    window.addEventListener('lapor:map-focus-region', focusRegion);
-    return () => window.removeEventListener('lapor:map-focus-region', focusRegion);
-  }, []);
+    if (!mapReady) return;
+    const ctrl = new AbortController();
+    const path = filters.regionCode ? withParams('/regions/shape', { kode: filters.regionCode }) : withParams('/units/shape', { unitId: filters.unitId });
+    fetch(`/api/proxy${path}`, { signal: ctrl.signal })
+      .then((r) => (r.ok ? (r.json() as Promise<{ shape: FocusShape | null }>) : { shape: null }))
+      .then(({ shape }) => {
+        const m = map.current;
+        if (!m || ctrl.signal.aborted) return;
+        focus.current?.set(shape);
+        const { topLeft, bottomRight } = insets.current!();
+        const target = shape ? homeBounds(shape.bbox) : homeRef.current;
+        const opts = { paddingTopLeft: topLeft, paddingBottomRight: bottomRight, maxZoom: 16 };
+        // Pertama kali halaman dibuka: langsung di posisi; perubahan filter: terbang.
+        if (firstFocus.current) m.fitBounds(target, opts);
+        else m.flyToBounds(target, { ...opts, duration: 1.1 });
+        firstFocus.current = false;
+      })
+      .catch(() => undefined);
+    return () => ctrl.abort();
+  }, [mapReady, filters.regionCode, filters.unitId]);
 
   return (
     <div className="relative h-full min-h-0 w-full">

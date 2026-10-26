@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarRange, Flame, Search, X } from 'lucide-react';
+import { CalendarRange, ChevronDown, Flame, MapPinOff, Search, X } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { cn, Input } from '@/components/ui';
@@ -38,7 +38,7 @@ export function ReportFilters({ value, tz }: { value: ReportSearch; tz?: string 
 
   const range = resolveRange(value, tz);
   // Rentang default (7 hari) tidak dihitung sebagai filter aktif.
-  const active = !!(value.q || value.category || value.priority || range.preset !== '7');
+  const active = !!(value.q || value.category || value.priority || value.lokasi || range.preset !== '7');
   // Ubah tanggal manual → rentang kustom; pilihan cepat → hapus from/to.
   const setDate = (k: 'from' | 'to', v: string) =>
     apply({ from: range.from, to: range.to, [k]: v || undefined, rentang: undefined });
@@ -86,6 +86,21 @@ export function ReportFilters({ value, tz }: { value: ReportSearch; tz?: string 
         >
           <Flame size={16} /> Prioritas
         </button>
+
+        <label className={cn(
+          'relative inline-flex items-center gap-1.5 rounded-lg border py-2 pl-3 pr-8 text-sm font-medium transition',
+          value.lokasi === 'palsu' ? 'border-danger/40 bg-danger-soft text-danger' : value.lokasi === 'asli' ? 'border-success/40 bg-success-soft text-success' : 'border-line bg-surface text-muted hover:text-ink',
+        )}>
+          <MapPinOff size={16} aria-hidden />
+          <span className="sr-only">Lokasi GPS</span>
+          <select value={value.lokasi ?? ''} onChange={(e) => apply({ lokasi: e.target.value || undefined })}
+            className="appearance-none bg-transparent outline-none">
+            <option value="">Semua lokasi</option>
+            <option value="palsu">Lokasi palsu</option>
+            <option value="asli">Lokasi asli</option>
+          </select>
+          <ChevronDown size={14} className="pointer-events-none absolute right-2.5" aria-hidden />
+        </label>
 
         {active && (
           <button type="button" onClick={() => {

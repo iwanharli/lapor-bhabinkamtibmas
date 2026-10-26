@@ -12,6 +12,8 @@ export class ListReportsQuery {
   @IsOptional() @IsDateString() from?: string;
   @IsOptional() @IsDateString() to?: string;
   @IsOptional() @Transform(({ value }) => value === 'true') @IsBoolean() priority?: boolean;
+  /** Hasil deteksi GPS palsu dari perangkat: palsu = mock location, asli = tidak terdeteksi palsu. */
+  @IsOptional() @Transform(({ value }) => value || undefined) @IsIn(['palsu', 'asli']) lokasi?: 'palsu' | 'asli';
   @IsOptional() @IsString() @MaxLength(100) q?: string;
   @IsOptional() @Transform(({ value }) => Number(value)) @IsInt() @Min(1) page = 1;
   @IsOptional() @Transform(({ value }) => Number(value)) @IsInt() @Min(1) @Max(100) limit = 20;

@@ -50,6 +50,7 @@ export class ReportsService {
           ...(q.villageId && { villageId: q.villageId }),
           ...(q.userId && { userId: q.userId }),
           ...(q.priority !== undefined && { priority: q.priority }),
+          ...(q.lokasi && { isMockLocation: q.lokasi === 'palsu' }),
           ...((q.from || q.to) && { occurredAt: { ...(q.from && { gte: new Date(q.from) }), ...(q.to && { lte: new Date(q.to) }) } }),
           ...(q.q && {
             OR: [

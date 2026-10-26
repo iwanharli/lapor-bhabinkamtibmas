@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto';
 export const API = process.env.API_URL ?? 'http://localhost:3000/api/v1';
 export const PASSWORD = 'BrsDemo2026';
 
-/** Akun demo Polres Metro Jakarta Selatan (Bhabin Menteng Dalam, Polsek Tebet). */
+/** Akun demo Polres Metro Jakarta Selatan (Bhabin Kelurahan Selong, Kec. Kebayoran Baru — diampu Polsek Tebet). */
 export const ACCOUNTS = {
   bhabin: '31740005',
   pimpinanPolsek: '31740004',
@@ -50,7 +50,7 @@ export async function createSubmittedReport(note = 'E2E', opts: { category?: str
       schemaVersion: 1,
       villageId,
       occurredAt: new Date(Date.now() - 30 * 60_000).toISOString(),
-      location: { lat: -6.23157, lng: 106.84122 },
+      location: { lat: -6.23477, lng: 106.80428 },
       gpsAccuracyM: 8,
       data: opts.data ?? {
         jenis_sasaran: 'Tokoh Masyarakat',

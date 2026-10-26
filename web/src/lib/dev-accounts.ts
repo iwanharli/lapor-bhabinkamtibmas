@@ -30,7 +30,7 @@ const POLRES = [
     orang: ['Kombes Pol Gilang Ramadhan', 'Bripka Nurul Aini', 'Kompol Maya Sari', 'Kompol Eka Putra', 'Aiptu Agus Mahendra'] },
   { kk: '73', nama: 'Jakarta Barat', polres: 'Polres Metro Jakarta Barat', polsek: 'Polsek Cengkareng', bhabin: 'Duri Kosambi',
     orang: ['Kombes Pol Wahyu Nugroho', 'Bripka Dimas Prasetyo', 'Kompol Rendra Kusuma', 'Kompol Fauzan Akbar', 'Brigpol Teuku Wibowo'] },
-  { kk: '74', nama: 'Jakarta Selatan', polres: 'Polres Metro Jakarta Selatan', polsek: 'Polsek Tebet', bhabin: 'Menteng Dalam',
+  { kk: '74', nama: 'Jakarta Selatan', polres: 'Polres Metro Jakarta Selatan', polsek: 'Polsek Tebet', bhabin: 'Selong',
     orang: ['Kombes Pol Benny Sitorus', 'Bripka Siti Rahmawati', 'Kompol Teguh Santoso', 'Kompol Galih Permana', 'Aipda Dedi Pratama'] },
   { kk: '75', nama: 'Jakarta Timur', polres: 'Polres Metro Jakarta Timur', polsek: 'Polsek Matraman', bhabin: 'Utan Kayu Selatan',
     orang: ['Kombes Pol Fikri Maulana', 'Bripka Yoga Pratama', 'Kompol Wulan Anggraini', 'Kompol Irfan Hakim', 'Brigpol Ketut Sitompul'] },

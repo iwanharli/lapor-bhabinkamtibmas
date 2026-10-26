@@ -163,7 +163,7 @@ Akun demo memakai data Polda Metro Jaya (server demo dan basis data dev). Sandi 
 | 31000003 | Auditor | Polda Metro Jaya |
 | `31` + KK + `000` + P | Lima peran per Polres | Polres Kepulauan Seribu (KK `01`), Jakarta Pusat (`71`), Utara (`72`), Barat (`73`), Selatan (`74`), Timur (`75`) |
 
-Akhiran P pada akun Polres: `1` Kapolres (Pimpinan), `2` Admin Polres, `3` Auditor Polres, `4` Kapolsek (Pimpinan), `5` Bhabinkamtibmas (web `/bhabin` & mobile). Contoh: `31740005` adalah Bhabin Desa Menteng Dalam, Polsek Tebet, Polres Metro Jakarta Selatan.
+Akhiran P pada akun Polres: `1` Kapolres (Pimpinan), `2` Admin Polres, `3` Auditor Polres, `4` Kapolsek (Pimpinan), `5` Bhabinkamtibmas (web `/bhabin` & mobile). Contoh: `31740005` adalah Bhabin Kelurahan Selong (Kec. Kebayoran Baru, diampu Polsek Tebet), Polres Metro Jakarta Selatan.
 
 > Akun ini **tidak** dibuat oleh `npm run seed`. Seeder masih membuat akun contoh lama (`90000001`–`90000005`, sandi `Demo#12345`) dan superadmin dari `SEED_SUPERADMIN_PASSWORD`. Di basis data dev, akun lama itu sudah dinonaktifkan.
 >

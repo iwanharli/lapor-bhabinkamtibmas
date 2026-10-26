@@ -14,7 +14,7 @@ const _demoBhabin = [
   ('31710005', 'Aiptu Rina Siregar', 'Gambir · Jakarta Pusat'),
   ('31720005', 'Aiptu Agus Mahendra', 'Kamal Muara · Jakarta Utara'),
   ('31730005', 'Brigpol Teuku Wibowo', 'Duri Kosambi · Jakarta Barat'),
-  ('31740005', 'Aipda Dedi Pratama', 'Menteng Dalam · Jakarta Selatan'),
+  ('31740005', 'Aipda Dedi Pratama', 'Selong · Jakarta Selatan'),
   ('31750005', 'Brigpol Ketut Sitompul', 'Utan Kayu Selatan · Jakarta Timur'),
 ];
 

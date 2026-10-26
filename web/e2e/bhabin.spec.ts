@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { ACCOUNTS, login } from './helpers';
 
-// Tampilan lapangan Bhabin di web/HP: ukuran HP, GPS di dalam desa binaan Menteng Dalam.
+// Tampilan lapangan Bhabin di web/HP: ukuran HP, GPS di dalam desa binaan Selong (Kebayoran Baru).
 test.use({
   viewport: { width: 390, height: 844 },
   isMobile: true,
   hasTouch: true,
-  geolocation: { latitude: -6.23157, longitude: 106.84122, accuracy: 10 },
+  geolocation: { latitude: -6.23477, longitude: 106.80428, accuracy: 10 },
   permissions: ['geolocation'],
 });
 
@@ -20,7 +20,7 @@ test('Bhabin membuat, mengirim, dan meralat laporan dari web', async ({ page }) 
 
   await page.getByRole('link', { name: 'Sambang' }).first().click();
   await expect(page.getByText('Lokasi didapat')).toBeVisible();
-  await expect(page.getByText('Menteng Dalam').first()).toBeVisible(); // desa binaan terkunci
+  await expect(page.getByText('Selong').first()).toBeVisible(); // desa binaan terkunci
   await page.locator('label:has-text("Jenis sasaran") select').selectOption('Warga');
   const nama = `Warga E2E ${Date.now()}`;
   await page.locator('label:has-text("Nama warga/tokoh") input').fill(nama);

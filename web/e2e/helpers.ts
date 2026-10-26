@@ -16,7 +16,7 @@ export async function login(page: Page, nrp: string, password = PASSWORD) {
   await page.goto('/login');
   await page.locator('input[name=nrp]').fill(nrp);
   await page.locator('input[name=password]').fill(password);
-  await page.getByRole('button', { name: 'Masuk' }).click();
+  await page.locator('form button[type=submit]').click(); // tombol utama "Masuk ke dashboard" (bukan "Akun demo")
   await page.waitForURL((u) => !u.pathname.startsWith('/login'));
 }
 

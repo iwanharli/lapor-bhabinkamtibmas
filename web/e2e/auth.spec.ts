@@ -5,7 +5,7 @@ test('login salah menampilkan pesan', async ({ page }) => {
   await page.goto('/login');
   await page.locator('input[name=nrp]').fill(ACCOUNTS.admin);
   await page.locator('input[name=password]').fill('salah-sekali');
-  await page.getByRole('button', { name: 'Masuk' }).click();
+  await page.locator('form button[type=submit]').click();
   await expect(page.getByText('NRP atau sandi salah')).toBeVisible();
 });
 
@@ -39,6 +39,7 @@ test('admin melihat menu administrasi, pimpinan tidak', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Pengguna' })).toBeVisible();
   await page.getByRole('button', { name: /Siti Rahmawati/ }).click();
   await page.getByRole('button', { name: 'Keluar' }).click();
+  await page.waitForURL(/\/login/); // tunggu keluar selesai agar navigasi login berikutnya tidak bertabrakan
   await login(page, ACCOUNTS.pimpinanPolsek);
   await expect(page.getByRole('link', { name: 'Pengguna' })).toHaveCount(0);
 });

@@ -6,7 +6,10 @@ test('laporan terkirim langsung final dan dapat diralat pelapor', async ({ page 
   await login(page, ACCOUNTS.pimpinan);
   await page.goto('/laporan?rentang=semua');
   await page.getByPlaceholder(/Cari nomor laporan/).fill(report.nomor);
+  // Pencarian memperbarui URL (debounce); klik setelahnya agar navigasi ke detail tidak tertimpa.
+  await page.waitForURL(/[?&]q=/);
   await page.locator('tbody').getByText(report.nomor).click();
+  await page.waitForURL(/\/laporan\/[0-9a-f-]{36}/);
 
   await expect(page.getByRole('heading', { name: report.nomor })).toBeVisible();
   await expect(page.getByText('Terkirim').first()).toBeVisible();

@@ -6,7 +6,7 @@ const PAGES: { path: string; heading: string; expect: RegExp }[] = [
   { path: '/', heading: 'Ringkasan', expect: /Total laporan/ },
   { path: '/peta', heading: 'Peta sebaran', expect: /titik/ },
   { path: '/kinerja', heading: 'Kinerja Bhabinkamtibmas', expect: /Rekap per Bhabin/ },
-  { path: '/absensi', heading: 'Absensi Lapangan', expect: /Belum hadir/ },
+  // /absensi disembunyikan di web (ATTENDANCE_WEB = false, web/src/lib/flags.ts).
   { path: '/harga-pangan', heading: 'Pemantauan Harga Pangan', expect: /Pilih komoditas/i },
   { path: '/admin/pengguna', heading: 'Pengguna', expect: /NRP/ },
   { path: '/admin/unit', heading: 'Unit', expect: /Struktur unit/ },

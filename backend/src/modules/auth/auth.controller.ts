@@ -52,14 +52,7 @@ export class AuthController {
   @AllowPendingPassword()
   @Get('me')
   me(@CurrentUser() me: AuthUser) {
-    return this.prisma.user.findUniqueOrThrow({
-      where: { id: me.id },
-      select: {
-        id: true, nrp: true, nama: true, pangkat: true, jabatan: true, role: true, mustChangePassword: true,
-        unit: { select: { id: true, nama: true, level: true, timezone: true } },
-        villages: { where: { until: null }, select: { village: { select: { id: true, nama: true, kecamatan: true, kabupaten: true } } } },
-      },
-    });
+    return this.auth.me(me.id);
   }
 
   /** Profil lengkap pengguna yang sedang masuk: identitas, satuan beserta induknya, desa binaan, perangkat, statistik & aktivitas. */

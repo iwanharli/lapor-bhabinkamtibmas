@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,20 +29,32 @@ class AuthController extends AsyncNotifier<Me?> {
   Future<Me?> build() async {
     final storage = ref.read(tokenStorageProvider);
     if (await storage.refreshToken == null) return null;
+    // Ada profil tersimpan: aplikasi langsung terbuka, profil diperbarui di belakang (jaringan lambat / tanpa sinyal).
+    final cached = await storage.cachedMe;
+    if (cached != null) {
+      unawaited(_refreshInBackground());
+      return Me(cached);
+    }
     try {
       return await _fetchMe();
-    } catch (e) {
-      // Tanpa sinyal: tetap masuk dengan profil terakhir (laporan masuk antrean offline).
-      if (isNetworkError(e)) {
-        final cached = await storage.cachedMe;
-        if (cached != null) return Me(cached);
-      }
+    } catch (_) {
       return null;
     }
   }
 
-  Future<Me> _fetchMe() async {
-    final json = Map<String, dynamic>.from((await ref.read(dioProvider).get('/auth/me')).data);
+  /// Perbarui profil tersimpan; sesi ditolak server (token dicabut) → keluar, sinyal putus → tetap pakai yang lama.
+  Future<void> _refreshInBackground() async {
+    try {
+      state = AsyncData(await _fetchMe());
+    } catch (e) {
+      if (!isNetworkError(e) && await ref.read(tokenStorageProvider).refreshToken == null) state = const AsyncData(null);
+    }
+  }
+
+  Future<Me> _fetchMe() async => _remember((await ref.read(dioProvider).get('/auth/me')).data);
+
+  Future<Me> _remember(Object? data) async {
+    final json = Map<String, dynamic>.from(data as Map);
     await ref.read(tokenStorageProvider).saveMe(json);
     return Me(json);
   }
@@ -60,7 +74,8 @@ class AuthController extends AsyncNotifier<Me?> {
       },
     });
     await storage.save(res.data['accessToken'], res.data['refreshToken']);
-    state = AsyncData(await _fetchMe());
+    // Server baru menyertakan profil lengkap di jawaban login (hemat satu permintaan); server lama: ambil /auth/me.
+    state = AsyncData(res.data['me'] is Map ? await _remember(res.data['me']) : await _fetchMe());
   }
 
   /// Ganti sandi (wajib saat login pertama). Server mengembalikan token baru; sesi lain dicabut.

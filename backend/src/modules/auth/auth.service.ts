@@ -86,7 +86,21 @@ export class AuthService {
         unit: { id: user.unit.id, nama: user.unit.nama, level: user.unit.level, timezone: user.unit.timezone },
         mustChangePassword: user.mustChangePassword,
       },
+      // Profil lengkap (= GET /auth/me) agar aplikasi tidak perlu permintaan kedua setelah login (jaringan lambat).
+      me: await this.me(user.id),
     };
+  }
+
+  /** Profil ringkas pengguna yang masuk, termasuk desa binaan aktif (GET /auth/me dan jawaban login). */
+  me(userId: string) {
+    return this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: {
+        id: true, nrp: true, nama: true, pangkat: true, jabatan: true, role: true, mustChangePassword: true,
+        unit: { select: { id: true, nama: true, level: true, timezone: true } },
+        villages: { where: { until: null }, select: { village: { select: { id: true, nama: true, kecamatan: true, kabupaten: true } } } },
+      },
+    });
   }
 
   /** Rotasi refresh token; pemakaian ulang token yang sudah dicabut mencabut semua sesi perangkat itu. */

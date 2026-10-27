@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { AuthUser, CurrentUser, Roles } from '../../common/decorators/auth.decorators';
-import { ListReportsQuery, RevealDto, UpdateReportDto, UpsertReportDto } from './reports.dto';
+import { ListReportsQuery, UpdateReportDto, UpsertReportDto } from './reports.dto';
 import { ReportWriterService } from './report-writer.service';
 import { ReportsService } from './reports.service';
 
@@ -50,13 +50,6 @@ export class ReportsController {
   @Roles(UserRole.BHABIN)
   discard(@CurrentUser() me: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.writer.discard(me, id);
-  }
-
-  @Post(':id/reveal-sensitive')
-  @HttpCode(200)
-  @Roles(UserRole.BHABIN, UserRole.PIMPINAN, UserRole.AUDITOR)
-  reveal(@CurrentUser() me: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: RevealDto) {
-    return this.reports.revealSensitive(me, id, dto.reason);
   }
 
 }

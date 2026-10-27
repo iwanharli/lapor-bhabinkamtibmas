@@ -80,9 +80,6 @@ export interface ReportDetail extends ReportListItem {
   history: StatusHistoryEntry[];
   /** Batas pelapor boleh meralat laporan terkirim (null bila draft). */
   editableUntil: string | null;
-  /** Field sensitif yang terisi (isinya hanya lewat reveal-sensitive). */
-  sensitiveFilled: string[];
-  canRevealSensitive: boolean;
 }
 
 // ===== Analitik =====

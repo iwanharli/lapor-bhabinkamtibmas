@@ -1,14 +1,14 @@
+import { createHash } from 'crypto';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, Report, ReportCategory, ReportStatus, UnitLevel } from '@prisma/client';
 import { AuthUser } from '../../common/decorators/auth.decorators';
-import { SensitiveDataService } from '../../common/crypto/sensitive-data.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { localDate } from '../../common/time';
 import { StorageService } from '../../common/storage/storage.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { healthSummary } from './health-summary';
-import { FormSchemaJson, isPriority, mergeSecret, mergeSensitive, splitSensitive, validateReportData } from './report-validator';
+import { FormSchemaJson, isPriority, validateReportData } from './report-validator';
 import { UpdateReportDto, UpsertReportDto } from './reports.dto';
 
 const PREFIX: Record<ReportCategory, string> = {
@@ -29,11 +29,13 @@ export const canEdit = (r: { status: ReportStatus; submittedAt: Date | null }) =
   r.status === ReportStatus.DRAFT || (r.status === ReportStatus.SUBMITTED && !!r.submittedAt && Date.now() - r.submittedAt.getTime() <= RALAT_MS);
 
 /** Pembuatan, perubahan, dan pengiriman laporan oleh Bhabin (aplikasi mobile). */
+/** Sidik No. KK (SHA-256) untuk mengenali KK yang didata lebih dari sekali. */
+const kkHash = (noKk: unknown) => (typeof noKk === 'string' && noKk.trim() ? createHash('sha256').update(noKk.trim()).digest('hex') : null);
+
 @Injectable()
 export class ReportWriterService {
   constructor(
     private prisma: PrismaService,
-    private crypto: SensitiveDataService,
     private audit: AuditService,
     private notifications: NotificationsService,
     private storage: StorageService,
@@ -72,11 +74,6 @@ export class ReportWriterService {
     if (errors.length) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Isian tidak valid', details: errors.map((e) => e.message) });
   }
 
-  private encryptSecret(existing: Buffer | null, secret: Record<string, unknown>) {
-    const merged = mergeSecret(existing ? this.crypto.decrypt(existing) : {}, secret);
-    return Object.keys(merged).length ? Buffer.from(this.crypto.encrypt(merged)) : null;
-  }
-
   /** Nomor laporan: {KAT}-{KODE_POLRES}-{YYMM}-{urut}, urut per Polres/kategori/bulan. */
   private async nextNumber(tx: Prisma.TransactionClient, unitId: string, category: ReportCategory, at: Date) {
     let unit = await tx.unit.findUniqueOrThrow({ where: { id: unitId } });
@@ -110,7 +107,6 @@ export class ReportWriterService {
     await this.assertVillage(me, dto.villageId);
     this.assertOccurredAt(dto.occurredAt);
     await this.validateDraft(schema, dto.data);
-    const { plain, secret } = splitSensitive(schema, dto.data);
     const occurredAt = new Date(dto.occurredAt);
 
     const report = await this.prisma.$transaction(async (tx) => {
@@ -118,7 +114,7 @@ export class ReportWriterService {
       const r = await tx.report.create({
         data: {
           clientUuid: dto.clientUuid, nomor, category: dto.category, schemaVersion: dto.schemaVersion, userId: me.id, unitId: me.unitId,
-          villageId: dto.villageId, status: ReportStatus.DRAFT, data: plain as Prisma.InputJsonObject, sensitive: this.encryptSecret(null, secret),
+          villageId: dto.villageId, status: ReportStatus.DRAFT, data: dto.data as Prisma.InputJsonObject,
           occurredAt, lat: dto.location.lat, lng: dto.location.lng, gpsAccuracyM: dto.gpsAccuracyM, isMockLocation: !!dto.isMockLocation,
         },
       });
@@ -135,21 +131,13 @@ export class ReportWriterService {
     if (dto.occurredAt) this.assertOccurredAt(dto.occurredAt);
 
     let data: Prisma.InputJsonObject | undefined;
-    let sensitive: Buffer | null | undefined;
-    // Rahasia gabungan (lama + baru) dihitung sekali: _id baris baru dibuat saat split dan harus sama di data & rahasia.
-    const oldSecret = r.sensitive ? this.crypto.decrypt(Buffer.from(r.sensitive)) : {};
-    let mergedSecret = oldSecret;
     if (dto.data) {
       await this.validateDraft(schema, dto.data);
-      const { plain, secret } = splitSensitive(schema, dto.data);
-      data = plain as Prisma.InputJsonObject;
-      mergedSecret = mergeSecret(oldSecret, secret);
-      sensitive = Object.keys(mergedSecret).length ? Buffer.from(this.crypto.encrypt(mergedSecret)) : null;
+      data = dto.data as Prisma.InputJsonObject;
     }
     // Ralat laporan terkirim: isian baru harus tetap lengkap; prioritas, item harga & cek lokasi dihitung ulang.
     const ralat = r.status === ReportStatus.SUBMITTED;
-    // Isian lengkap = data biasa + rahasia gabungan (rahasia kosong di formulir = nilai lama dipakai).
-    const full = ralat ? mergeSensitive((data ?? r.data) as Record<string, unknown>, mergedSecret) : null;
+    const full = ralat ? ((data ?? r.data) as Record<string, unknown>) : null;
     const commodities = ralat ? await this.assertComplete(id, schema, full!) : [];
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -161,8 +149,8 @@ export class ReportWriterService {
           ...(dto.location && { lat: dto.location.lat, lng: dto.location.lng }),
           ...(dto.gpsAccuracyM != null && { gpsAccuracyM: dto.gpsAccuracyM }),
           ...(dto.isMockLocation != null && { isMockLocation: dto.isMockLocation }),
-          ...(data && { data }),
-          ...(sensitive !== undefined && { sensitive }),
+          // Isian disimpan apa adanya (tanpa enkripsi); sisa kolom terenkripsi lama dikosongkan.
+          ...(data && { data, sensitive: null }),
         },
       });
       if (ralat) await this.finalize(tx, u, schema, full!, commodities, !!dto.location);
@@ -218,7 +206,7 @@ export class ReportWriterService {
         priority: isPriority(schema, data), distanceM: distance, insideVillage: distance == null ? null : distance <= VILLAGE_TOLERANCE_M,
         ...(r.category === ReportCategory.MAPPING_KK && {
           health: healthSummary(data, r.occurredAt) as unknown as Prisma.InputJsonObject,
-          kkHash: typeof data.no_kk === 'string' && data.no_kk ? this.crypto.blindIndex('no_kk', data.no_kk) : null,
+          kkHash: kkHash(data.no_kk),
         }),
       },
     });
@@ -245,8 +233,7 @@ export class ReportWriterService {
     const r = await this.ownedEditable(me, id);
     if (r.status !== ReportStatus.DRAFT) return this.summary(r);
     const schema = await this.schemaOf(r.category, r.schemaVersion, true);
-    const secret = r.sensitive ? this.crypto.decrypt(Buffer.from(r.sensitive)) : {};
-    const data = mergeSensitive(r.data as Record<string, unknown>, secret);
+    const data = r.data as Record<string, unknown>;
     const commodities = await this.assertComplete(id, schema, data);
 
     await this.prisma.$transaction(async (tx) => {

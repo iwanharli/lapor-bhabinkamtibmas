@@ -48,7 +48,6 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
   final Map<String, dynamic> _values = {};
   final Map<String, List<XFile>> _files = {};
   final Map<String, int> _existing = {};
-  Set<String> _saved = {};
   final String _clientUuid = _uuid.v4();
   int _step = 0;
   bool _busy = false;
@@ -96,7 +95,6 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
               _values[f.key] = v.toString();
             }
           }
-          _saved = ((report['sensitiveFilled'] as List?) ?? []).cast<String>().toSet();
           for (final a in (report['attachments'] as List? ?? [])) {
             final k = (a as Map)['fieldKey'] as String;
             _existing[k] = (_existing[k] ?? 0) + 1;
@@ -161,7 +159,7 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
             if (!s.active(rows[i]) || (_isBalita(rows[i]) && _balitaDefaults.containsKey(s.key))) continue;
             final v = rows[i][s.key];
             if (_empty(v)) {
-              if (s.isRequired(rows[i]) && !(s.sensitive && _saved.contains(f.key))) errs.add('${f.label} ${i + 1} — ${s.label} wajib diisi.');
+              if (s.isRequired(rows[i])) errs.add('${f.label} ${i + 1} — ${s.label} wajib diisi.');
             } else if (s.type == 'nik' && !RegExp(r'^\d{16}$').hasMatch(v)) {
               errs.add('${f.label} ${i + 1} — ${s.label} harus 16 digit.');
             } else if (s.type == 'phone' && !_phone.hasMatch(v)) {
@@ -173,7 +171,7 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
       }
       final v = _values[f.key];
       if (_empty(v)) {
-        if (req && !(f.sensitive && _saved.contains(f.key))) errs.add('${f.label} wajib diisi.');
+        if (req) errs.add('${f.label} wajib diisi.');
       } else if (f.type == 'nik' && !RegExp(r'^\d{16}$').hasMatch(v)) {
         errs.add('${f.label} harus 16 digit angka.');
       } else if (f.type == 'phone' && !_phone.hasMatch(v)) {
@@ -402,7 +400,6 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
 
   Widget _field(SchemaField f) {
     final req = f.isRequired(_values);
-    final keep = f.sensitive && _saved.contains(f.key);
     switch (f.type) {
       case 'photo':
       case 'file':
@@ -412,12 +409,12 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
         );
       case 'repeater':
         return _RepeaterField(
-          field: f, rows: ((_values[f.key] as List?) ?? []).cast<FormRow>(), commodities: _commodities, keep: _saved.contains(f.key),
+          field: f, rows: ((_values[f.key] as List?) ?? []).cast<FormRow>(), commodities: _commodities,
           onChanged: (rows) => setState(() => _values[f.key] = rows),
         );
       default:
         return _ScalarInput(
-          field: f, value: _values[f.key], label: _label(f, req && !keep), keep: keep, commodities: _commodities,
+          field: f, value: _values[f.key], label: _label(f, req), commodities: _commodities,
           onChanged: (v) => setState(() => _values[f.key] = v),
         );
     }
@@ -480,18 +477,17 @@ class _Stepper extends StatelessWidget {
 
 /// Satu isian non-repeater: teks, angka, rupiah, tanggal, pilihan, pilihan ganda, NIK, nomor HP.
 class _ScalarInput extends StatelessWidget {
-  const _ScalarInput({super.key, required this.field, required this.value, required this.label, required this.onChanged, this.keep = false, this.commodities = const []});
+  const _ScalarInput({super.key, required this.field, required this.value, required this.label, required this.onChanged, this.commodities = const []});
   final SchemaField field;
   final Object? value;
   final String label;
   final ValueChanged<Object?> onChanged;
-  final bool keep;
   final List<Map<String, dynamic>> commodities;
 
   @override
   Widget build(BuildContext context) {
     final f = field;
-    final hint = f.sensitive ? (keep ? '🔒 Tersimpan (terenkripsi). Biarkan kosong bila tidak diubah.' : '🔒 Disimpan terenkripsi.') : f.hint;
+    final hint = f.hint;
     final deco = InputDecoration(labelText: label, helperText: hint, helperMaxLines: 3, hintText: f.placeholder);
     switch (f.type) {
       case 'select':
@@ -502,7 +498,7 @@ class _ScalarInput extends StatelessWidget {
         return DropdownButtonFormField<String>(
           isExpanded: true,
           initialValue: opts.any((o) => o.$1 == v) ? v : null,
-          decoration: deco.copyWith(hintText: keep ? 'Tersimpan, tidak diubah' : 'Pilih'),
+          decoration: deco.copyWith(hintText: 'Pilih'),
           items: [for (final o in opts) DropdownMenuItem(value: o.$1, child: Text(o.$2, overflow: TextOverflow.ellipsis))],
           onChanged: onChanged,
         );
@@ -540,21 +536,20 @@ class _ScalarInput extends StatelessWidget {
             _ => TextInputType.text,
           },
           inputFormatters: [if (type == 'nik') FilteringTextInputFormatter.digitsOnly, if (type == 'phone') FilteringTextInputFormatter.allow(RegExp(r'[\d+]'))],
-          decoration: deco.copyWith(prefixText: type == 'currency' ? 'Rp ' : null, hintText: keep ? 'Tersimpan · kosongkan bila tidak diubah' : f.placeholder),
+          decoration: deco.copyWith(prefixText: type == 'currency' ? 'Rp ' : null, hintText: f.placeholder),
           onChanged: onChanged,
         );
     }
   }
 }
 
-/// Daftar baris (anggota keluarga, item harga): satu kartu per baris; _id tetap agar data terenkripsi tidak tertukar.
+/// Daftar baris (anggota keluarga, item harga): satu kartu per baris; _id tetap agar tiap anggota tetap dikenali saat ralat.
 class _RepeaterField extends StatelessWidget {
-  const _RepeaterField({required this.field, required this.rows, required this.onChanged, required this.commodities, required this.keep});
+  const _RepeaterField({required this.field, required this.rows, required this.onChanged, required this.commodities});
   final SchemaField field;
   final List<FormRow> rows;
   final ValueChanged<List<FormRow>> onChanged;
   final List<Map<String, dynamic>> commodities;
-  final bool keep;
 
   void _update(int i, String key, Object? v) {
     final next = [...rows];
@@ -602,8 +597,8 @@ class _RepeaterField extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 10),
                   child: _ScalarInput(
                     key: ValueKey('${rows[i]['_id']}-${s.key}'),
-                    field: s, value: rows[i][s.key], label: '${s.label}${s.isRequired(rows[i]) && !(s.sensitive && keep) ? ' *' : ''}',
-                    keep: s.sensitive && keep, commodities: commodities, onChanged: (v) => _update(i, s.key, v),
+                    field: s, value: rows[i][s.key], label: '${s.label}${s.isRequired(rows[i]) ? ' *' : ''}',
+                    commodities: commodities, onChanged: (v) => _update(i, s.key, v),
                   ),
                 ),
             ]),

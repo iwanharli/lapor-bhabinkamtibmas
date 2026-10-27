@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 /**
  * Validasi isian laporan terhadap skema form (packages/form-schemas, docs/teknis/03 §4).
  * Mengembalikan daftar galat per field; field media (photo/file) divalidasi terpisah lewat jumlah lampiran.
@@ -183,62 +182,4 @@ export function isPriority(schema: FormSchemaJson, data: Record<string, unknown>
       return x[r.when.field] === r.when.equals && (!sub || conditionMet(sub, x));
     });
   });
-}
-
-/**
- * Pisahkan field sensitif (dienkripsi) dari data biasa. Sub-field sensitif di repeater (mis. NIK anggota keluarga)
- * disimpan per baris: secret[repeaterKey] = [{ nik }, …] sejajar dengan baris di data biasa.
- */
-export function splitSensitive(schema: FormSchemaJson, data: Record<string, unknown>) {
-  const sensitiveKeys = new Set(schema.fields.filter((f) => f.sensitive).map((f) => f.key));
-  const nested = new Map(schema.fields.filter((f) => f.type === 'repeater' && f.fields?.some((x) => x.sensitive))
-    .map((f) => [f.key, new Set(f.fields!.filter((x) => x.sensitive).map((x) => x.key))]));
-  const plain: Record<string, unknown> = {};
-  const secret: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(data)) {
-    const subs = nested.get(k);
-    if (subs && Array.isArray(v)) {
-      // Tiap baris diberi _id tetap; bagian rahasia dicocokkan lewat _id (bukan urutan) agar tidak tertukar
-      // saat anggota dihapus/diurutkan ulang. Larik rahasia selalu dikirim agar baris yang dihapus ikut terbuang.
-      const rows = (v as Record<string, unknown>[]).map((r) => ({ ...(r ?? {}), _id: typeof r?._id === 'string' && r._id ? r._id : randomUUID() }));
-      plain[k] = rows.map((r) => Object.fromEntries(Object.entries(r).filter(([sk]) => !subs.has(sk))));
-      secret[k] = rows.map((r) => Object.fromEntries(Object.entries(r).filter(([sk, sv]) => sk === '_id' || (subs.has(sk) && !empty(sv)))));
-    } else (sensitiveKeys.has(k) ? secret : plain)[k] = v;
-  }
-  return { plain, secret };
-}
-
-/** Gabungkan data biasa + data sensitif (hasil dekripsi) menjadi isian utuh, termasuk sub-field repeater per baris. */
-export function mergeSensitive(plain: Record<string, unknown>, secret: Record<string, unknown>) {
-  const out: Record<string, unknown> = { ...plain };
-  for (const [k, v] of Object.entries(secret)) {
-    if (Array.isArray(v) && Array.isArray(plain[k])) {
-      const find = matcher(v as Record<string, unknown>[]);
-      out[k] = (plain[k] as Record<string, unknown>[]).map((row, i) => ({ ...row, ...(find(row, i) ?? {}) }));
-    } else out[k] = v;
-  }
-  return out;
-}
-
-/** Gabungkan rahasia lama + baru (ralat): nilai baru menimpa; baris repeater kosong di data baru mempertahankan nilai lama. */
-export function mergeSecret(existing: Record<string, unknown>, next: Record<string, unknown>) {
-  const out: Record<string, unknown> = { ...existing };
-  for (const [k, v] of Object.entries(next)) {
-    if (Array.isArray(v)) {
-      const find = matcher(Array.isArray(existing[k]) ? (existing[k] as Record<string, unknown>[]) : []);
-      // Isian rahasia kosong di formulir = nilai lama baris yang sama tetap dipakai; baris yang tidak dikirim terbuang.
-      const rows = (v as Record<string, unknown>[]).map((row, i) => ({ ...(find(row, i) ?? {}), ...row }))
-        .filter((row) => Object.keys(row).some((rk) => rk !== '_id'));
-      if (rows.length) out[k] = rows;
-      else delete out[k];
-    } else out[k] = v;
-  }
-  return out;
-}
-
-/** Cocokkan baris dengan baris rahasia: lewat _id bila tersedia, selain itu urutan (data lama tanpa _id). */
-function matcher(rows: Record<string, unknown>[]) {
-  const byId = new Map(rows.filter((r) => r?._id).map((r) => [r._id, r]));
-  const legacy = rows.every((r) => !r?._id);
-  return (row: Record<string, unknown>, i: number) => (row?._id && byId.has(row._id) ? byId.get(row._id) : legacy ? rows[i] : undefined);
 }

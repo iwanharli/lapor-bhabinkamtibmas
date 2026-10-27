@@ -1,5 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { SensitiveDataService } from '../../common/crypto/sensitive-data.service';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, ReportCategory, ReportStatus, UserRole } from '@prisma/client';
 import { AuthUser } from '../../common/decorators/auth.decorators';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -7,10 +6,6 @@ import { AuditService } from '../audit/audit.service';
 import { UnitsService } from '../units/units.service';
 import { RALAT_MS } from './report-writer.service';
 import { ListReportsQuery } from './reports.dto';
-
-/** Peran yang boleh membuka isi field sensitif (selain pembuat laporan). */
-/** Pemantau yang boleh membuka field sensitif (dengan alasan, tercatat di audit), selain pelapornya sendiri. */
-const SENSITIVE_READERS: UserRole[] = [UserRole.PIMPINAN, UserRole.AUDITOR];
 
 const LIST_SELECT = {
   id: true, nomor: true, category: true, status: true, priority: true, occurredAt: true,
@@ -23,7 +18,7 @@ const LIST_SELECT = {
 
 @Injectable()
 export class ReportsService {
-  constructor(private prisma: PrismaService, private units: UnitsService, private audit: AuditService, private crypto: SensitiveDataService) {}
+  constructor(private prisma: PrismaService, private units: UnitsService, private audit: AuditService) {}
 
   /** Filter cakupan: Bhabin hanya laporannya sendiri, peran lain sebatas unit & turunannya. */
   async scopeWhere(me: AuthUser): Promise<Prisma.ReportWhereInput> {
@@ -114,21 +109,10 @@ export class ReportsService {
     });
     // Path penyimpanan tidak dikirim ke klien; cukup penanda ada/tidaknya thumbnail.
     const attachments = report.attachments.map(({ thumbKey, ...att }) => ({ ...att, hasThumb: !!thumbKey }));
-    // Isi field sensitif tidak dikirim; hanya nama field yang terisi (dibuka lewat reveal-sensitive).
-    const sensitiveFilled = r.sensitive ? Object.keys(this.crypto.decrypt(Buffer.from(r.sensitive))) : [];
     return {
-      ...report, attachments, sensitiveFilled, schema: schema?.schema ?? null,
+      ...report, attachments, schema: schema?.schema ?? null,
       // Batas pelapor boleh meralat laporan terkirim.
       editableUntil: r.status === ReportStatus.SUBMITTED && r.submittedAt ? new Date(r.submittedAt.getTime() + RALAT_MS) : null,
-      canRevealSensitive: SENSITIVE_READERS.includes(me.role) || r.userId === me.id,
     };
-  }
-
-  /** Buka field sensitif dengan alasan; selalu tercatat di audit. */
-  async revealSensitive(me: AuthUser, id: string, reason: string) {
-    const r = await this.findInScope(me, id);
-    if (!SENSITIVE_READERS.includes(me.role) && r.userId !== me.id) throw new ForbiddenException({ code: 'FORBIDDEN' });
-    await this.audit.log({ actorId: me.id, action: 'SENSITIVE_READ', entity: 'report', entityId: id, meta: { reason } });
-    return r.sensitive ? this.crypto.decrypt(Buffer.from(r.sensitive)) : {};
   }
 }

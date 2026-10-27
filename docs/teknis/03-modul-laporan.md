@@ -33,7 +33,7 @@ Diisi otomatis atau dipilih di awal form.
 
 ## 3. Spesifikasi per kategori
 
-Notasi tipe: `text`, `textarea(n)` (maks. n karakter), `number`, `currency` (Rupiah, bilangan bulat), `select[...]`, `multiselect[...]`, `nik` (16 digit, terenkripsi), `photo` (kamera, watermark), `file` (foto/PDF), `repeater` (daftar baris).
+Notasi tipe: `text`, `textarea(n)` (maks. n karakter), `number`, `currency` (Rupiah, bilangan bulat), `select[...]`, `multiselect[...]`, `nik` (16 digit), `photo` (kamera, watermark), `file` (foto/PDF), `repeater` (daftar baris).
 
 ### 3.1 SAMBANG — Sambang / DDS
 
@@ -137,10 +137,10 @@ Formulir 5 langkah (`steps` di skema). Versi 1 (tanpa langkah) tidak dipakai unt
 
 | Langkah | Isian |
 |---|---|
-| 1. Nomor KK & alamat | No. KK (16 digit, **terenkripsi**), alamat lengkap, satuan wilayah terkecil (RT/RW · Dusun/Dukuh · Banjar · Jorong · Lingkungan · Kampung · Lainnya) → RT & RW **atau** nama wilayah, status domisili keluarga (penduduk tetap/pendatang/kos-kontrak) |
+| 1. Nomor KK & alamat | No. KK (16 digit), alamat lengkap, satuan wilayah terkecil (RT/RW · Dusun/Dukuh · Banjar · Jorong · Lingkungan · Kampung · Lainnya) → RT & RW **atau** nama wilayah, status domisili keluarga (penduduk tetap/pendatang/kos-kontrak) |
 | 2. Kondisi hunian | Status kepemilikan, jenis bangunan, kondisi hunian (Layak/Perlu Perhatian/Tidak Layak), foto hunian 1–3 |
-| 3. Kepala keluarga | Nama, NIK (terenkripsi), jenis kelamin, tempat & tanggal lahir, agama*, status perkawinan*, pendidikan, pekerjaan + keterangan, kebutuhan khusus (+ keterangan), no. HP/WhatsApp |
-| 4. Anggota keluarga | Kartu per anggota (+ tambah, maks. 20): nama, NIK (terenkripsi per baris), hubungan, jenis kelamin, tempat & tanggal lahir, agama*, status perkawinan*, pendidikan, pekerjaan + keterangan, kebutuhan khusus, no. HP/WhatsApp |
+| 3. Kepala keluarga | Nama, NIK, jenis kelamin, tempat & tanggal lahir, agama*, status perkawinan*, pendidikan, pekerjaan + keterangan, kebutuhan khusus (+ keterangan), no. HP/WhatsApp |
+| 4. Anggota keluarga | Kartu per anggota (+ tambah, maks. 20): nama, NIK, hubungan, jenis kelamin, tempat & tanggal lahir, agama*, status perkawinan*, pendidikan, pekerjaan + keterangan, kebutuhan khusus, no. HP/WhatsApp |
 | 5. Catatan lapangan | Teks bebas |
 
 Keterangan pekerjaan wajib untuk sebagian besar pekerjaan (mis. PNS → instansi, guru → sekolah & mapel, pelajar → sekolah/kelas, petani → komoditas, perangkat desa → jabatan); tidak diminta untuk belum/tidak bekerja, mengurus rumah tangga, nelayan, buruh (harian lepas/tani/nelayan), sopir, pembantu rumah tangga, seniman, dan wartawan. Skema memakai `requiredIf: { field, in: [...] }` (berlaku juga di dalam baris repeater) dan `placeholders` untuk petunjuk per pilihan.

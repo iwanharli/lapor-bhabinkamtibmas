@@ -37,7 +37,7 @@ docs/teknis/             Dokumentasi teknis (arsitektur, API, database, keamanan
 - Pengaman kualitas data:
   - validasi isian & lampiran wajib,
   - **cek lokasi otomatis** (titik harus ≤ 200 m dari desa binaan, deteksi lokasi palsu),
-  - field sensitif (NIK/No. KK, status stunting & risiko ibu) terenkripsi AES-256-GCM, dibuka dengan alasan & tercatat di audit.
+  - seluruh isian (termasuk NIK/No. KK, status stunting & risiko ibu) tersimpan tanpa enkripsi dan terlihat oleh semua peran sesuai cakupan wilayahnya; NIK & kesehatan per orang tetap tidak ikut ekspor CSV maupun API Pusat.
 - Penomoran `{KAT}-{KODE_POLRES}-{YYMM}-{URUT}` mengikuti zona waktu unit (WIB/WITA/WIT).
 - Foto dikompres saat unggah (maks. 1920 px, JPEG q78); foto kamera ±4–5 MB menjadi ±0,2–0,4 MB.
 
@@ -59,7 +59,7 @@ docs/teknis/             Dokumentasi teknis (arsitektur, API, database, keamanan
 - **Harga pangan:** harga rata-rata, perubahan 7 hari, tren, dan sebaran per wilayah.
 - **Peta stunting:** peta tematik per wilayah (provinsi → kabupaten → kecamatan → desa mengikuti zoom): % stunting/berisiko, belum ditangani, jamban & air tidak layak — tanpa titik rumah.
 - **Laporan bulanan:** rekap satu bulan per satuan (kategori vs bulan lalu, per satuan bawahan, Bhabin perlu perhatian, kehadiran, prioritas, harga pangan, keluarga & stunting) — unduh **PDF** siap cetak atau **Excel** lengkap.
-- **Keluarga & Stunting:** balita, status gizi, stunting belum ditangani, ibu hamil/KEK, faktor risiko rumah tangga per desa — dari ringkasan angka (isian per orang tetap terenkripsi).
+- **Keluarga & Stunting:** balita, status gizi, stunting belum ditangani, ibu hamil/KEK, faktor risiko rumah tangga per desa — dari ringkasan angka.
 - **Administrasi:**
   - pengguna (termasuk impor CSV),
   - unit (pohon bertahap, zona waktu),
@@ -85,7 +85,7 @@ createdb lapor_dev
 
 # 2. Backend → http://localhost:3000/api/v1 (Swagger: /api/docs)
 cd backend
-cp .env.example .env             # sekali saja; isi DATABASE_URL & DATA_ENCRYPTION_KEYS
+cp .env.example .env             # sekali saja; isi DATABASE_URL & DATA_ENCRYPTION_KEYS (untuk salinan token integrasi)
 npm install
 npx prisma migrate deploy
 npm run seed:semua               # semua data contoh (±2 menit), lihat bagian berikut
@@ -100,7 +100,7 @@ npm run dev
 # 4. Mobile: lihat mobile/README.md
 ```
 
-> `DATA_ENCRYPTION_KEYS` adalah kunci data sensitif. Jangan diganti atau dihilangkan setelah ada data; tanpa kunci yang sama, data terenkripsi tidak bisa dibuka.
+> `DATA_ENCRYPTION_KEYS` kini hanya mengenkripsi salinan token integrasi API. Isian laporan tidak dienkripsi; instance lama wajib menjalankan `npm run laporan:buka-enkripsi` sekali (otomatis di `infra/scripts/deploy-demo.sh`) selagi kunci lama masih ada.
 
 Bila `nest start --watch` tidak memuat ulang setelah perubahan (endpoint baru 404), hentikan dengan `Ctrl+C` lalu jalankan lagi `npm run start:dev`.
 
@@ -186,7 +186,7 @@ Akhiran P pada akun Polres: `1` Kapolres (Pimpinan), `2` Admin Polres, `3` Audit
 | `CORS_ORIGINS` | `http://localhost:3001` | Asal web yang diizinkan |
 | `HOST` | `0.0.0.0` | Alamat dengar API; `127.0.0.1` di produksi agar hanya terjangkau lewat reverse proxy |
 | `TRUST_PROXY` | `loopback` | Proksi yang dipercaya menentukan IP klien (`X-Forwarded-For`); jangan isi seluruh jaringan internal |
-| `DATA_ENCRYPTION_KEYS` | — | Kunci AES-256 field sensitif (`k1:<base64 32 byte>`) |
+| `DATA_ENCRYPTION_KEYS` | — | Kunci AES-256 salinan token integrasi (`k1:<base64 32 byte>`) |
 | `STORAGE_DRIVER`, `STORAGE_LOCAL_DIR` | `local`, `./storage` | Penyimpanan berkas (disk lokal; S3/MinIO ditunda) |
 | `PHOTO_MAX_EDGE`, `PHOTO_QUALITY` | 1920, 78 | Kompresi foto saat unggah |
 | `PHOTO_MOZJPEG` | `false` | mozjpeg: berkas ±10% lebih kecil tetapi ±15× lebih lambat |
@@ -237,7 +237,7 @@ E2E_BASE_URL=http://localhost:3001 npm run e2e
 cd backend
 npm run aggregates:rebuild        # hitung ulang ringkasan/kinerja (juga otomatis tiap AGG_REFRESH_SECONDS)
 npm run storage:compress          # kompres ulang foto lama; --cek untuk perkiraan saja
-npm run mapping:enkripsi-kesehatan  # pindahkan isian kesehatan Mapping lama ke bagian terenkripsi + isi ringkasan (aman diulang)
+npm run laporan:buka-enkripsi     # sekali: buka isian laporan lama yang masih terenkripsi ke data biasa (aman diulang; --cek untuk hitung saja)
 npx prisma migrate deploy         # terapkan migrasi baru
 ```
 
@@ -248,9 +248,9 @@ Dokumen pendukung: [Panduan Bhabinkamtibmas](docs/panduan/bhabin.md) · [Panduan
 
 - **Instalasi:** `sudo bash infra/scripts/install-ubuntu.sh` memasang PostgreSQL + PostGIS, Node, Nginx (HTTPS, `infra/nginx/lapor.conf`),
   layanan systemd, dan **backup harian 02.00** (`lapor-backup.timer`). Rilis baru: `infra/scripts/deploy.sh`.
-- **Kunci enkripsi:** `DATA_ENCRYPTION_KEYS` membuka NIK/No. KK dan data kesehatan keluarga. Kunci **tidak** ikut backup;
-  simpan minimal dua salinan di tempat terpisah. Backup tanpa kunci = data sensitif hilang permanen.
-  Rotasi: tambahkan kunci baru di depan daftar, restart, lalu `npm run crypto:rotasi` (backend), baru hapus kunci lama.
+- **Data laporan tidak dienkripsi:** NIK/No. KK dan data kesehatan keluarga tersimpan biasa di database, jadi lindungi lewat
+  akses server, backup terenkripsi, dan audit. `DATA_ENCRYPTION_KEYS` hanya untuk salinan token integrasi; rotasi dengan
+  `npm run crypto:rotasi`.
 - **Backup:** `sudo -u lapor lapor-backup` (manual). Isinya database (`pg_dump`, diverifikasi) + snapshot lampiran
   (hardlink, hemat ruang), disimpan `BACKUP_KEEP_DAYS` hari. Isi `BACKUP_REMOTE` agar ada salinan di luar server.
 - **Pemulihan:** `sudo lapor-restore <berkas.dump> [folder-storage]`. Uji pemulihan berkala di server cadangan.

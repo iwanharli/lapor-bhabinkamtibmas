@@ -46,6 +46,3 @@ export class UpdateReportDto {
   @IsOptional() @IsObject() data?: Record<string, unknown>;
 }
 
-export class RevealDto {
-  @IsString() @MaxLength(300) @Transform(({ value }) => String(value ?? '').trim()) @IsNotEmpty({ message: 'Alasan wajib diisi' }) reason: string;
-}

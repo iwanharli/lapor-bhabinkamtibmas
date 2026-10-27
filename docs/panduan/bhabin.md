@@ -38,7 +38,7 @@ Draft yang tidak jadi dipakai bisa **dibuang**.
 
 ## 4. Mapping Data Keluarga
 
-- **No. KK** dan **NIK** wajib 16 digit dan disimpan **terenkripsi**.
+- **No. KK** dan **NIK** wajib 16 digit.
 - Tambahkan anggota keluarga dengan tombol **Tambah anggota keluarga**. Isi **tanggal lahir** — dari situ aplikasi tahu umurnya:
   - **Balita (< 5 tahun):** status perkawinan, pendidikan, dan pekerjaan terisi otomatis. Isi **status stunting**
     sesuai **buku KIA/KMS atau keterangan Posyandu/Puskesmas** — jangan menilai sendiri.
@@ -50,7 +50,7 @@ Draft yang tidak jadi dipakai bisa **dibuang**.
 ## 5. Ralat laporan
 
 Laporan terkirim bisa **diralat dalam 3×24 jam**: buka **Laporan saya**, pilih laporan, tekan **Ralat**.
-Isian terenkripsi (NIK, data kesehatan) yang tidak diubah biarkan kosong — nilai lama tetap dipakai.
+Semua isian lama (termasuk NIK dan data kesehatan) tampil di formulir ralat dan bisa diubah langsung.
 Setelah 3×24 jam laporan menjadi final.
 
 ## 6. Laporan saya

@@ -67,6 +67,11 @@ if [ "$ONLY" != web ]; then
   [ -f "$R/backend/dist/main.js" ] || { echo "BUILD API GAGAL"; exit 1; }
   echo "• migrasi database"
   (cd "$R/backend" && npx prisma migrate deploy | tail -1)
+  # Isian laporan tidak lagi dienkripsi: buka sisa data terenkripsi SEBELUM rilis baru aktif (aman diulang, cepat bila sudah kosong).
+  if [ -f "$R/backend/prisma/decrypt-reports.ts" ]; then
+    echo "• buka enkripsi isian laporan lama"
+    (cd "$R/backend" && npx ts-node prisma/decrypt-reports.ts | tail -1)
+  fi
 fi
 
 if [ "$ONLY" != api ]; then

@@ -4,7 +4,7 @@
 
 | Kelas | Contoh | Perlakuan |
 |---|---|---|
-| **Sangat sensitif** | NIK, identitas pihak mediasi, isi Deteksi Dini terkait radikalisme/konflik | Enkripsi field (AES-256-GCM), akses dibatasi, setiap baca diaudit |
+| **Sangat sensitif** | NIK, identitas pihak mediasi, isi Deteksi Dini terkait radikalisme/konflik | Tidak dienkripsi di aplikasi (keputusan 27 Oktober 2026); dibatasi cakupan wilayah, tidak ikut ekspor CSV/API Pusat, dilindungi akses server & backup terenkripsi |
 | **Sensitif** | Nama warga, alamat, foto warga, lokasi absensi | Akses dibatasi wilayah, tidak dikirim ke integrasi luar |
 | **Internal** | Data harga pangan, rekap jumlah kegiatan | Dibatasi pengguna terautentikasi |
 | **Publik (potensial)** | Rekap harga agregat per kabupaten | Bisa dibagikan setelah persetujuan |
@@ -29,8 +29,8 @@
 | Lapisan | Mekanisme |
 |---|---|
 | Transit | TLS 1.2+ di semua koneksi; certificate pinning di mobile |
-| Field sensitif | AES-256-GCM di aplikasi, kunci berversi (`key_id`), rotasi tahunan |
-| Pencarian NIK | HMAC-SHA256 terpisah dari kunci enkripsi |
+| Field sensitif | **Tidak dienkripsi** sejak 27 Oktober 2026; AES-256-GCM hanya untuk salinan token integrasi |
+| KK ganda | Sidik SHA-256 No. KK (`kk_hash`) |
 | Database lokal HP | SQLCipher, kunci di Keystore/Keychain |
 | Penyimpanan file | Folder di luar web root, hanya dapat dibaca user `lapor`, disajikan lewat API dengan pemeriksaan izin; disk terenkripsi (LUKS) |
 | Disk server | LUKS (opsional, sesuai kebijakan) |

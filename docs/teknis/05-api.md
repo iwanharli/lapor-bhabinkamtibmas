@@ -123,10 +123,7 @@ Laporan tidak diverifikasi: semua laporan terkirim berstatus `SUBMITTED` (final)
 Filter: `category`, `status`, `unitId`, `villageId`, `userId`, `from`, `to`, `priority`, `q` (teks), `bbox` (`minLng,minLat,maxLng,maxLat`). Hasil otomatis dibatasi cakupan wilayah.
 
 ### `GET /reports/:id`
-Detail laporan + lampiran (URL presigned berlaku 10 menit) + riwayat status. Field sensitif ditampilkan tersamar (`3201********0003`).
-
-### `POST /reports/:id/reveal-sensitive`
-Mengembalikan field sensitif asli. Wajib `reason` (teks). Dicatat `SENSITIVE_READ`.
+Detail laporan + lampiran (URL presigned berlaku 10 menit) + riwayat status. Seluruh isian, termasuk NIK/No. KK dan kesehatan per orang, dikirim apa adanya (tidak dienkripsi) kepada semua peran dalam cakupan. Endpoint lama `reveal-sensitive` sudah dihapus.
 
 ### Kode galat tambahan
 | HTTP | Kode | Arti |

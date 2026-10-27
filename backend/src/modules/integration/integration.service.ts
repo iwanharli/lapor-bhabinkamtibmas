@@ -1,9 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma, ReportCategory } from '@prisma/client';
-import { SensitiveDataService } from '../../common/crypto/sensitive-data.service';
 import { DEFAULT_TZ, isoLocal, localDate } from '../../common/time';
 import { PrismaService } from '../../prisma/prisma.service';
-import { mergeSensitive } from '../reports/report-validator';
 
 export interface PageQuery {
   limit?: number;
@@ -26,10 +24,14 @@ export interface Page<T> {
 /** Baris mentah halaman: `k` kunci urut stabil (teks), `cur_u` updatedAt presisi mikrodetik untuk kursor. */
 type Keyed = { k: string; cur_u: string };
 
-/** Isian kesehatan per orang tidak dikirim ke Pusat (cukup ringkasan family-summary). */
-const HEALTH_KEYS = ['status_stunting', 'stunting_ditangani', 'stunting_ket', 'risiko_ibu', 'kk_risiko_ibu'];
-/** Dari bagian terenkripsi Mapping KK hanya No. KK yang dibuka (nama anggota memang tersimpan sebagai data biasa). */
-const MAPPING_SECRET_KEYS = ['no_kk'];
+/**
+ * Isian yang tidak dikirim ke Pusat (kesepakatan API v0.1): NIK, identitas para pihak Problem Solving, dan isian
+ * kesehatan per orang (cukup ringkasan family-summary). No. KK dan nama anggota keluarga tetap dikirim.
+ */
+const NOT_SHARED = new Set([
+  'nik_sasaran', 'nik_kk', 'kk_nik', 'nik', 'pihak_1_nama', 'pihak_1_nik', 'pihak_2_nama', 'pihak_2_nik',
+  'status_stunting', 'stunting_ditangani', 'stunting_ket', 'risiko_ibu', 'kk_risiko_ibu',
+]);
 
 const JUDUL: Partial<Record<ReportCategory, (d: Record<string, any>) => unknown>> = {
   SAMBANG: (d) => d.jenis_sasaran && `Sambang ${d.jenis_sasaran}`,
@@ -52,7 +54,7 @@ const num = (v: unknown) => (v == null ? null : Number(v));
 export class IntegrationService {
   private rootTz?: string;
 
-  constructor(private prisma: PrismaService, private crypto: SensitiveDataService) {}
+  constructor(private prisma: PrismaService) {}
 
   /** Zona waktu instance: zona unit Polda (atau unit akar) — dipakai untuk generatedAt & periode bawaan. */
   async instanceTz() {
@@ -108,11 +110,11 @@ export class IntegrationService {
     const rows = await this.page<Keyed & {
       nomor: string | null; category: ReportCategory; status: string; priority: boolean; occurred_at: Date; lat: number; lng: number;
       gps_accuracy_m: number | null; is_mock_location: boolean; inside_village: boolean | null; village_id: string; user_id: string;
-      schema_version: number; data: Record<string, any>; sensitive: Buffer | null; foto: number; upd: Date; tz: string;
+      schema_version: number; data: Record<string, any>; foto: number; upd: Date; tz: string;
     }>(Prisma.sql`
       SELECT r.id::text AS k, r.updated_at AS upd, r.nomor, r.category, r.status::text, r.priority, r.occurred_at, r.lat, r.lng, r.gps_accuracy_m,
         r.is_mock_location, r.inside_village, r.village_id::text, r.user_id::text, r.schema_version, r.data,
-        CASE WHEN r.category = 'MAPPING_KK' THEN r.sensitive END AS sensitive, u.timezone AS tz,
+        u.timezone AS tz,
         (SELECT count(*)::int FROM attachments a WHERE a.report_id = r.id) AS foto
       FROM reports r JOIN units u ON u.id = r.unit_id
       WHERE r.status <> 'DRAFT'
@@ -126,7 +128,7 @@ export class IntegrationService {
         urgensi, prioritas: r.priority, lat: r.lat, lng: r.lng, akurasiGps: num(r.gps_accuracy_m),
         lokasiDicek: r.is_mock_location || r.inside_village === false,
         desaId: r.village_id, bhabinId: r.user_id, jumlahFoto: r.foto, skemaVersi: r.schema_version,
-        isian: this.isian(r.category, r.data ?? {}, r.sensitive), status: r.status,
+        isian: this.isian(r.data ?? {}), status: r.status,
         updatedAt: isoLocal(r.upd, r.tz), deleted: r.status === 'REJECTED',
       };
     }), rows.nextCursor);
@@ -216,13 +218,10 @@ export class IntegrationService {
     })), rows.nextCursor);
   }
 
-  /** Isian laporan untuk Pusat: data biasa; untuk Mapping KK ditambah No. KK terdekripsi, tanpa isian kesehatan per orang. */
-  private isian(category: ReportCategory, data: Record<string, any>, sensitive: Buffer | null) {
-    if (category !== 'MAPPING_KK') return data;
-    const secret = sensitive ? this.crypto.decrypt(Buffer.from(sensitive)) : {};
-    const out = mergeSensitive(data, Object.fromEntries(MAPPING_SECRET_KEYS.filter((k) => k in secret).map((k) => [k, secret[k]])));
-    const strip = (o: Record<string, unknown>) => Object.fromEntries(Object.entries(o).filter(([k]) => !HEALTH_KEYS.includes(k)));
-    const res = strip(out);
+  /** Isian laporan untuk Pusat tanpa NIK, identitas pihak, dan kesehatan per orang (juga di baris anggota keluarga). */
+  private isian(data: Record<string, any>) {
+    const strip = (o: Record<string, unknown>) => Object.fromEntries(Object.entries(o).filter(([k]) => !NOT_SHARED.has(k)));
+    const res = strip(data);
     if (Array.isArray(res.anggota)) res.anggota = (res.anggota as Record<string, unknown>[]).map((a) => strip(a ?? {}));
     return res;
   }

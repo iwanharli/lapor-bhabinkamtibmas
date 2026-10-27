@@ -1,6 +1,4 @@
-import { Lock, UserRound } from 'lucide-react';
-import { revealableFields, secretSummary } from './revealable';
-import { SensitiveReveal } from './sensitive-reveal';
+import { UserRound } from 'lucide-react';
 import { displayValue } from '@/lib/format';
 import type { ReportDetail, SchemaField } from '@/lib/types';
 
@@ -25,24 +23,22 @@ function Value({ v }: { v: unknown }) {
 function FieldGrid({ fields, report }: { fields: SchemaField[]; report: ReportDetail }) {
   const rows = fields.map((f) => {
     const v = report.data[f.key];
-    // Field sensitif terenkripsi tidak ada di data; penandanya ada di sensitiveFilled.
-    const hidden = !!f.sensitive && (report.sensitiveFilled?.includes(f.key) || (v != null && v !== ''));
-    const empty = !hidden && (v == null || (typeof v === 'string' && ['', '-'].includes(v.trim())) || (Array.isArray(v) && !v.length));
-    return { f, v, hidden, empty };
+    const empty = (v == null || (typeof v === 'string' && ['', '-'].includes(v.trim())) || (Array.isArray(v) && !v.length));
+    return { f, v, empty };
   });
   const shown = rows.filter((r) => !r.empty);
   const skipped = rows.length - shown.length;
   return (
     <div className="px-5 pb-4 pt-1">
       <dl className="grid gap-x-8 sm:grid-cols-2 2xl:grid-cols-3">
-        {shown.map(({ f, v, hidden }) => {
+        {shown.map(({ f, v }) => {
           const wide = f.type === 'textarea' || String(v ?? '').length > 60;
           const span = wide ? 'sm:col-span-2 2xl:col-span-3' : '';
           return (
             <div key={f.key} className={`flex flex-col gap-0.5 border-b border-line/60 py-3 ${span}`}>
               <dt className="text-xs text-muted">{f.label}</dt>
               <dd className="break-words text-[15px]">
-                {hidden ? <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/10 px-2.5 py-0.5 text-xs font-semibold text-violet-700 ring-1 ring-violet-500/25 dark:text-violet-300"><Lock size={12} /> Terenkripsi</span> : <Value v={v} />}
+                <Value v={v} />
               </dd>
             </div>
           );
@@ -56,21 +52,18 @@ function FieldGrid({ fields, report }: { fields: SchemaField[]; report: ReportDe
 /** Repeater non-harga (mis. anggota keluarga) sebagai kartu per baris. */
 function RowCards({ f, report }: { f: SchemaField; report: ReportDetail }) {
   const rows = (Array.isArray(report.data[f.key]) ? report.data[f.key] : []) as Record<string, unknown>[];
-  const secretFilled = report.sensitiveFilled?.includes(f.key);
   if (!rows.length) return <p className="px-5 py-4 text-sm text-muted/80">Tidak ada {f.label.toLowerCase()}.</p>;
   const single = rows.length === 1;
   return (
     <ul className={`grid gap-3 px-5 py-4 ${single ? '' : 'xl:grid-cols-2'}`}>
       {rows.map((row, i) => {
-        const subs = (f.fields ?? []).filter((s) => !['nama', 'hubungan'].includes(s.key) && !s.sensitive && applies(s, row));
-        const secretLabel = secretFilled ? secretSummary((f.fields ?? []).filter((s) => s.sensitive).map((s) => s.label)) : null;
+        const subs = (f.fields ?? []).filter((s) => !['nama', 'hubungan'].includes(s.key) && applies(s, row));
         return (
           <li key={i} className="overflow-hidden rounded-xl border border-line">
             <p className="flex items-center gap-2.5 border-b border-line bg-bg/60 px-3.5 py-2.5 text-sm font-semibold">
               <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><UserRound size={15} /></span>
               <span className="min-w-0 flex-1 truncate">{String(row.nama ?? `${f.label} ${i + 1}`)}</span>
               {row.hubungan != null && <span className="shrink-0 rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium text-muted ring-1 ring-line">{String(row.hubungan)}</span>}
-              {secretLabel && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-violet-500/10 px-2 py-0.5 text-[11px] font-semibold text-violet-700 ring-1 ring-violet-500/25 dark:text-violet-300" title={`${secretLabel} terenkripsi`}><Lock size={11} /> Terenkripsi</span>}
             </p>
             <dl className={`grid grid-cols-2 gap-x-4 gap-y-2.5 p-3.5 text-sm ${single ? 'sm:grid-cols-3' : ''}`}>
               {subs.map((s) => {
@@ -99,17 +92,8 @@ export function ReportFields({ report }: { report: ReportDetail }) {
     ? report.schema.steps.map((s) => ({ title: s.title, fields: s.fields.map((k) => byKey.get(k)).filter(Boolean) as SchemaField[] })).filter((g) => g.fields.length)
     : [{ title: '', fields: all }];
 
-  const revealable = revealableFields(report);
-
   return (
     <div className="space-y-4">
-      {report.canRevealSensitive && revealable.length > 0 && (
-        <div className="flex items-center gap-3 rounded-2xl border border-violet-500/25 bg-gradient-to-r from-violet-500/10 via-indigo-500/5 to-transparent p-3.5 shadow-sm">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-500/15 text-violet-700 dark:text-violet-300"><Lock size={18} /></span>
-          <p className="min-w-0 flex-1 text-sm"><span className="block font-semibold">Data sensitif terenkripsi</span><span className="block text-xs text-muted">No. KK & NIK hanya dibuka dengan alasan; setiap akses dicatat di audit log.</span></p>
-          <SensitiveReveal reportId={report.id} fields={revealable} />
-        </div>
-      )}
       {groups.map((g, gi) => {
         const plain = g.fields.filter((f) => f.type !== 'repeater');
         const reps = g.fields.filter((f) => f.type === 'repeater');

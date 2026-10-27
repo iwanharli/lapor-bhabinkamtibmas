@@ -16,8 +16,8 @@ dashboard web, API, database, penyimpanan berkas, backup) di seluruh satuan yang
 | Identitas personel | NRP, nama, pangkat, jabatan, No. HP, satuan | Data pribadi umum | Tersimpan biasa; akses sesuai cakupan satuan |
 | Jejak kerja personel | Absensi (jam, GPS, swafoto), titik GPS laporan, perangkat & IP | Data pribadi umum (lokasi) | Tersimpan biasa; tercatat di audit log |
 | Identitas warga | Nama, tempat/tanggal lahir, alamat, pekerjaan, agama, No. HP | Data pribadi umum | Tersimpan biasa di laporan |
-| **Nomor kependudukan** | NIK, No. KK | Data pribadi (berisiko tinggi bila bocor) | **Terenkripsi** AES-256-GCM; dibuka hanya dengan alasan |
-| **Kesehatan & anak** | Status stunting balita, kelompok risiko ibu (hamil, KEK/anemia), remaja putri anemia | **Data pribadi spesifik** (kesehatan; data anak) | **Terenkripsi**; rekap hanya berupa angka tanpa nama |
+| **Nomor kependudukan** | NIK, No. KK | Data pribadi (berisiko tinggi bila bocor) | Tidak dienkripsi di aplikasi; terlihat oleh peran dalam cakupan wilayah; tidak ikut ekspor CSV/API Pusat |
+| **Kesehatan & anak** | Status stunting balita, kelompok risiko ibu (hamil, KEK/anemia), remaja putri anemia | **Data pribadi spesifik** (kesehatan; data anak) | Tidak dienkripsi di aplikasi; rekap ke luar hanya berupa angka tanpa nama |
 | Foto | Foto kegiatan, foto hunian, swafoto absensi | Data pribadi umum | Metadata EXIF (termasuk GPS) dihapus saat unggah |
 
 ## 3. Dasar dan tujuan pemrosesan
@@ -57,7 +57,7 @@ dashboard web, API, database, penyimpanan berkas, backup) di seluruh satuan yang
 
 ## 6. Pengamanan teknis (sudah berjalan)
 
-- Enkripsi NIK/No. KK dan data kesehatan (AES-256-GCM); pencocokan KK ganda memakai sidik HMAC, bukan nomor asli.
+- **[KEPUTUSAN 27 Okt 2026]** NIK/No. KK dan data kesehatan **tidak dienkripsi** di aplikasi dan terlihat oleh semua peran dalam cakupan wilayahnya. Perlindungan bertumpu pada pembatasan cakupan, audit, akses server, dan backup terenkripsi. **Perlu tinjauan PDP** karena data kesehatan & anak adalah data pribadi spesifik.
 - Koneksi HTTPS; dashboard dan endpoint admin hanya dari jaringan internal.
 - Kata sandi di-hash (argon2id), wajib diganti saat login pertama, akun terkunci setelah percobaan gagal berulang;
   batas laju per akun dan per IP + NRP untuk login.
@@ -67,16 +67,10 @@ dashboard web, API, database, penyimpanan berkas, backup) di seluruh satuan yang
 
 ## 7. Kunci enkripsi
 
-- Kunci (`DATA_ENCRYPTION_KEYS`) disimpan hanya di server (`/etc/lapor/api.env`, hak baca terbatas) dan **minimal dua
-  salinan cadangan offline** di tempat berbeda (mis. brankas satuan + pejabat TIK). Tanpa kunci, data sensitif di
-  database maupun backup tidak dapat dibuka.
-- **[KEPUTUSAN]** pemegang kunci (usul: 2 orang, pejabat TIK & pejabat PDP) dan jadwal rotasi (usul: tahunan, atau
-  segera bila diduga bocor).
-- Prosedur rotasi:
-  1. Buat kunci baru, tambahkan di **depan** daftar (`k2:<baru>,k1:<lama>`), restart layanan — data baru memakai kunci baru.
-  2. Jalankan `npm run crypto:rotasi` (backend) — seluruh data sensitif dienkripsi ulang dengan kunci baru.
-  3. Hapus kunci lama dari server, restart. Simpan arsip kunci lama terpisah **selama backup lama masih ada** (14 hari),
-     lalu musnahkan.
+- Isian laporan **tidak lagi dienkripsi** (keputusan 27 Oktober 2026). `DATA_ENCRYPTION_KEYS` hanya mengenkripsi salinan
+  token integrasi API; simpan di server (`/etc/lapor/api.env`, hak baca terbatas) dan rotasi dengan `npm run crypto:rotasi`.
+- Data lama dibuka sekali dengan `npm run laporan:buka-enkripsi` selagi kunci lama masih tersedia; setelah itu kunci lama
+  boleh dimusnahkan **setelah** backup lama yang masih terenkripsi kedaluwarsa (14 hari).
 
 ## 8. Hak warga sebagai subjek data
 

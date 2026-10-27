@@ -3,6 +3,7 @@ import { UserRole } from '@prisma/client';
 import { AuthUser, CurrentUser, Roles } from '../../common/decorators/auth.decorators';
 import { CreateUserDto, ImportUsersDto, SetVillagesDto, UpdateUserDto } from './dto/user.dto';
 import { UsersImportService } from './users-import.service';
+import { FaceService } from '../face/face.service';
 import { UsersService } from './users.service';
 
 const parseActive = (v?: string) => (v === 'true' ? true : v === 'false' ? false : undefined);
@@ -10,7 +11,7 @@ const parseActive = (v?: string) => (v === 'true' ? true : v === 'false' ? false
 @Controller('admin/users')
 @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
 export class UsersController {
-  constructor(private users: UsersService, private importer: UsersImportService) {}
+  constructor(private users: UsersService, private importer: UsersImportService, private face: FaceService) {}
 
   @Get()
   list(
@@ -57,6 +58,16 @@ export class UsersController {
   @HttpCode(200)
   resetPassword(@CurrentUser() me: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.users.resetPassword(me, id);
+  }
+
+  /** Hapus pendaftaran wajah (mis. penampilan berubah / gagal terus); pengguna mendaftar ulang saat login berikutnya. */
+  @Post(':id/reset-face')
+  @HttpCode(200)
+  async resetFace(@CurrentUser() me: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    await this.users.findInScope(me, id);
+    await this.face.reset(me.id, id);
+    await this.users.revokeAllSessions(id);
+    return { ok: true };
   }
 
   @Put(':id/villages')

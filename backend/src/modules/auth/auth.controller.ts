@@ -1,4 +1,6 @@
-import { Body, Controller, Get, HttpCode, Patch, Post, Req } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, Patch, Post, Req, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { ALL_ROLES, AllowPendingPassword, AuthUser, CurrentUser, Public, Roles } from '../../common/decorators/auth.decorators';
@@ -6,12 +8,42 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuthService } from './auth.service';
 import { ChangePasswordDto, LoginDto, RefreshDto, UpdateProfileDto } from './dto/auth.dto';
 import { AuditService } from '../audit/audit.service';
+import { FaceService } from '../face/face.service';
 
 const clientInfo = (req: Request) => ({ ip: req.ip, userAgent: req.headers['user-agent'] });
 
+type FaceFiles = { frontal?: Express.Multer.File[]; turned?: Express.Multer.File[] };
+const FACE_UPLOAD = FileFieldsInterceptor([{ name: 'frontal', maxCount: 1 }, { name: 'turned', maxCount: 1 }], { storage: memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
+function facePair(files: FaceFiles) {
+  const frontal = files?.frontal?.[0]?.buffer, turned = files?.turned?.[0]?.buffer;
+  if (!frontal || !turned) throw new BadRequestException({ code: 'FACE_PHOTOS_REQUIRED', message: 'Kirim dua foto: menghadap depan dan menoleh.' });
+  return { frontal, turned };
+}
+
 @Controller('auth')
 export class AuthController {
-  constructor(private auth: AuthService, private prisma: PrismaService, private audit: AuditService) {}
+  constructor(private auth: AuthService, private prisma: PrismaService, private audit: AuditService, private face: FaceService) {}
+
+  /** Langkah 2 login (wajah terdaftar): multipart `faceToken` + foto `frontal` (menghadap depan) & `turned` (menoleh). */
+  @Public()
+  @Throttle({ default: { ttl: 60_000, limit: () => Number(process.env.LOGIN_RATE_LIMIT ?? 10) } })
+  @Post('face/login')
+  @HttpCode(200)
+  @UseInterceptors(FACE_UPLOAD)
+  faceLogin(@Body('faceToken') faceToken: string, @UploadedFiles() files: FaceFiles, @Req() req: Request) {
+    const pair = facePair(files);
+    return this.auth.faceLogin(String(faceToken ?? ''), (userId) => this.face.verify(userId, pair), clientInfo(req));
+  }
+
+  /** Daftarkan / perbarui wajah sendiri (langkah orientasi). Setelah berhasil, klien memanggil /auth/refresh untuk token tanpa batasan. */
+  @Roles(...ALL_ROLES)
+  @AllowPendingPassword()
+  @Post('face/enroll')
+  @HttpCode(200)
+  @UseInterceptors(FACE_UPLOAD)
+  enrollFace(@CurrentUser() me: AuthUser, @UploadedFiles() files: FaceFiles) {
+    return this.face.enroll(me.id, facePair(files));
+  }
 
   @Public()
   // Batas percobaan login per IP + NRP per menit (UserThrottlerGuard); dev/CI bisa melonggarkan lewat LOGIN_RATE_LIMIT.
@@ -128,9 +160,10 @@ export class AuthController {
     };
   }
 
-  /** Ubah data pribadi sendiri: nama, pangkat, jabatan, No. HP. String kosong mengosongkan pangkat/jabatan/HP. */
+  /** Ubah data pribadi sendiri: nama, pangkat, jabatan, No. HP. String kosong mengosongkan pangkat/jabatan/HP. Termasuk langkah orientasi. */
   @Patch('profile')
   @Roles(...ALL_ROLES)
+  @AllowPendingPassword()
   async updateProfile(@CurrentUser() me: AuthUser, @Body() dto: UpdateProfileDto, @Req() req: Request) {
     const clean = (v?: string) => (v === undefined ? undefined : v.trim() || null);
     const data = {

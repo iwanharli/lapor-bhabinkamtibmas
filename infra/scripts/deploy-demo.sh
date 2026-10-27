@@ -64,6 +64,9 @@ if [ "$ONLY" != web ]; then
     rm -rf "$R/backend/node_modules/.prisma" && (cd "$R/backend" && npx prisma generate >/dev/null)
   fi
   (cd "$R/backend" && npm run build >/dev/null)
+  # Model pengenal wajah tidak ada di git: salin dari rilis aktif bila ada, lalu pastikan lengkap (unduh + cek SHA-256).
+  [ -d "$CUR_API/models" ] && cp -r "$CUR_API/models" "$R/backend/models"
+  (cd "$R/backend" && npm run -s face:models)
   [ -f "$R/backend/dist/main.js" ] || { echo "BUILD API GAGAL"; exit 1; }
   echo "• migrasi database"
   (cd "$R/backend" && npx prisma migrate deploy | tail -1)

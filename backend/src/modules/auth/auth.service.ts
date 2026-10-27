@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { User, UserRole } from '@prisma/client';
+import { Unit, User, UserRole } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -14,6 +14,16 @@ const LOCK_MINUTES = 15;
 const ROTATION_GRACE_MS = 30_000;
 
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
+
+/** Langkah orientasi yang belum selesai. Akun demo dikecualikan dari profil lengkap & pendaftaran wajah. */
+export function onboardingOf(u: Pick<User, 'mustChangePassword' | 'isDemo' | 'faceEnrolledAt' | 'pangkat' | 'jabatan' | 'phone'>) {
+  const blank = (v: string | null) => !v || !v.trim();
+  return {
+    password: u.mustChangePassword,
+    profile: !u.isDemo && (blank(u.pangkat) || blank(u.jabatan) || blank(u.phone)),
+    face: !u.isDemo && !u.faceEnrolledAt,
+  };
+}
 
 export interface ClientInfo {
   ip?: string;
@@ -62,6 +72,50 @@ export class AuthService {
       throw new ForbiddenException({ code: 'WRONG_CLIENT', message: 'Gunakan dashboard web' });
     }
 
+    // Wajah terdaftar (bukan akun demo): sandi benar belum cukup — token sementara 5 menit untuk langkah verifikasi wajah.
+    if (user.faceEnrolledAt && !user.isDemo) {
+      const faceToken = await this.jwt.signAsync({ sub: user.id, purpose: 'face-login', device: dto.device ?? null, remember: !!dto.remember }, { expiresIn: 300 });
+      await this.audit.log({ actorId: user.id, action: 'LOGIN_PASSWORD_OK', meta: { client: isMobile ? 'mobile' : 'web' }, ...client });
+      return { faceRequired: true, faceToken };
+    }
+    return this.completeLogin(user, dto.device, !!dto.remember, client);
+  }
+
+  /** Langkah 2 login: verifikasi wajah dengan token sementara dari langkah sandi. Gagal dihitung seperti sandi salah. */
+  async faceLogin(faceToken: string, verify: (userId: string) => Promise<number>, client: ClientInfo) {
+    let p: { sub: string; purpose: string; device: LoginDto['device'] | null; remember: boolean };
+    try {
+      p = await this.jwt.verifyAsync(faceToken);
+    } catch {
+      throw new UnauthorizedException({ code: 'FACE_SESSION_EXPIRED', message: 'Sesi verifikasi wajah habis. Masuk ulang dengan sandi.' });
+    }
+    if (p.purpose !== 'face-login') throw new UnauthorizedException({ code: 'FACE_SESSION_EXPIRED', message: 'Sesi verifikasi wajah tidak valid.' });
+    const user = await this.prisma.user.findUnique({ where: { id: p.sub }, include: { unit: true } });
+    if (!user || !user.active) throw new UnauthorizedException({ code: 'INVALID_CREDENTIALS', message: 'Akun tidak aktif' });
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw new UnauthorizedException({ code: 'ACCOUNT_LOCKED', message: 'Akun terkunci sementara, coba lagi nanti' });
+    }
+    try {
+      const score = await verify(user.id);
+      await this.audit.log({ actorId: user.id, action: 'FACE_VERIFY_OK', meta: { score }, ...client });
+    } catch (e) {
+      const res = (e as { getResponse?: () => { code?: string; score?: number } }).getResponse?.();
+      if (res?.code === 'FACE_MISMATCH') {
+        const failed = user.failedLogins + 1;
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: failed >= MAX_FAILED ? { failedLogins: 0, lockedUntil: new Date(Date.now() + LOCK_MINUTES * 60_000) } : { failedLogins: failed },
+        });
+        await this.audit.log({ actorId: user.id, action: 'FACE_VERIFY_FAILED', meta: { score: res.score }, ...client });
+      }
+      throw e;
+    }
+    return this.completeLogin(user, p.device ?? undefined, p.remember, client);
+  }
+
+  private async completeLogin(user: User & { unit: Unit }, device: LoginDto['device'] | undefined, remember: boolean, client: ClientInfo) {
+    const dto = { device, remember };
+    const isMobile = !!device;
     let deviceRowId: string | undefined;
     if (dto.device) {
       const d = await this.prisma.device.upsert({
@@ -92,15 +146,17 @@ export class AuthService {
   }
 
   /** Profil ringkas pengguna yang masuk, termasuk desa binaan aktif (GET /auth/me dan jawaban login). */
-  me(userId: string) {
-    return this.prisma.user.findUniqueOrThrow({
+  async me(userId: string) {
+    const u = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: {
-        id: true, nrp: true, nama: true, pangkat: true, jabatan: true, role: true, mustChangePassword: true,
+        id: true, nrp: true, nama: true, pangkat: true, jabatan: true, phone: true, role: true, mustChangePassword: true, isDemo: true, faceEnrolledAt: true,
         unit: { select: { id: true, nama: true, level: true, timezone: true } },
         villages: { where: { until: null }, select: { village: { select: { id: true, nama: true, kecamatan: true, kabupaten: true } } } },
       },
     });
+    const { faceEnrolledAt, ...rest } = u;
+    return { ...rest, faceEnrolled: !!faceEnrolledAt, onboarding: onboardingOf(u) };
   }
 
   /** Rotasi refresh token; pemakaian ulang token yang sudah dicabut mencabut semua sesi perangkat itu. */
@@ -156,8 +212,10 @@ export class AuthService {
 
   private async issueTokens(user: User, deviceId?: string, remember = false) {
     const ttl = Number(this.config.get('JWT_ACCESS_TTL', 900));
+    const o = onboardingOf(user);
     const accessToken = await this.jwt.signAsync(
-      { sub: user.id, nrp: user.nrp, role: user.role, unitId: user.unitId, ...(user.mustChangePassword && { pwd: true }) },
+      // pwd: sandi sementara; onb: profil/wajah belum lengkap — keduanya hanya boleh ke endpoint orientasi.
+      { sub: user.id, nrp: user.nrp, role: user.role, unitId: user.unitId, ...(user.mustChangePassword && { pwd: true }), ...((o.profile || o.face) && { onb: true }) },
       { expiresIn: ttl },
     );
     const refreshTtl = deviceId

@@ -23,6 +23,8 @@ export interface AuthUser {
   unitId: string;
   /** Masih memakai sandi sementara. */
   mustChangePassword?: boolean;
+  /** Profil belum lengkap atau wajah belum didaftarkan. */
+  onboarding?: boolean;
 }
 
 export const CurrentUser = createParamDecorator(

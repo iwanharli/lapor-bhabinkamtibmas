@@ -107,6 +107,11 @@ model User {
   failedLogins       Int       @default(0) @map("failed_logins")
   lockedUntil        DateTime? @map("locked_until") @db.Timestamptz
   lastLoginAt        DateTime? @map("last_login_at") @db.Timestamptz
+  /// Sidik wajah SFace (128 float32) terenkripsi untuk verifikasi login; data biometrik, tidak pernah dikirim ke klien.
+  faceEmbedding      Bytes?    @map("face_embedding")
+  faceEnrolledAt     DateTime? @map("face_enrolled_at") @db.Timestamptz
+  /// Akun demo: dikecualikan dari verifikasi wajah & kewajiban melengkapi profil (login cepat saat demo).
+  isDemo             Boolean   @default(false) @map("is_demo")
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 

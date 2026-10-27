@@ -19,7 +19,7 @@ export class JwtAuthGuard implements CanActivate {
     let user: AuthUser;
     try {
       const p = await this.jwt.verifyAsync(token);
-      user = { id: p.sub, nrp: p.nrp, role: p.role, unitId: p.unitId, mustChangePassword: !!p.pwd };
+      user = { id: p.sub, nrp: p.nrp, role: p.role, unitId: p.unitId, mustChangePassword: !!p.pwd, onboarding: !!p.onb };
     } catch {
       throw new UnauthorizedException({ code: 'TOKEN_EXPIRED' });
     }
@@ -27,10 +27,13 @@ export class JwtAuthGuard implements CanActivate {
     if (user.role === UserRole.INTEGRASI) throw new ForbiddenException({ code: 'FORBIDDEN', message: 'Peran tidak diizinkan' });
     req.user = user;
 
-    // Sandi sementara: hanya profil, ganti sandi, dan logout yang boleh diakses.
+    // Orientasi belum selesai (sandi sementara, profil, wajah): hanya endpoint orientasi & logout yang boleh diakses.
     const allowPending = this.reflector.getAllAndOverride<boolean>(ALLOW_PENDING_PASSWORD, [ctx.getHandler(), ctx.getClass()]);
     if (user.mustChangePassword && !allowPending) {
       throw new ForbiddenException({ code: 'PASSWORD_CHANGE_REQUIRED', message: 'Ganti sandi sementara Anda terlebih dahulu' });
+    }
+    if (user.onboarding && !allowPending) {
+      throw new ForbiddenException({ code: 'ONBOARDING_REQUIRED', message: 'Lengkapi profil dan daftarkan wajah Anda terlebih dahulu' });
     }
     return true;
   }

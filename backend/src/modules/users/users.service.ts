@@ -32,7 +32,7 @@ export class UsersService {
     }
   }
 
-  private async findInScope(me: AuthUser, id: string) {
+  async findInScope(me: AuthUser, id: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     // 404 juga untuk data di luar cakupan, agar keberadaannya tidak bocor.
     if (!user || !(await this.units.descendantIds(me.unitId)).includes(user.unitId)) {
@@ -175,7 +175,7 @@ export class UsersService {
     await this.audit.log({ actorId: me.id, action: 'DEVICE_REVOKE', entity: 'device', entityId: deviceRowId });
   }
 
-  private revokeAllSessions(userId: string) {
+  revokeAllSessions(userId: string) {
     return this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
   }
 }

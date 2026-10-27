@@ -9,7 +9,7 @@ export class DeviceDto {
 }
 
 export class LoginDto {
-  @IsString() @Length(4, 20) nrp: string;
+  @IsString() @Length(3, 20) nrp: string;
   @IsString() @MinLength(1) password: string;
   /** Diisi oleh aplikasi mobile; login web tidak mengirim device. */
   @IsOptional() @ValidateNested() @Type(() => DeviceDto) device?: DeviceDto;

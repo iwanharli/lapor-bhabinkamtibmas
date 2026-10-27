@@ -55,7 +55,10 @@ class _AuthInterceptor extends QueuedInterceptor {
     final rt = await _storage.refreshToken;
     if (rt == null) return handler.next(err);
     try {
-      final res = await _dio.post('/auth/refresh', data: {'refreshToken': rt});
+      // Dio terpisah tanpa interceptor: memakai _dio di sini membuat galat refresh (401) antre di belakang
+      // onError yang sedang menunggunya (QueuedInterceptor) → saling tunggu, aplikasi memuat selamanya.
+      final res = await Dio(BaseOptions(baseUrl: _dio.options.baseUrl, connectTimeout: _dio.options.connectTimeout, receiveTimeout: _dio.options.receiveTimeout))
+          .post('/auth/refresh', data: {'refreshToken': rt}, options: Options(headers: {'X-Device-Id': await _storage.deviceId()}));
       await _storage.save(res.data['accessToken'], res.data['refreshToken']);
       final retry = err.requestOptions..extra['retried'] = true;
       retry.headers['Authorization'] = 'Bearer ${res.data['accessToken']}';

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../app/config.dart';
@@ -42,7 +43,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       _error = null;
     });
     try {
-      await ref.read(authControllerProvider.notifier).login(_nrp.text.trim(), _password.text);
+      final faceToken = await ref.read(authControllerProvider.notifier).login(_nrp.text.trim(), _password.text);
+      // Akun dengan wajah terdaftar: langkah 2 verifikasi wajah.
+      if (faceToken != null && mounted) context.push('/verifikasi-wajah', extra: faceToken);
     } catch (e) {
       setState(() => _error = apiErrorMessage(e));
     } finally {

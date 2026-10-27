@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -17,6 +18,9 @@ class Me {
   String? get pangkat => json['pangkat'] as String?;
   String get namaLengkap => [pangkat, nama].whereType<String>().join(' ');
   bool get mustChangePassword => json['mustChangePassword'] == true;
+  /// Langkah orientasi (server): profil belum lengkap / wajah belum didaftarkan. Akun demo selalu false.
+  bool get needsProfile => (json['onboarding'] as Map?)?['profile'] == true;
+  bool get needsFace => (json['onboarding'] as Map?)?['face'] == true;
   String get unitNama => (json['unit'] as Map)['nama'] as String;
   List<Map<String, dynamic>> get villages =>
       ((json['villages'] as List?) ?? []).map((v) => Map<String, dynamic>.from(v['village'] as Map)).toList();
@@ -47,7 +51,12 @@ class AuthController extends AsyncNotifier<Me?> {
     try {
       state = AsyncData(await _fetchMe());
     } catch (e) {
-      if (!isNetworkError(e) && await ref.read(tokenStorageProvider).refreshToken == null) state = const AsyncData(null);
+      // Sesi ditolak server (dicabut, kedaluwarsa, server lain): keluar ke halaman login.
+      final rejected = e is DioException && (e.response?.statusCode == 401 || e.response?.statusCode == 403);
+      if (rejected || (!isNetworkError(e) && await ref.read(tokenStorageProvider).refreshToken == null)) {
+        await ref.read(tokenStorageProvider).clear();
+        state = const AsyncData(null);
+      }
     }
   }
 
@@ -59,7 +68,8 @@ class AuthController extends AsyncNotifier<Me?> {
     return Me(json);
   }
 
-  Future<void> login(String nrp, String password) async {
+  /// Login langkah 1. Mengembalikan faceToken bila akun wajib verifikasi wajah (langkah 2: [faceLogin]); null bila sudah masuk.
+  Future<String?> login(String nrp, String password) async {
     final dio = ref.read(dioProvider);
     final storage = ref.read(tokenStorageProvider);
     final info = await PackageInfo.fromPlatform();
@@ -73,9 +83,45 @@ class AuthController extends AsyncNotifier<Me?> {
         'appVersion': info.version,
       },
     });
-    await storage.save(res.data['accessToken'], res.data['refreshToken']);
+    if (res.data['faceRequired'] == true) return res.data['faceToken'] as String;
+    await _signedIn(res.data);
+    return null;
+  }
+
+  /// Login langkah 2: foto depan + menoleh dicocokkan dengan wajah terdaftar di server.
+  Future<void> faceLogin(String faceToken, String frontalPath, String turnedPath) async {
+    final res = await ref.read(dioProvider).post('/auth/face/login', data: FormData.fromMap({
+      'faceToken': faceToken,
+      'frontal': await MultipartFile.fromFile(frontalPath, filename: 'depan.jpg'),
+      'turned': await MultipartFile.fromFile(turnedPath, filename: 'toleh.jpg'),
+    }));
+    await _signedIn(res.data);
+  }
+
+  /// Orientasi: daftarkan wajah, lalu perbarui sesi agar token tidak lagi dibatasi.
+  Future<void> enrollFace(String frontalPath, String turnedPath) async {
+    await ref.read(dioProvider).post('/auth/face/enroll', data: FormData.fromMap({
+      'frontal': await MultipartFile.fromFile(frontalPath, filename: 'depan.jpg'),
+      'turned': await MultipartFile.fromFile(turnedPath, filename: 'toleh.jpg'),
+    }));
+    await renewSession();
+  }
+
+  /// Token baru setelah langkah orientasi selesai (penanda pembatasan di token dihitung ulang server), lalu muat profil.
+  Future<void> renewSession() async {
+    final storage = ref.read(tokenStorageProvider);
+    final rt = await storage.refreshToken;
+    if (rt != null) {
+      final res = await ref.read(dioProvider).post('/auth/refresh', data: {'refreshToken': rt});
+      await storage.save(res.data['accessToken'], res.data['refreshToken']);
+    }
+    await refreshMe();
+  }
+
+  Future<void> _signedIn(dynamic data) async {
+    await ref.read(tokenStorageProvider).save(data['accessToken'], data['refreshToken']);
     // Server baru menyertakan profil lengkap di jawaban login (hemat satu permintaan); server lama: ambil /auth/me.
-    state = AsyncData(res.data['me'] is Map ? await _remember(res.data['me']) : await _fetchMe());
+    state = AsyncData(data['me'] is Map ? await _remember(data['me']) : await _fetchMe());
   }
 
   /// Ganti sandi (wajib saat login pertama). Server mengembalikan token baru; sesi lain dicabut.

@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../core/auth/auth_controller.dart';
 import '../features/attendance/attendance_page.dart';
 import '../features/auth/change_password_page.dart';
+import '../features/auth/face_capture_page.dart';
 import '../features/auth/login_page.dart';
+import '../features/auth/profile_setup_page.dart';
 import '../features/home/home_page.dart';
 import '../features/notifications/notifications_page.dart';
 import '../features/profile/profile_page.dart';
@@ -25,16 +27,23 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Sesi sedang dicek (aplikasi baru dibuka): tampilkan layar pembuka.
       if (auth.isLoading && auth.valueOrNull == null) return loc == '/splash' ? null : '/splash';
       final me = auth.valueOrNull;
-      if (me == null) return loc == '/login' ? null : '/login';
+      // Belum masuk: login, atau langkah 2 (verifikasi wajah) dengan token sementara.
+      if (me == null) return loc == '/login' || loc == '/verifikasi-wajah' ? null : '/login';
       if (loc == '/splash') return '/';
+      // Orientasi berurutan: ganti sandi sementara → lengkapi profil → daftarkan wajah.
       if (me.mustChangePassword) return loc == '/ganti-sandi' ? null : '/ganti-sandi';
-      if (loc == '/login' || loc == '/splash') return '/';
+      if (me.needsProfile) return loc == '/lengkapi-profil' ? null : '/lengkapi-profil';
+      if (me.needsFace) return loc == '/daftar-wajah' ? null : '/daftar-wajah';
+      if (const {'/login', '/splash', '/verifikasi-wajah', '/lengkapi-profil', '/daftar-wajah'}.contains(loc)) return '/';
       return null;
     },
     routes: [
       GoRoute(path: '/splash', builder: (_, __) => const SplashPage()),
       GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
       GoRoute(path: '/ganti-sandi', builder: (_, __) => const ChangePasswordPage()),
+      GoRoute(path: '/lengkapi-profil', builder: (_, __) => const ProfileSetupPage()),
+      GoRoute(path: '/daftar-wajah', builder: (_, __) => const FaceCapturePage()),
+      GoRoute(path: '/verifikasi-wajah', builder: (_, s) => FaceCapturePage(faceToken: s.extra as String?)),
       ShellRoute(
         builder: (_, state, child) => AppShell(location: state.matchedLocation, child: child),
         routes: [

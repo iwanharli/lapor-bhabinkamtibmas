@@ -7,6 +7,7 @@ import '../../core/forms/form_schema.dart';
 import '../../core/ui/format.dart';
 import '../../core/ui/theme.dart';
 import '../../core/ui/skeleton.dart';
+import '../../core/ui/responsive.dart';
 import 'report_api.dart';
 
 class ReportDetailPage extends ConsumerWidget {
@@ -43,7 +44,7 @@ class _Body extends ConsumerWidget {
     final attachments = ((r['attachments'] as List?) ?? []).map((a) => Map<String, dynamic>.from(a)).toList();
     final outside = r['insideVillage'] == false;
 
-    return ListView(padding: const EdgeInsets.all(16), children: [
+    return ListView(padding: contentPadding(context), children: [
       Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), gradient: const LinearGradient(colors: [brandDeep, brand])),

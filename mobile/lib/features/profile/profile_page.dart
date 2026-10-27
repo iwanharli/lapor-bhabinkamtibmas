@@ -8,6 +8,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/ui/theme.dart';
 import '../../core/ui/skeleton.dart';
 import '../auth/change_password_page.dart';
+import '../../core/ui/responsive.dart';
 import '../reports/outbox.dart';
 
 final _profileProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
@@ -62,7 +63,7 @@ class ProfilePage extends ConsumerWidget {
           final desa = ((p['villages'] as List?) ?? []).cast<Map>().where((v) => v['until'] == null).firstOrNull?['village'] as Map?;
           final missing = [if ((p['pangkat'] ?? '') == '') 'pangkat', if ((p['jabatan'] ?? '') == '') 'jabatan', if ((p['phone'] ?? '') == '') 'No. HP'];
           String initials(String n) => n.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).take(2).map((w) => w[0]).join().toUpperCase();
-          return ListView(padding: const EdgeInsets.all(16), children: [
+          return ListView(padding: contentPadding(context), children: [
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(18),

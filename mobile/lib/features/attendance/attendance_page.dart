@@ -9,6 +9,7 @@ import '../../core/location/location_service.dart';
 import '../../core/location/tracking_banner.dart';
 import '../../core/ui/format.dart';
 import '../../core/ui/theme.dart';
+import '../../core/ui/responsive.dart';
 import '../../core/ui/skeleton.dart';
 import '../reports/report_api.dart';
 
@@ -113,17 +114,20 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
               const Text('Riwayat', style: TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
               if (days.isEmpty) const Text('Belum ada riwayat.', style: TextStyle(color: muted)),
-              for (final d in days.take(14))
-                Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    title: Text(tanggalPanjang(DateTime.parse(d)), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                    subtitle: Text([
-                      for (final a in byDay[d]!..sort((a, b) => (a['type'] as String).compareTo(b['type'] as String)))
-                        '${a['type'] == 'CHECK_IN' ? 'Masuk' : 'Pulang'} ${jam(a['clientTime'])}${a['insideVillage'] == false ? ' (luar desa)' : ''}',
-                    ].join(' · ')),
+              // HP: satu kolom; tablet: kartu berjajar 2 kolom.
+              CardColumns(children: [
+                for (final d in days.take(14))
+                  Card(
+                    margin: EdgeInsets.zero,
+                    child: ListTile(
+                      title: Text(tanggalPanjang(DateTime.parse(d)), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      subtitle: Text([
+                        for (final a in byDay[d]!..sort((a, b) => (a['type'] as String).compareTo(b['type'] as String)))
+                          '${a['type'] == 'CHECK_IN' ? 'Masuk' : 'Pulang'} ${jam(a['clientTime'])}${a['insideVillage'] == false ? ' (luar desa)' : ''}',
+                      ].join(' · ')),
+                    ),
                   ),
-                ),
+              ]),
               const SizedBox(height: 80),
             ]),
           );

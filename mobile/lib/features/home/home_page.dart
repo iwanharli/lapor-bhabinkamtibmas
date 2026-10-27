@@ -11,6 +11,7 @@ import '../../core/ui/theme.dart';
 import '../../core/ui/skeleton.dart';
 import '../reports/outbox_banner.dart';
 import '../reports/report_api.dart';
+import '../../core/ui/responsive.dart';
 import '../reports/report_tile.dart';
 
 class HomePage extends ConsumerWidget {
@@ -107,12 +108,12 @@ class HomePage extends ConsumerWidget {
             const SizedBox(height: 10),
             schemas.when(
               loading: () => GridView.count(
-                crossAxisCount: 3, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 0.95,
+                crossAxisCount: isWide(context) ? 6 : 3, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 0.95,
                 children: List.generate(6, (_) => const SkeletonBox(radius: 16, height: double.infinity)),
               ),
               error: (e, _) => _Retry(message: 'Formulir belum bisa dimuat. ${apiErrorMessage(e)}', onRetry: () => ref.invalidate(formSchemasProvider)),
               data: (list) => GridView.count(
-                crossAxisCount: 3, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: isWide(context) ? 6 : 3, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 0.95,
                 children: [
                   for (final c in categories.where((c) => list.any((s) => s.category == c.key)))
@@ -143,7 +144,7 @@ class HomePage extends ConsumerWidget {
               error: (e, _) => _Retry(message: 'Laporan belum bisa dimuat. ${apiErrorMessage(e)}', onRetry: () => ref.invalidate(reportsProvider)),
               data: (list) => list.isEmpty
                   ? const Padding(padding: EdgeInsets.all(16), child: Text('Belum ada laporan.', style: TextStyle(color: muted)))
-                  : Column(children: [for (final r in list.take(5)) Padding(padding: const EdgeInsets.only(bottom: 8), child: ReportTile(r))]),
+                  : CardColumns(children: [for (final r in list.take(isWide(context) ? 6 : 5)) ReportTile(r)]),
             ),
             const SizedBox(height: 80),
           ]),

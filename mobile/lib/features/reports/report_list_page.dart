@@ -10,6 +10,7 @@ import '../../core/ui/theme.dart';
 import '../../core/ui/skeleton.dart';
 import 'outbox_banner.dart';
 import 'report_api.dart';
+import '../../core/ui/responsive.dart';
 import 'report_tile.dart';
 
 const _pageSize = 20;
@@ -107,6 +108,8 @@ class _ReportListPageState extends ConsumerState<ReportListPage> {
     for (final r in _items) {
       groups.putIfAbsent(DateFormat('yyyy-MM-dd').format(DateTime.parse(r.occurredAt).toLocal()), () => []).add(r);
     }
+    // Tablet: daftar satu kolom selebar maxContentWidth di tengah (kelompok per tanggal sering berisi 1 laporan).
+    final side = contentPadding(context).left;
     String dayLabel(String d) => d == today ? 'HARI INI' : d == yesterday ? 'KEMARIN' : DateFormat('EEEE, d MMMM', 'id_ID').format(DateTime.parse(d)).toUpperCase();
 
     return Scaffold(
@@ -116,7 +119,7 @@ class _ReportListPageState extends ConsumerState<ReportListPage> {
         child: CustomScrollView(controller: _scroll, slivers: [
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              padding: EdgeInsets.fromLTRB(side, 8, side, 0),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 const OutboxBanner(),
                 SegmentedButton<String?>(
@@ -176,19 +179,19 @@ class _ReportListPageState extends ConsumerState<ReportListPage> {
           for (final e in groups.entries) ...[
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+                padding: EdgeInsets.fromLTRB(side, 14, side, 6),
                 child: Text(dayLabel(e.key), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: muted, letterSpacing: 0.8)),
               ),
             ),
             SliverList.separated(
               itemCount: e.value.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (_, i) => Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: ReportTile(e.value[i])),
+              itemBuilder: (_, i) => Padding(padding: EdgeInsets.symmetric(horizontal: side), child: ReportTile(e.value[i])),
             ),
           ],
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+              padding: EdgeInsets.fromLTRB(side, 16, side, 100),
               child: Center(
                 child: _loading && _items.isNotEmpty
                     ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5))

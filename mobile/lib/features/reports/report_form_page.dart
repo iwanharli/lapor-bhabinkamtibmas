@@ -17,6 +17,7 @@ import '../../core/ui/format.dart';
 import '../../core/ui/theme.dart';
 import '../../core/ui/skeleton.dart';
 import 'outbox.dart';
+import '../../core/ui/responsive.dart';
 import 'report_api.dart';
 
 typedef FormRow = Map<String, dynamic>;
@@ -330,7 +331,7 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
       },
       child: Scaffold(
         appBar: AppBar(title: Text(_ralat ? 'Ralat · ${cat.label}' : cat.label)),
-        body: ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 120), children: [
+        body: ListView(padding: contentPadding(context, top: 12, bottom: 120), children: [
           if (steps.length > 1) _Stepper(steps: steps, current: _step, onTap: (i) => setState(() => _step = i)),
           if (_step == 0) ...[
             Card(

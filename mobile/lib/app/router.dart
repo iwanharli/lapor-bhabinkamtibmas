@@ -13,6 +13,7 @@ import '../features/reports/report_detail_page.dart';
 import '../features/reports/report_form_page.dart';
 import '../features/reports/report_list_page.dart';
 import '../features/shell/app_shell.dart';
+import '../features/stats/stats_page.dart';
 import '../features/splash/splash_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -40,6 +41,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/', builder: (_, __) => const HomePage()),
           GoRoute(path: '/laporan', builder: (_, __) => const ReportListPage()),
           GoRoute(path: '/absensi', builder: (_, __) => const AttendancePage()),
+          GoRoute(path: '/statistik', builder: (_, __) => const StatsPage()),
           GoRoute(path: '/profil', builder: (_, __) => const ProfilePage()),
         ],
       ),

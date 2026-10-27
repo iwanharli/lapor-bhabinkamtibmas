@@ -15,7 +15,8 @@ class AppShell extends ConsumerWidget {
   static const _tabs = [
     ('/', Icons.home_outlined, Icons.home_rounded, 'Beranda'),
     ('/laporan', Icons.assignment_outlined, Icons.assignment_rounded, 'Laporan'),
-    ('/absensi', Icons.how_to_reg_outlined, Icons.how_to_reg_rounded, 'Absensi'),
+    // Absensi dibuka dari kartu absen di Beranda; tab diganti Statistik.
+    ('/statistik', Icons.insights_outlined, Icons.insights_rounded, 'Statistik'),
     ('/profil', Icons.person_outline, Icons.person_rounded, 'Profil'),
   ];
 

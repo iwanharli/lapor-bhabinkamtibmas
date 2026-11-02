@@ -1,10 +1,10 @@
 /** Warna titik peta per kategori (selaras palet grafik). */
 export const CATEGORY_COLOR: Record<string, string> = {
-  SAMBANG: '#1d4ed8',
-  DETEKSI_DINI: '#c81e3a',
-  PROBLEM_SOLVING: '#c2650a',
-  PENYULUHAN: '#7c3aed',
-  HARGA_PANGAN: '#0ea5e9',
+  SAMBANG: '#0a3a8c',
+  DETEKSI_DINI: '#d7141f',
+  PROBLEM_SOLVING: '#e07b00',
+  PENYULUHAN: '#6d3fc4',
+  HARGA_PANGAN: '#0587a8',
   MAPPING_KK: '#64748b',
   KETAHANAN_PANGAN: '#15803d',
 };

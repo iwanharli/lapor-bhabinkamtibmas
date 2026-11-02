@@ -1,53 +1,53 @@
 @import "tailwindcss";
 
-/* Token warna: biru — navy gelap untuk sidebar, biru sebagai warna utama, biru langit sebagai aksen. */
+/* Token warna mengikuti logo: navy perisai, merah bingkai, emas pita & padi, sian cahaya tengah. */
 :root {
   /* Biru merek untuk latar berteks putih (tombol, kartu bergradasi): sama di mode terang & malam agar kontras tetap terjaga. */
-  --brand: #1d4ed8;
-  --brand-2: #2563eb;
-  --brand-deep: #0f2a5a;
-  --bg: #f4f6fb;
+  --brand: #0a3a8c;
+  --brand-2: #1250b4;
+  --brand-deep: #001a4d;
+  --bg: #f3f5fa;
   --surface: #ffffff;
-  --ink: #0f1b2d;
-  --muted: #64748b;
-  --line: #e2e8f0;
-  /* Palet terinspirasi lambang Binmas: biru perisai, merah tegas, kuning sebagai aksen. */
-  --navy: #102b58;
-  --navy-2: #1d437e;
-  --primary: #244f91;
-  --primary-2: #3569ad;
-  --primary-soft: #eaf0fa;
-  --accent: #e8b923;
-  --accent-ink: #805d00;
+  --ink: #0a1730;
+  --muted: #5b6b84;
+  --line: #dfe5ef;
+  /* Diambil dari logo: navy #001a4d, merah #d7141f, emas #f5c400. */
+  --navy: #001a4d;
+  --navy-2: #00296b;
+  --primary: #0a3a8c;
+  --primary-2: #1250b4;
+  --primary-soft: #e8eefa;
+  --accent: #f5c400;
+  --accent-ink: #7a5c00;
   --success: #15803d;
   --success-soft: #e7f5ec;
-  --danger: #d92332;
-  --danger-soft: #fff0f0;
+  --danger: #d7141f;
+  --danger-soft: #fdecec;
   --warn: #9a7000;
   --warn-soft: #fff7d6;
-  --info: #087f9b;
-  --info-soft: #e6f5f8;
-  --shadow-tint: 36 79 145;
+  --info: #0587a8;
+  --info-soft: #e2f5f9;
+  --shadow-tint: 0 26 77;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0b1220;
-    --surface: #121b2e;
-    --ink: #e6edf7;
-    --muted: #94a3b8;
-    --line: #23314a;
-    --navy: #09172d;
-    --navy-2: #12294b;
-    --primary: #7eaae8;
-    --primary-2: #a6c5f1;
-    --primary-soft: #1b2d4a;
-    --accent: #f0c63e;
-    --accent-ink: #f5d975;
+    --bg: #060f22;
+    --surface: #0d1a33;
+    --ink: #e8eef8;
+    --muted: #93a3bb;
+    --line: #20304e;
+    --navy: #00112f;
+    --navy-2: #001f52;
+    --primary: #7fb0f5;
+    --primary-2: #a8c9f8;
+    --primary-soft: #14294d;
+    --accent: #f8cf2c;
+    --accent-ink: #f8dc6e;
     --success: #4ade80;
     --success-soft: #14301f;
-    --danger: #ff727d;
-    --danger-soft: #3a1920;
+    --danger: #ff6b73;
+    --danger-soft: #3a141a;
     --warn: #fbbf24;
     --warn-soft: #3a2a10;
     --info: #51c8df;

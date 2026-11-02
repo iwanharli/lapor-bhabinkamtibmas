@@ -36,7 +36,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
           .ge-act{margin-top:28px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
           .ge-act a,.ge-act button{height:44px;padding:0 20px;border-radius:12px;font:600 14px inherit;font-family:inherit;cursor:pointer;
             display:inline-flex;align-items:center;text-decoration:none}
-          .ge-act button{border:0;background:#1d4ed8;color:#fff}
+          .ge-act button{border:0;background:#0a3a8c;color:#fff}
           .ge-act a{border:1px solid #e2e8f0;background:#fff;color:#0f172a}
           @media (prefers-color-scheme:dark){
             .ge{background:#0b1220;color:#e2e8f0}.ge-card{background:#111a2e;border-color:#1e293b}

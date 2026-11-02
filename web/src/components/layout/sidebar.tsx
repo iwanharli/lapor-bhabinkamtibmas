@@ -63,7 +63,7 @@ export interface NavSection {
 
 /** Warna tiap kelompok menu, dipakai lewat variabel --nav. */
 const SECTION_COLOR: Record<string, string> = {
-  Beranda: '#60a5fa', 'Data Laporan': '#fbbf24', Peta: '#34d399', Personel: '#c084fc', Administrasi: '#fb7185', Menu: '#60a5fa',
+  Beranda: '#5cc8f2', 'Data Laporan': '#f5c400', Peta: '#34d399', Personel: '#c084fc', Administrasi: '#ff6b73', Menu: '#5cc8f2',
 };
 
 /** Ikon menu berwarna kelompoknya; menu aktif berlatar penuh. */
@@ -227,7 +227,7 @@ function NavLinks({ sections, collapsed, onNavigate }: { sections: NavSection[];
   );
 }
 
-const panelBg = 'bg-[radial-gradient(120%_60%_at_0%_100%,rgb(59_130_246/0.28),transparent_60%),linear-gradient(180deg,var(--navy),var(--navy-2))]';
+const panelBg = 'bg-[radial-gradient(120%_60%_at_0%_100%,rgb(18_80_180/0.35),transparent_60%),linear-gradient(180deg,var(--navy),var(--navy-2))]';
 
 /** Sidebar tetap di layar lebar. */
 export function Sidebar({ sections, collapsed }: { sections: NavSection[]; collapsed: boolean }) {

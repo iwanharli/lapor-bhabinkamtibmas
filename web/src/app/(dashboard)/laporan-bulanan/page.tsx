@@ -63,7 +63,7 @@ export default async function LaporanBulananPage({ searchParams }: { searchParam
 
   return (
     <div className="space-y-5">
-      <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-[var(--brand-deep)] via-[#16397c] to-[var(--brand)] text-white shadow-lg">
+      <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-[var(--brand-deep)] via-[var(--navy-2)] to-[var(--brand)] text-white shadow-lg">
         <div className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Laporan Bulanan</h1>

@@ -34,8 +34,9 @@ async function main() {
     for (const category of CATEGORIES) {
       if (await prisma.report.count({ where: { unitId: polsek.id, category, occurredAt: { gte: since } } })) continue;
       const donor = await prisma.report.findFirst({
-        where: { category, schemaVersion: version.get(category), attachments: { some: {} } },
-        include: { attachments: true },
+        // Hanya foto data demo (storage/demo), bukan gambar kecil sisa test E2E.
+        where: { category, schemaVersion: version.get(category), attachments: { some: { objectKey: { startsWith: 'demo/' } } } },
+        include: { attachments: { where: { objectKey: { startsWith: 'demo/' } } } },
         orderBy: { occurredAt: 'desc' },
       });
       const days = new Set<number>();

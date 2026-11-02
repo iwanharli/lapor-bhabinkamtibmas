@@ -20,6 +20,29 @@ export const BASE_PRICE: Record<string, number> = {
 
 export const WARGA = ['Budi Santoso', 'Siti Aminah', 'Ahmad Fauzi', 'Dewi Lestari', 'Joko Susilo', 'Rina Marlina', 'H. Ma\'ruf', 'Ust. Hasan', 'Pak RT Darto', 'Yanti Sukaesih'];
 
+const KERAWANAN: Record<string, { uraian: string[]; tindakan: string[]; massa: [number, number] }> = {
+  'Sengketa Lahan': {
+    uraian: ['Warga melaporkan rencana pengerahan massa terkait sengketa batas lahan antarahli waris.', 'Dua keluarga berselisih soal batas tanah setelah pemasangan pagar baru di lingkungan RT.'],
+    tindakan: ['Berkoordinasi dengan ketua RW dan menyarankan mediasi di kantor kelurahan.', 'Menemui kedua pihak dan mengimbau menunggu penyelesaian lewat musyawarah.'],
+    massa: [5, 40],
+  },
+  'Gesekan Antarkelompok': {
+    uraian: ['Terdapat ketegangan antara dua kelompok pemuda terkait pengelolaan parkir pasar.', 'Saling ejek antarkelompok remaja di media sosial berpotensi berlanjut menjadi tawuran.'],
+    tindakan: ['Menemui tokoh pemuda kedua kelompok dan meminta menahan diri.', 'Meningkatkan patroli malam bersama linmas di titik rawan.'],
+    massa: [10, 60],
+  },
+  'Bencana Alam': {
+    uraian: ['Debit kali naik signifikan, beberapa rumah di bantaran berpotensi tergenang.', 'Pohon besar di tepi jalan lingkungan miring setelah hujan deras dan berisiko tumbang.'],
+    tindakan: ['Mengimbau warga bantaran bersiaga dan berkoordinasi dengan kelurahan serta BPBD.', 'Memasang tanda peringatan dan melapor ke petugas kelurahan.'],
+    massa: [10, 80],
+  },
+  Kriminalitas: {
+    uraian: ['Maraknya pencurian sepeda motor di sekitar area masjid pada malam hari.', 'Warga melaporkan orang tak dikenal yang berulang kali mengamati rumah kosong di lingkungan RT.'],
+    tindakan: ['Mengaktifkan kembali ronda malam bersama pengurus RT.', 'Mengimbau warga memasang kunci ganda dan meneruskan informasi ke fungsi reskrim Polsek.'],
+    massa: [1, 8],
+  },
+};
+
 export function dataFor(cat: C, day: number): { data: Prisma.InputJsonObject; priority?: boolean } {
   switch (cat) {
     case C.SAMBANG:
@@ -31,16 +54,10 @@ export function dataFor(cat: C, day: number): { data: Prisma.InputJsonObject; pr
       } };
     case C.DETEKSI_DINI: {
       const urgensi = pick(['Rendah', 'Rendah', 'Sedang', 'Sedang', 'Tinggi']);
+      // Uraian & tindakan selalu sesuai kategori agar laporan contoh masuk akal saat dibaca.
+      const [kategori, cerita] = pick(Object.entries(KERAWANAN));
       return { priority: urgensi === 'Tinggi', data: {
-        kategori_kerawanan: pick(['Sengketa Lahan', 'Gesekan Antarkelompok', 'Bencana Alam', 'Kriminalitas']),
-        urgensi,
-        uraian: pick([
-          'Terdapat ketegangan antara dua kelompok pemuda terkait batas wilayah parkir pasar.',
-          'Warga melaporkan rencana pengerahan massa terkait sengketa lahan garapan.',
-          'Debit sungai naik signifikan, beberapa rumah di bantaran berpotensi tergenang.',
-          'Maraknya pencurian sepeda motor di sekitar area masjid pada malam hari.',
-        ]),
-        perkiraan_massa: int(5, 80),
+        kategori_kerawanan: kategori, urgensi, uraian: pick(cerita.uraian), tindakan_awal: pick(cerita.tindakan), perkiraan_massa: int(cerita.massa[0], cerita.massa[1]),
       } };
     }
     case C.PROBLEM_SOLVING:

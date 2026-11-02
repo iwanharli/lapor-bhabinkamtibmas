@@ -88,20 +88,7 @@ body {
   min-height: 100vh;
 }
 
-.sidebar-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: rgb(255 255 255 / 0.22) transparent;
-  scrollbar-gutter: stable;
-}
-.sidebar-scrollbar::-webkit-scrollbar { width: 7px; }
-.sidebar-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.sidebar-scrollbar::-webkit-scrollbar-thumb {
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 0.22);
-  background-clip: padding-box;
-}
-.sidebar-scrollbar::-webkit-scrollbar-thumb:hover { background: rgb(255 255 255 / 0.42); }
+.sidebar-scrollbar { scrollbar-gutter: stable; --scroll-thumb: rgb(255 255 255 / 0.2); --scroll-thumb-hover: rgb(255 255 255 / 0.42); }
 
 /* Modal (<dialog>): animasi masuk & backdrop */
 dialog.modal[open] {
@@ -183,6 +170,9 @@ dialog.modal::backdrop {
 }
 .map-under-bar .leaflet-top { top: 4rem; }
 .map-attr-left .leaflet-bottom.leaflet-right { right: auto; left: 6.5rem; }
+/* Peta Stunting: kontrol di bawah bilah alat & breadcrumb, atribusi tidak tertimpa panel kanan. */
+.map-side-panel .leaflet-top { top: 10.5rem; }
+@media (min-width: 1024px) { .map-side-panel .leaflet-bottom.leaflet-right { right: 22rem; } }
 .map-under-bar .leaflet-bottom { bottom: var(--strip-h, 0px); }
 .map-glass .leaflet-bar a { background: rgb(12 22 38 / .78); color: #f4f7fb; border-color: rgb(255 255 255 / .14); }
 .map-glass .leaflet-bar a:hover { background: #1b2d4a; }
@@ -220,11 +210,6 @@ dialog.modal::backdrop {
 .map-mini .leaflet-bottom.leaflet-right { right: auto; left: 0; }
 
 /* Scrollbar tipis & samar untuk daftar yang digulir di dalam kartu. */
-.scroll-thin { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 35%, transparent) transparent; }
-.scroll-thin::-webkit-scrollbar { width: 6px; height: 6px; }
-.scroll-thin::-webkit-scrollbar-track { background: transparent; }
-.scroll-thin::-webkit-scrollbar-thumb { border-radius: 999px; background: color-mix(in srgb, var(--muted) 30%, transparent); }
-.scroll-thin:hover::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted) 55%, transparent); }
 
 
 /* Peta stunting SVG: muncul halus saat berganti tingkat wilayah. */
@@ -266,3 +251,21 @@ dialog.modal::backdrop {
   50% { fill-opacity: .2; filter: drop-shadow(0 0 10px rgb(251 191 36 / .95)); }
 }
 @media (prefers-reduced-motion: reduce) { .map-focus-veil { transition: none; } .map-focus-line { animation: none; fill-opacity: .12; } }
+
+/*
+ * Bilah gulir tipis di seluruh aplikasi; warna mengikuti token, jadi ikut mode malam dan panel kaca peta.
+ * Chrome/Safari memakai ::-webkit-scrollbar (scrollbar-width akan mematikannya), Firefox memakai properti standar.
+ * Deretan yang sengaja tanpa bilah memakai [scrollbar-width:none].
+ */
+:root {
+  --scroll-thumb: color-mix(in srgb, var(--muted) 38%, transparent);
+  --scroll-thumb-hover: color-mix(in srgb, var(--muted) 68%, transparent);
+}
+.map-glass { --scroll-thumb: rgb(255 255 255 / 0.24); --scroll-thumb-hover: rgb(255 255 255 / 0.45); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: var(--scroll-thumb) padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover) padding-box; }
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; }
+}

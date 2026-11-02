@@ -107,7 +107,7 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
       if (cancelled || !mapEl.current) return;
       leaflet.current = L;
       const mm = (map.current = L.map(mapEl.current, { zoomControl: false, attributionControl: false }).setView([-2.5, 118], 5));
-      L.control.zoom({ position: 'bottomright' }).addTo(mm);
+      L.control.zoom({ position: 'topleft' }).addTo(mm);
       L.control.attribution({ position: 'bottomright', prefix: false }).addTo(mm);
       addBaseLayers(L, mm, 'Kemendagri 2025');
       setMapReady(true);
@@ -139,7 +139,7 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
     const mm = map.current;
     const bounds = layer.current?.getBounds();
     if (!mm || !bounds?.isValid()) return;
-    const wide = mm.getSize().x >= 1024;
+    const wide = window.innerWidth >= 1024; // panel kanan tampil mulai lg
     mm.flyToBounds(bounds, { paddingTopLeft: [24, 170], paddingBottomRight: [wide ? 380 : 24, 24], duration: 0.8, maxZoom: 15 });
   }, [mapReady, features]);
 
@@ -171,7 +171,7 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
     <div className="absolute inset-0">
       <section className="absolute inset-0">
         <div ref={box} className="absolute inset-0" onMouseLeave={() => setHover(null)}>
-          <div ref={mapEl} className="stunting-svg absolute inset-0 bg-[#0b1626]" role="img" aria-label={`Peta ${m.label}`} />
+          <div ref={mapEl} className="stunting-svg map-side-panel absolute inset-0 bg-[#0b1626]" role="img" aria-label={`Peta ${m.label}`} />
           {error && <p className="map-glass-card absolute left-1/2 top-1/2 z-[500] -translate-x-1/2 -translate-y-1/2 p-4 text-sm text-muted">{error}</p>}
           {!data && !error && <div className="absolute inset-0 z-[500] grid place-items-center"><Loader2 className="animate-spin text-white" /></div>}
 
@@ -208,7 +208,7 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
         </div>
       </section>
 
-      <aside className="absolute inset-x-3 bottom-3 z-[550] flex max-h-[38%] flex-col gap-3 overflow-y-auto max-lg:hidden lg:inset-x-auto lg:right-3 lg:top-3 lg:max-h-none lg:w-[21rem] [scrollbar-width:none]">
+      <aside className="absolute inset-x-3 bottom-3 z-[550] flex max-h-[38%] flex-col gap-3 overflow-y-auto max-lg:hidden lg:inset-x-auto lg:right-3 lg:top-3 lg:max-h-none lg:w-[21rem]">
         {/* Satu kartu rincian bertinggi tetap: wilayah yang disorot/diklik, atau gabungan wilayah yang sedang dilihat. */}
         <section className="map-glass-card shrink-0 overflow-hidden">
           <div className="flex items-start gap-2 border-b border-line px-4 py-3">

@@ -29,9 +29,6 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
               <Card title="Lokasi & bukti" subtitle="Titik GPS saat laporan dibuat">
                 <LocationInfo report={r} />
               </Card>
-              <Card title="Lampiran" subtitle={r.attachments.length ? `${r.attachments.length} berkas · klik untuk memperbesar` : 'Foto & dokumen bukti kegiatan'}>
-                <AttachmentGallery items={r.attachments} fields={r.schema?.fields ?? []} tz={r.unit.timezone} />
-              </Card>
               <Card title="Riwayat" subtitle={`${r.history.length} perubahan status`}>
                 <StatusTimeline history={r.history} tz={r.unit.timezone} />
               </Card>
@@ -44,6 +41,9 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
               <PriceItemsTable items={r.items} averages={averages} />
             </Card>
           )}
+          <Card title="Lampiran" subtitle={r.attachments.length ? `${r.attachments.length} berkas · klik untuk memperbesar` : 'Foto & dokumen bukti kegiatan'}>
+              <AttachmentGallery items={r.attachments} fields={r.schema?.fields ?? []} tz={r.unit.timezone} />
+          </Card>
         </SplitLayout>
       </Stack>
     </>

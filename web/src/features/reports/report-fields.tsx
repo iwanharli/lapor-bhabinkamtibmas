@@ -1,4 +1,4 @@
-import { UserRound } from 'lucide-react';
+import { FileText, UserRound } from 'lucide-react';
 import { displayValue } from '@/lib/format';
 import type { ReportDetail, SchemaField } from '@/lib/types';
 
@@ -35,9 +35,9 @@ function FieldGrid({ fields, report }: { fields: SchemaField[]; report: ReportDe
           const wide = f.type === 'textarea' || String(v ?? '').length > 60;
           const span = wide ? 'sm:col-span-2 2xl:col-span-3' : '';
           return (
-            <div key={f.key} className={`flex flex-col gap-0.5 border-b border-line/60 py-3 ${span}`}>
-              <dt className="text-xs text-muted">{f.label}</dt>
-              <dd className="break-words text-[15px]">
+            <div key={f.key} className={`flex flex-col gap-1 py-3 ${wide ? '' : 'border-b border-line/60'} ${span}`}>
+              <dt className="text-xs font-medium text-muted">{f.label}</dt>
+              <dd className={wide ? 'break-words rounded-xl border-l-[3px] border-primary bg-bg/70 px-4 py-3 text-[15px] leading-relaxed' : 'break-words text-[15px]'}>
                 <Value v={v} />
               </dd>
             </div>
@@ -103,7 +103,11 @@ export function ReportFields({ report }: { report: ReportDetail }) {
               <h3 className="flex items-center gap-2.5 border-b border-line px-5 py-3.5 text-sm font-semibold">
                 <span className="grid h-6 w-6 place-items-center rounded-full bg-[var(--brand)] text-[11px] font-bold text-white">{gi + 1}</span>{g.title}
               </h3>
-            ) : <div className="h-2" />}
+            ) : (
+              <h3 className="flex items-center gap-2.5 border-b border-line px-5 py-3.5 text-sm font-semibold">
+                <FileText size={16} className="text-primary" /> Isi laporan
+              </h3>
+            )}
             {plain.length > 0 && <FieldGrid fields={plain} report={report} />}
             {reps.map((f) => <RowCards key={f.key} f={f} report={report} />)}
           </section>

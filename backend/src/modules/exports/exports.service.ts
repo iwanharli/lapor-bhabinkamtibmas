@@ -55,7 +55,7 @@ export class ExportsService {
   build(me: AuthUser, kind: ExportKind, params: Params): Promise<ExportResult> {
     switch (kind) {
       case 'reports': return this.reportsCsv(me, params);
-      case 'prices': return this.pricesCsv(me);
+      case 'prices': return this.pricesCsv(me, params.unitId, /^\d{2}(\.\d{2}(\.\d{2}(\.\d{4})?)?)?$/.test(params.wilayah ?? '') ? params.wilayah : undefined);
       case 'performance': return this.performanceCsv(me, params);
       case 'users': return this.usersCsv(me, params);
     }
@@ -108,8 +108,8 @@ export class ExportsService {
     return { name: exportName('laporan', await this.units.timezoneOf(me.unitId)), csv, rows: rows.length };
   }
 
-  private async pricesCsv(me: AuthUser): Promise<ExportResult> {
-    const rows = await this.analytics.latestPrices(me);
+  private async pricesCsv(me: AuthUser, unitId?: string, wilayah?: string): Promise<ExportResult> {
+    const rows = await this.analytics.latestPrices(me, unitId, wilayah);
     const csv = toCsv(
       ['Komoditas', 'Satuan', 'Rata-rata 7 hari (Rp)', 'Rata-rata 7 hari sebelumnya (Rp)', 'Perubahan (%)', 'Terendah (Rp)', 'Tertinggi (Rp)', 'Sampel', 'Stok menipis', 'Stok kosong'],
       rows.map((p) => [

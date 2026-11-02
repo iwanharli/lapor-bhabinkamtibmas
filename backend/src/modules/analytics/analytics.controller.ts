@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, NotFoundException, ParseUUIDPipe, Query } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { AuthUser, CurrentUser, Roles } from '../../common/decorators/auth.decorators';
 import { AnalyticsService, Range } from './analytics.service';
@@ -28,6 +28,13 @@ function mapFilter(q: MapQuery) {
     regionLevel,
   };
 }
+
+/** Kode wilayah Kemendagri (provinsi sampai desa); kosong = tanpa batas wilayah. */
+const regionCode = (kode?: string) => {
+  if (!kode) return undefined;
+  if (!/^\d{2}(\.\d{2}(\.\d{2}(\.\d{4})?)?)?$/.test(kode)) throw new BadRequestException({ code: 'INVALID_KODE', message: 'kode wilayah tidak valid' });
+  return kode;
+};
 
 @Controller('analytics')
 @Roles(UserRole.PIMPINAN, UserRole.ADMIN_UNIT, UserRole.SUPERADMIN, UserRole.AUDITOR)
@@ -63,18 +70,41 @@ export class AnalyticsController {
   }
 
   @Get('prices/latest')
-  latest(@CurrentUser() me: AuthUser, @Query('unitId') unitId?: string) {
-    return this.analytics.latestPrices(me, unitId || undefined);
+  latest(@CurrentUser() me: AuthUser, @Query('unitId') unitId?: string, @Query('wilayah') wilayah?: string) {
+    return this.analytics.latestPrices(me, unitId || undefined, regionCode(wilayah));
   }
 
+  /** GET prices/trend?from=&to=&commodityId=&unitId=&wilayah= — tren harian. */
   @Get('prices/trend')
-  trend(@CurrentUser() me: AuthUser, @Query() q: { unitId?: string; from?: string; to?: string; commodityId?: string }) {
-    return this.analytics.priceTrend(me, range(q), q.commodityId ? Number(q.commodityId) : undefined);
+  trend(@CurrentUser() me: AuthUser, @Query() q: { unitId?: string; from?: string; to?: string; commodityId?: string; wilayah?: string }) {
+    return this.analytics.priceTrend(me, range(q), q.commodityId ? Number(q.commodityId) : undefined, regionCode(q.wilayah));
   }
 
   @Get('prices/by-area')
-  byArea(@CurrentUser() me: AuthUser, @Query('commodityId') commodityId: string, @Query('unitId') unitId?: string) {
-    return this.analytics.pricesByArea(me, Number(commodityId), unitId || undefined);
+  byArea(@CurrentUser() me: AuthUser, @Query('commodityId') commodityId: string, @Query('unitId') unitId?: string, @Query('wilayah') wilayah?: string) {
+    return this.analytics.pricesByArea(me, Number(commodityId), unitId || undefined, regionCode(wilayah));
+  }
+
+  /** GET prices/regions?parent= — anak wilayah yang punya laporan harga 30 hari terakhir. */
+  @Get('prices/regions')
+  priceRegions(@CurrentUser() me: AuthUser, @Query('parent') parent?: string) {
+    return this.analytics.priceRegions(me, regionCode(parent));
+  }
+
+  /** GET prices/markets?kode= — pasar dalam satu wilayah, sesuai isian Bhabin. */
+  @Get('prices/markets')
+  priceMarkets(@CurrentUser() me: AuthUser, @Query('kode') kode?: string) {
+    const code = regionCode(kode);
+    if (!code) throw new BadRequestException({ code: 'INVALID_KODE', message: 'kode wilayah wajib diisi' });
+    return this.analytics.priceMarkets(me, code);
+  }
+
+  /** GET prices/market?desa=&nama= — komoditas di satu pasar. */
+  @Get('prices/market')
+  async priceMarket(@CurrentUser() me: AuthUser, @Query('desa', ParseUUIDPipe) desa: string, @Query('nama') nama?: string) {
+    const market = nama?.trim() ? await this.analytics.priceMarket(me, desa, nama) : null;
+    if (!market) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Pasar tidak ditemukan' });
+    return market;
   }
 
   @Get('stunting')

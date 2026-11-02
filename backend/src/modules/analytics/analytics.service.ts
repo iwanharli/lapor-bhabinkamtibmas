@@ -62,6 +62,8 @@ export interface Range {
   to: Date;
 }
 
+type LatestPriceRow = { commodity_id: number; nama: string; satuan: string; rata2: number; minimum: number; maksimum: number; sampel: number; rata2_sebelumnya: number | null; stok_menipis: number; stok_kosong: number };
+
 @Injectable()
 export class AnalyticsService {
   constructor(private prisma: PrismaService, private units: UnitsService) {}
@@ -259,7 +261,106 @@ export class AnalyticsService {
   }
 
   /** Harga rata-rata 7 hari terakhir per komoditas dan perubahan dibanding 7 hari sebelumnya (dari agregat). */
-  async latestPrices(me: AuthUser, unitId?: string) {
+  /** Laporan harga yang sah dalam cakupan akun, opsional dibatasi kode wilayah (alias r, v). */
+  private async priceWhere(me: AuthUser, wilayah?: string) {
+    const scope = await this.scopeSql(me);
+    return Prisma.sql`${scope} AND ${PRICE_VALID} AND r.category = 'HARGA_PANGAN' ${wilayah ? Prisma.sql`AND v.kode_wilayah LIKE ${wilayah.length === 13 ? wilayah : `${wilayah}%`}` : Prisma.empty}`;
+  }
+
+  /** Rata-rata 7 hari per komoditas untuk satu wilayah; agregat tidak menyimpan wilayah, jadi dihitung dari item laporan. */
+  private async latestPricesInRegion(me: AuthUser, wilayah: string) {
+    const where = await this.priceWhere(me, wilayah);
+    return this.prisma.$queryRaw<LatestPriceRow[]>`
+      WITH x AS (
+        SELECT i.commodity_id, i.harga, i.stok, (r.occurred_at AT TIME ZONE u.timezone)::date > (now() AT TIME ZONE u.timezone)::date - 7 AS kini
+        FROM report_items i JOIN reports r ON r.id = i.report_id JOIN units u ON u.id = r.unit_id JOIN villages v ON v.id = r.village_id
+        WHERE ${where} AND (r.occurred_at AT TIME ZONE u.timezone)::date > (now() AT TIME ZONE u.timezone)::date - 14
+      )
+      SELECT c.id AS commodity_id, c.nama, c.satuan_default AS satuan,
+             round(avg(x.harga) FILTER (WHERE x.kini))::int AS rata2,
+             min(x.harga) FILTER (WHERE x.kini)::int AS minimum, max(x.harga) FILTER (WHERE x.kini)::int AS maksimum,
+             (count(x.harga) FILTER (WHERE x.kini))::int AS sampel,
+             round(avg(x.harga) FILTER (WHERE NOT x.kini))::int AS rata2_sebelumnya,
+             (count(*) FILTER (WHERE x.kini AND x.stok = 'MENIPIS'))::int AS stok_menipis,
+             (count(*) FILTER (WHERE x.kini AND x.stok = 'KOSONG'))::int AS stok_kosong
+      FROM commodities c LEFT JOIN x ON x.commodity_id = c.id
+      WHERE c.active GROUP BY c.id ORDER BY c.urutan`;
+  }
+
+  /** Anak satu wilayah (tanpa induk: provinsi) yang punya laporan harga 30 hari terakhir, beserta satuan Polri pembinanya. */
+  async priceRegions(me: AuthUser, parent?: string) {
+    const where = await this.priceWhere(me, parent ? `${parent}.` : undefined);
+    const len = parent ? (parent.length === 8 ? 13 : parent.length + 3) : 2;
+    return this.prisma.$queryRaw<{ kode: string; nama: string; laporan: number; desa: number; pasar: number; terakhir: Date; satuan: string[] }[]>`
+      SELECT c.kode, coalesce(rg.nama, vl.nama) AS nama, c.laporan, c.desa, c.pasar, c.terakhir,
+             ARRAY(SELECT u.name FROM polri_wilayah m JOIN polri_units u ON u.id = m.unit_id
+                   WHERE m.kode = left(c.kode, 8) AND char_length(m.kode) = least(char_length(c.kode), 8) AND m.method NOT IN ('via_polres', 'via_polsek') ORDER BY u.name) AS satuan
+      FROM (
+        SELECT left(v.kode_wilayah, ${len}::int) AS kode, count(*)::int AS laporan, count(DISTINCT v.id)::int AS desa,
+               count(DISTINCT (v.id, lower(trim(r.data->>'nama_pasar'))))::int AS pasar, max(r.occurred_at) AS terakhir
+        FROM reports r JOIN villages v ON v.id = r.village_id
+        WHERE ${where} AND r.occurred_at >= now() - interval '30 days'
+        GROUP BY 1
+      ) c
+      LEFT JOIN regions rg ON rg.kode = c.kode LEFT JOIN villages vl ON vl.kode_wilayah = c.kode
+      ORDER BY c.laporan DESC, nama`;
+  }
+
+  /** Daftar pasar dalam satu wilayah sesuai isian Bhabin; satu pasar = desa + nama pasar (tanpa membedakan huruf besar-kecil). */
+  async priceMarkets(me: AuthUser, kode: string) {
+    const where = await this.priceWhere(me, kode.length === 13 ? kode : `${kode}.`);
+    const [[wilayah], markets] = await Promise.all([
+      this.prisma.$queryRaw<{ nama: string; chain: string; satuan: string[] }[]>`
+        SELECT x.nama, x.chain,
+               ARRAY(SELECT u.name FROM polri_wilayah m JOIN polri_units u ON u.id = m.unit_id
+                     WHERE m.kode = ANY(ARRAY[left(${kode}, 2), left(${kode}, 5), left(${kode}, 8)]) AND char_length(m.kode) <= char_length(${kode})
+                       AND m.method NOT IN ('via_polres', 'via_polsek')
+                     ORDER BY char_length(m.kode), u.name) AS satuan
+        FROM (
+          SELECT nama, chain FROM regions WHERE kode = ${kode}
+          UNION ALL SELECT nama, concat_ws(' › ', provinsi, kabupaten, kecamatan) FROM villages WHERE kode_wilayah = ${kode}
+        ) x LIMIT 1`,
+      this.prisma.$queryRaw<{ village_id: string; nama: string; jenis: string; desa: string; kecamatan: string; laporan: number; komoditas: number; terakhir: Date; bhabin: string }[]>`
+        SELECT v.id AS village_id, min(trim(r.data->>'nama_pasar')) AS nama, mode() WITHIN GROUP (ORDER BY r.data->>'jenis_lokasi') AS jenis,
+               v.nama AS desa, v.kecamatan, count(DISTINCT r.id)::int AS laporan, count(DISTINCT i.commodity_id)::int AS komoditas, max(r.occurred_at) AS terakhir,
+               (array_agg(concat_ws(' ', us.pangkat, us.nama) ORDER BY r.occurred_at DESC))[1] AS bhabin
+        FROM reports r JOIN villages v ON v.id = r.village_id JOIN users us ON us.id = r.user_id LEFT JOIN report_items i ON i.report_id = r.id
+        WHERE ${where} AND r.occurred_at >= now() - interval '30 days' AND coalesce(trim(r.data->>'nama_pasar'), '') <> ''
+        GROUP BY v.id, lower(trim(r.data->>'nama_pasar'))
+        ORDER BY terakhir DESC`,
+    ]);
+    return { wilayah: wilayah ?? null, markets };
+  }
+
+  /** Komoditas di satu pasar: harga terakhir, perubahan dari laporan sebelumnya, rentang, stok, dan riwayat 90 hari. */
+  async priceMarket(me: AuthUser, villageId: string, nama: string) {
+    const scope = await this.scopeSql(me);
+    const match = Prisma.sql`${scope} AND ${PRICE_VALID} AND r.category = 'HARGA_PANGAN' AND r.village_id = ${villageId}::uuid
+      AND lower(trim(r.data->>'nama_pasar')) = lower(trim(${nama})) AND r.occurred_at >= now() - interval '90 days'`;
+    const [[info], komoditas, riwayat] = await Promise.all([
+      this.prisma.$queryRaw<{ nama: string; jenis: string; desa: string; kode_wilayah: string; chain: string; laporan: number; terakhir: Date; kios: string[]; bhabin: string }[]>`
+        SELECT min(trim(r.data->>'nama_pasar')) AS nama, mode() WITHIN GROUP (ORDER BY r.data->>'jenis_lokasi') AS jenis, v.nama AS desa, v.kode_wilayah,
+               concat_ws(' › ', v.provinsi, v.kabupaten, v.kecamatan) AS chain, count(*)::int AS laporan, max(r.occurred_at) AS terakhir,
+               array_remove(array_agg(DISTINCT nullif(trim(r.data->>'nama_kios'), '')), NULL) AS kios,
+               (array_agg(concat_ws(' ', us.pangkat, us.nama) ORDER BY r.occurred_at DESC))[1] AS bhabin
+        FROM reports r JOIN villages v ON v.id = r.village_id JOIN users us ON us.id = r.user_id
+        WHERE ${match} GROUP BY v.id`,
+      this.prisma.$queryRaw<{ commodity_id: number; nama: string; satuan: string; riwayat: { t: string; h: number; s: string; kios: string | null; pemilik: string | null }[] }[]>`
+        SELECT c.id AS commodity_id, c.nama, c.satuan_default AS satuan,
+               json_agg(json_build_object('t', r.occurred_at, 'h', i.harga, 's', i.stok, 'kios', nullif(trim(r.data->>'nama_kios'), ''), 'pemilik', nullif(trim(r.data->>'nama_pemilik'), '')) ORDER BY r.occurred_at) AS riwayat
+        FROM report_items i JOIN reports r ON r.id = i.report_id JOIN commodities c ON c.id = i.commodity_id
+        WHERE ${match} GROUP BY c.id ORDER BY c.urutan`,
+      this.prisma.$queryRaw<{ id: string; nomor: string; waktu: Date; bhabin: string; nrp: string; kios: string | null; komoditas: number; mock: boolean; inside: boolean | null }[]>`
+        SELECT r.id, r.nomor, r.occurred_at AS waktu, concat_ws(' ', us.pangkat, us.nama) AS bhabin, us.nrp, nullif(trim(r.data->>'nama_kios'), '') AS kios,
+               (SELECT count(*)::int FROM report_items i WHERE i.report_id = r.id) AS komoditas, r.is_mock_location AS mock, r.inside_village AS inside
+        FROM reports r JOIN users us ON us.id = r.user_id
+        WHERE ${match} ORDER BY r.occurred_at DESC LIMIT 100`,
+    ]);
+    return info ? { info, komoditas, riwayat } : null;
+  }
+
+  async latestPrices(me: AuthUser, unitId?: string, wilayah?: string) {
+    if (wilayah) return this.latestPricesInRegion(me, wilayah.length === 13 ? wilayah : `${wilayah}.`);
     const scope = await this.scopeSql(me, unitId, Prisma.sql`a.unit_id`);
     return this.prisma.$queryRaw<
       { commodity_id: number; nama: string; satuan: string; rata2: number; minimum: number; maksimum: number; sampel: number; rata2_sebelumnya: number | null; stok_menipis: number; stok_kosong: number }[]
@@ -283,7 +384,15 @@ export class AnalyticsService {
   }
 
   /** Tren harga harian per komoditas (dari agregat). */
-  async priceTrend(me: AuthUser, { unitId, from, to }: Range, commodityId?: number) {
+  async priceTrend(me: AuthUser, { unitId, from, to }: Range, commodityId?: number, wilayah?: string) {
+    if (wilayah) {
+      const where = await this.priceWhere(me, wilayah.length === 13 ? wilayah : `${wilayah}.`);
+      return this.prisma.$queryRaw<{ hari: string; commodity_id: number; rata2: number; sampel: number }[]>`
+        SELECT to_char((r.occurred_at AT TIME ZONE u.timezone)::date, 'YYYY-MM-DD') AS hari, i.commodity_id, round(avg(i.harga))::int AS rata2, count(*)::int AS sampel
+        FROM report_items i JOIN reports r ON r.id = i.report_id JOIN units u ON u.id = r.unit_id JOIN villages v ON v.id = r.village_id
+        WHERE ${where} AND r.occurred_at BETWEEN ${from} AND ${to} ${commodityId ? Prisma.sql`AND i.commodity_id = ${commodityId}` : Prisma.empty}
+        GROUP BY 1, 2 ORDER BY 1`;
+    }
     const where = await this.aggWhere(me, unitId, from, to);
     return this.prisma.$queryRaw<{ hari: string; commodity_id: number; rata2: number; sampel: number }[]>`
       SELECT to_char(a.hari, 'YYYY-MM-DD') AS hari, a.commodity_id,
@@ -294,12 +403,13 @@ export class AnalyticsService {
   }
 
   /** Harga terbaru per wilayah (kecamatan) untuk satu komoditas. */
-  async pricesByArea(me: AuthUser, commodityId: number, unitId?: string) {
+  async pricesByArea(me: AuthUser, commodityId: number, unitId?: string, wilayah?: string) {
     const scope = await this.scopeSql(me, unitId);
     return this.prisma.$queryRaw<{ id: string; kabupaten: string; kecamatan: string; desa: string; rata2: number; sampel: number; terakhir: Date }[]>`
       SELECT v.id, v.kabupaten, v.kecamatan, v.nama AS desa, round(avg(i.harga))::int AS rata2, count(*)::int AS sampel, max(r.occurred_at) AS terakhir
       FROM report_items i JOIN reports r ON r.id = i.report_id JOIN villages v ON v.id = r.village_id
       WHERE ${scope} AND ${PRICE_VALID} AND i.commodity_id = ${commodityId} AND r.occurred_at >= now() - interval '7 days'
+      ${wilayah ? Prisma.sql`AND v.kode_wilayah LIKE ${wilayah.length === 13 ? wilayah : `${wilayah}.%`}` : Prisma.empty}
       GROUP BY v.id ORDER BY rata2 DESC`;
   }
 

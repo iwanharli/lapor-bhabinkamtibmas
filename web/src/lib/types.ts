@@ -230,3 +230,14 @@ export interface IntegrationTokenList {
   /** INTEGRATION_ALLOWED_IPS di server, dipakai token tanpa daftar IP sendiri. */
   defaultIps: string[];
 }
+
+/** Satu baris rekap harga per wilayah (Polda/Polres/Polsek pembina ikut). */
+export interface PriceRegion { kode: string; nama: string; laporan: number; desa: number; pasar: number; terakhir: string; satuan: string[] }
+
+export interface PriceMarket { village_id: string; nama: string; jenis: string; desa: string; kecamatan: string; laporan: number; komoditas: number; terakhir: string; bhabin: string }
+
+export interface PriceMarketDetail {
+  info: { nama: string; jenis: string; desa: string; kode_wilayah: string; chain: string; laporan: number; terakhir: string; kios: string[]; bhabin: string };
+  komoditas: { commodity_id: number; nama: string; satuan: string; riwayat: { t: string; h: number; s: string; kios: string | null; pemilik: string | null }[] }[];
+  riwayat: { id: string; nomor: string; waktu: string; bhabin: string; nrp: string; kios: string | null; komoditas: number; mock: boolean; inside: boolean | null }[];
+}

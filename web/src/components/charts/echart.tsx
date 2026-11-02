@@ -5,7 +5,7 @@ import type { EChartsOption } from 'echarts';
 import { useEffect, useState } from 'react';
 
 /** Palet kategori yang terbaca di tema terang maupun gelap. */
-export const SERIES_COLORS = ['#0a3a8c', '#0587a8', '#f5c400', '#d7141f', '#15803d', '#6d3fc4', '#e07b00', '#64748b'];
+export const SERIES_COLORS = ['#0a3a8c', '#d7141f', '#e07b00', '#6d3fc4', '#0587a8', '#64748b', '#15803d', '#f5c400'];
 
 function useDark() {
   const [dark, setDark] = useState(false);

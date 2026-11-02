@@ -83,6 +83,7 @@ export function StatCard({
   footer,
   href,
   alert,
+  warn,
   className,
 }: {
   title: string;
@@ -95,13 +96,15 @@ export function StatCard({
   href?: string;
   /** Kartu bernuansa merah untuk hal yang perlu ditindaklanjuti. */
   alert?: boolean;
+  /** Kartu bernuansa kuning untuk data yang belum lengkap, bukan masalah mendesak. */
+  warn?: boolean;
   className?: string;
 }) {
   return (
     <div
       className={cn(
         'group relative flex h-full min-h-[148px] flex-col rounded-2xl border bg-surface p-4 shadow-[0_1px_2px_rgb(var(--shadow-tint)/0.04),0_8px_22px_-16px_rgb(var(--shadow-tint)/0.2)] transition duration-200',
-        alert ? 'border-danger/25 bg-gradient-to-br from-danger-soft/70 to-surface' : 'border-line',
+        alert ? 'border-danger/25 bg-gradient-to-br from-danger-soft/70 to-surface' : warn ? 'border-warn/25 bg-gradient-to-br from-warn-soft/70 to-surface' : 'border-line',
         href && 'hover:-translate-y-0.5 hover:shadow-lg',
         className,
       )}
@@ -111,7 +114,7 @@ export function StatCard({
           <p className={cn('font-semibold leading-snug', alert && 'text-danger')}>{title}</p>
           {description && <p className={cn('mt-1 text-[13px] leading-snug', alert ? 'text-danger/80' : 'text-muted')}>{description}</p>}
         </div>
-        {icon && <IconChip tone={alert ? 'danger' : tone} className="h-9 w-9 rounded-lg">{icon}</IconChip>}
+        {icon && <IconChip tone={alert ? 'danger' : warn ? 'warn' : tone} className="h-9 w-9 rounded-lg">{icon}</IconChip>}
       </div>
       <div className="mt-auto pt-4">
         <p className={cn('text-4xl font-bold leading-none tracking-tight tabular-nums', alert && 'text-danger')}>

@@ -47,11 +47,11 @@ export default async function DesaPage({ searchParams }: { searchParams: Promise
       <Stack>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:h-full">
           <StatCard title="Desa terdaftar" description="Dalam cakupan unit Anda" icon={<MapPinned size={20} />} value={stats.total} footer={`${summary.polsek} Polsek`} />
-          <StatCard title="Punya batas wilayah" description="Poligon untuk cek lokasi" icon={<Shapes size={20} />} tone="success" value={stats.dengan_batas}
-            footer={`${stats.total ? Math.round((stats.dengan_batas / stats.total) * 100) : 0}% desa`} />
-          <StatCard alert={stats.total - stats.dengan_batas > 0} title="Belum ada batas" description="Lokasi laporan tidak bisa diperiksa" icon={<MapPinOff size={20} />} tone="success"
-            value={stats.total - stats.dengan_batas} footer={stats.total - stats.dengan_batas ? 'impor GeoJSON untuk melengkapi' : 'semua lengkap'} />
-          <StatCard alert={stats.tanpa_bhabin > 0} title="Tanpa Bhabin" description="Desa belum dibina siapa pun" icon={<UsersRound size={20} />} tone="success"
+          <StatCard warn={stats.total - stats.dengan_polsek > 0} title="Desa punya Polsek" description="Sudah ditetapkan ke Polsek pembina" icon={<Building2 size={20} />} tone="success" value={stats.dengan_polsek}
+            footer={`${stats.total ? ((stats.dengan_polsek / stats.total) * 100).toLocaleString('id-ID', { maximumFractionDigits: 1 }) : 0}% desa`} />
+          <StatCard warn={stats.kecamatan_tanpa_polsek > 0} title="Kecamatan tanpa Polsek" description="Belum ada Polsek yang terpetakan" icon={<MapPinOff size={20} />} tone="success" value={stats.kecamatan_tanpa_polsek}
+            footer={stats.kecamatan_tanpa_polsek ? 'perlu daftar wilayah hukum resmi' : 'semua tercakup'} />
+          <StatCard warn={stats.tanpa_bhabin > 0} title="Tanpa Bhabin" description="Desa belum dibina siapa pun" icon={<UsersRound size={20} />} tone="success"
             value={stats.tanpa_bhabin} footer={stats.tanpa_bhabin ? 'atur di halaman Pengguna' : 'semua desa terbina'} />
         </div>
 

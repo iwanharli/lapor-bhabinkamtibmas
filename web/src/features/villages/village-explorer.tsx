@@ -169,7 +169,7 @@ export function VillageExplorer({ roots }: { roots: RegionNode[] }) {
           <p className="truncate text-xs text-muted">{selected?.nama ?? 'Indonesia'} · {n(geo?.features.length ?? 0)} {CHILD_LABEL[level]}</p>
         </div>
         <div className="h-[420px] min-h-0 xl:h-auto xl:flex-1">
-          {geo && <BoundaryMap data={geo} highlightId={selected?.level === 4 ? selected.kode : undefined} />}
+          {geo && <BoundaryMap data={geo} fitTop={!selected} highlightId={selected?.level === 4 ? selected.kode : undefined} />}
         </div>
       </aside>
     </div>

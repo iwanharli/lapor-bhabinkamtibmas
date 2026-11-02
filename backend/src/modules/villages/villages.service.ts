@@ -188,8 +188,9 @@ export class VillagesService {
         ORDER BY v.kabupaten, v.kecamatan, v.nama
         LIMIT ${q.limit} OFFSET ${(q.page - 1) * q.limit}`,
       this.prisma.$queryRaw<{ total: number }[]>`SELECT count(*)::int AS total FROM villages v WHERE ${where}`,
-      this.prisma.$queryRaw<{ total: number; dengan_batas: number; tanpa_bhabin: number }[]>`
-        SELECT count(*)::int AS total, count(*) FILTER (WHERE v.geom IS NOT NULL)::int AS dengan_batas,
+      this.prisma.$queryRaw<{ total: number; dengan_polsek: number; kecamatan_tanpa_polsek: number; tanpa_bhabin: number }[]>`
+        SELECT count(*)::int AS total, count(v.polsek_id)::int AS dengan_polsek,
+               count(DISTINCT v.kecamatan_kode) FILTER (WHERE NOT EXISTS (SELECT 1 FROM polri_wilayah m WHERE m.kode = v.kecamatan_kode))::int AS kecamatan_tanpa_polsek,
                count(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM user_villages uv JOIN users us ON us.id = uv.user_id WHERE uv.village_id = v.id AND uv.until IS NULL AND us.active))::int AS tanpa_bhabin
         FROM villages v WHERE ${scope}`,
     ]);

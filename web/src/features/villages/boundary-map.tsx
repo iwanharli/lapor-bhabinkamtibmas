@@ -7,7 +7,7 @@ import type { VillageGeoJson } from './types';
 import { addBaseLayers } from '@/features/map/tiles';
 
 /** Peta batas desa (poligon) dengan label nama. */
-export function BoundaryMap({ data, highlightId }: { data: VillageGeoJson; highlightId?: string }) {
+export function BoundaryMap({ data, highlightId, fitTop }: { data: VillageGeoJson; highlightId?: string; fitTop?: boolean }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<LeafletMap | null>(null);
 
@@ -32,12 +32,13 @@ export function BoundaryMap({ data, highlightId }: { data: VillageGeoJson; highl
         },
         onEachFeature: (f, l) => l.bindTooltip(`${f.properties.nama}<br><span style="color:#64748b">${f.properties.kecamatan}</span>`, { sticky: true }),
       }).addTo(m);
-      m.fitBounds(layer.getBounds().pad(0.1));
+      // fitTop: wilayah di paruh atas, agar tetap terlihat walau bagian bawah peta belum tergulir ke layar.
+      m.fitBounds(layer.getBounds().pad(0.1), fitTop ? { paddingBottomRight: [0, m.getSize().y * 0.55] } : undefined);
     })();
     return () => {
       cancelled = true;
     };
-  }, [data, highlightId]);
+  }, [data, highlightId, fitTop]);
 
   useEffect(() => () => {
     map.current?.remove();

@@ -15,7 +15,8 @@ export interface VillageRow {
 
 export interface VillageStats {
   total: number;
-  dengan_batas: number;
+  dengan_polsek: number;
+  kecamatan_tanpa_polsek: number;
   tanpa_bhabin: number;
 }
 

@@ -60,7 +60,7 @@ class ProfilePage extends ConsumerWidget {
         loading: () => const SkeletonDetail(),
         error: (e, _) => Center(child: Text(apiErrorMessage(e))),
         data: (p) {
-          final desa = ((p['villages'] as List?) ?? []).cast<Map>().where((v) => v['until'] == null).firstOrNull?['village'] as Map?;
+          final desaBinaan = ((p['villages'] as List?) ?? []).cast<Map>().where((v) => v['until'] == null).map((v) => v['village'] as Map);
           final missing = [if ((p['pangkat'] ?? '') == '') 'pangkat', if ((p['jabatan'] ?? '') == '') 'jabatan', if ((p['phone'] ?? '') == '') 'No. HP'];
           String initials(String n) => n.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).take(2).map((w) => w[0]).join().toUpperCase();
           return ListView(padding: contentPadding(context), children: [
@@ -93,7 +93,7 @@ class ProfilePage extends ConsumerWidget {
               child: Column(children: [
                 ListTile(leading: const Icon(Icons.badge_outlined), title: const Text('Jabatan'), subtitle: Text((p['jabatan'] ?? '') == '' ? 'Belum diisi' : p['jabatan'])),
                 ListTile(leading: const Icon(Icons.phone_outlined), title: const Text('No. HP'), subtitle: Text((p['phone'] ?? '') == '' ? 'Belum diisi' : p['phone'])),
-                if (desa != null) ListTile(leading: const Icon(Icons.place_outlined), title: Text('Desa ${desa['nama']}'), subtitle: Text('${RegExp(r'^kec', caseSensitive: false).hasMatch(desa['kecamatan'] ?? '') ? desa['kecamatan'] : 'Kec. ${desa['kecamatan']}'}, ${desa['kabupaten']}')),
+                for (final desa in desaBinaan) ListTile(leading: const Icon(Icons.place_outlined), title: Text('Desa ${desa['nama']}'), subtitle: Text('${RegExp(r'^kec', caseSensitive: false).hasMatch(desa['kecamatan'] ?? '') ? desa['kecamatan'] : 'Kec. ${desa['kecamatan']}'}, ${desa['kabupaten']}')),
                 ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Ubah data pribadi'), trailing: const Icon(Icons.chevron_right), onTap: () => _edit(context, ref, p)),
               ]),
             ),

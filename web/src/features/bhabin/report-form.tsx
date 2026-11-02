@@ -106,8 +106,9 @@ export function ReportForm({
   const [outside, setOutside] = useState<{ distanceM: number } | null>(null);
   const blocked = !!outside && (!ralat || !!geo.fix);
   const [clientUuid] = useState(() => newUuid());
-  // Desa binaan dikunci: 1 Bhabin membina 1 desa (ralat/draft memakai desa laporan itu).
-  const village = report ? { id: report.village.id, nama: report.village.nama, kecamatan: report.village.kecamatan } : villages[0];
+  // Laporan baru memilih salah satu desa binaan; ralat/draft memakai desa laporan itu.
+  const [pickedVillage, setPickedVillage] = useState(villages[0]?.id ?? '');
+  const village = report ? { id: report.village.id, nama: report.village.nama, kecamatan: report.village.kecamatan } : villages.find((v) => v.id === pickedVillage);
   const villageId = village?.id ?? '';
 
   // Cek jarak titik GPS ke batas desa: laporan baru (atau ralat yang mengambil lokasi baru) di luar desa tidak bisa dikirim.
@@ -333,11 +334,17 @@ export function ReportForm({
       {(!steps || step === 0) && <Section title="Lokasi & waktu">
         <div>
           <span className="mb-1.5 block text-sm font-medium">Desa binaan</span>
+          {!report && villages.length > 1 ? (
+            <Select aria-label="Desa binaan" value={pickedVillage} onChange={(e) => setPickedVillage(e.target.value)} className="h-11">
+              {villages.map((v) => <option key={v.id} value={v.id}>{v.nama} · {v.kecamatan}</option>)}
+            </Select>
+          ) : (
           <div className="flex h-11 items-center gap-2 rounded-lg border border-line bg-bg px-3 text-sm">
             <MapPin size={16} className="shrink-0 text-muted" />
             <span className="flex-1 truncate">{village ? <><strong className="font-semibold">{village.nama}</strong> · {village.kecamatan}</> : <span className="text-danger">Belum ada desa binaan</span>}</span>
             <Lock size={14} className="shrink-0 text-muted" aria-label="Terkunci" />
           </div>
+          )}
         </div>
         <div>
           <span className="mb-1.5 block text-sm font-medium">Waktu kegiatan</span>

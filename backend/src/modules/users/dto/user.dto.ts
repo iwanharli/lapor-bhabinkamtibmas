@@ -27,8 +27,8 @@ export class UpdateUserDto {
 }
 
 export class SetVillagesDto {
-  /** 1 Bhabin membina 1 desa: kosong (lepas) atau tepat satu desa. */
-  @IsArray() @ArrayUnique() @ArrayMaxSize(1, { message: 'Satu Bhabin hanya membina satu desa' }) @IsUUID('all', { each: true }) villageIds: string[];
+  /** Bhabin boleh membina beberapa desa; kosong = lepas semua. */
+  @IsArray() @ArrayUnique() @ArrayMaxSize(50, { message: 'Maksimal 50 desa binaan' }) @IsUUID('all', { each: true }) villageIds: string[];
 }
 
 /** Satu baris impor CSV; nama kolom mengikuti templat impor. */

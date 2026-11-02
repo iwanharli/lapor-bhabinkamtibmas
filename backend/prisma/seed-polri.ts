@@ -105,6 +105,15 @@ async function assignVillages(prisma: PrismaClient, resolved: Map<string, { id: 
 async function main() {
   const prisma = new PrismaClient();
   const units = readCsv('polri-units.csv').filter((u) => u.kind !== 'SATKER_MABES');
+  // Polsek buatan admin dan koordinat yang diubah admin tidak boleh tertimpa CSV.
+  const manualUnits = await prisma.polriUnit.findMany({ where: { manual: true } });
+  const csvIndex = new Map(units.map((u) => [u.id, u]));
+  for (const m of manualUnits) {
+    const row = csvIndex.get(m.id);
+    if (row) Object.assign(row, { lat: m.lat == null ? '' : String(m.lat), lng: m.lng == null ? '' : String(m.lng) });
+    else units.push({ id: m.id, parentId: m.parentId ?? '', kind: m.kind, code: m.code, name: m.name, lat: m.lat == null ? '' : String(m.lat), lng: m.lng == null ? '' : String(m.lng), active: String(m.active) });
+  }
+  const manualIds = new Set(manualUnits.map((m) => m.id));
   const known = new Set(units.map((u) => u.id));
   const regions = new Set((await prisma.region.findMany({ select: { kode: true } })).map((r) => r.kode));
   if (!regions.size) throw new Error('Tabel regions kosong. Jalankan seed:wilayah dulu.');
@@ -121,7 +130,7 @@ async function main() {
         await tx.polriUnit.createMany({
           data: rows.slice(i, i + BATCH).map((u) => ({
             id: u.id, parentId: u.parentId || null, kind: u.kind, code: u.code, name: u.name,
-            lat: u.lat ? Number(u.lat) : null, lng: u.lng ? Number(u.lng) : null, active: u.active === 'true',
+            lat: u.lat ? Number(u.lat) : null, lng: u.lng ? Number(u.lng) : null, active: u.active === 'true', manual: manualIds.has(u.id),
           })),
         });
       }

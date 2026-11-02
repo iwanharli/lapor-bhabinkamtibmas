@@ -57,3 +57,15 @@ export interface PolsekManual {
   polda: string;
   wilayah: { kode: string; nama: string; chain: string }[];
 }
+
+/** Satu baris daftar Polsek nasional. */
+export interface PolsekRow {
+  id: string;
+  nama: string;
+  polres: string;
+  polda: string;
+  lat: number | null;
+  lng: number | null;
+  manual: boolean;
+  kecamatan: string[];
+}

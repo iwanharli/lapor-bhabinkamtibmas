@@ -27,7 +27,7 @@ class HomePage extends ConsumerWidget {
     final todays = (att.valueOrNull ?? []).where((a) => a['workDate'] == today).toList();
     final masuk = todays.where((a) => a['type'] == 'CHECK_IN').firstOrNull;
     final pulang = todays.where((a) => a['type'] == 'CHECK_OUT').firstOrNull;
-    final desa = me?.villages.firstOrNull;
+    final desa = me?.villages ?? const <Map<String, dynamic>>[];
     final unread = ref.watch(unreadNotificationsProvider).valueOrNull ?? 0;
 
     return RefreshIndicator(
@@ -62,12 +62,12 @@ class HomePage extends ConsumerWidget {
             const SizedBox(height: 16),
             Text('Selamat bertugas,', style: TextStyle(color: Colors.white.withValues(alpha: 0.8))),
             Text(me?.namaLengkap ?? '', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700)),
-            if (desa != null) ...[
+            if (desa.isNotEmpty) ...[
               const SizedBox(height: 6),
               Row(children: [
                 const Icon(Icons.place_outlined, size: 16, color: Colors.white70),
                 const SizedBox(width: 4),
-                Expanded(child: Text('Desa ${desa['nama']}, ${desa['kecamatan']}', style: const TextStyle(color: Colors.white70), overflow: TextOverflow.ellipsis)),
+                Expanded(child: Text(desa.length == 1 ? 'Desa ${desa.first['nama']}, ${desa.first['kecamatan']}' : 'Desa ${desa.map((v) => v['nama']).join(', ')}', style: const TextStyle(color: Colors.white70), overflow: TextOverflow.ellipsis)),
               ]),
             ],
           ]),

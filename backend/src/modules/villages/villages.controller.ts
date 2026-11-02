@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Patch, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsObject, IsOptional, IsString, IsUUID, Length, Matches } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsObject, IsOptional, IsString, IsNumber, IsUUID, Length, Matches, Max, Min } from 'class-validator';
 import { ALL_ROLES, AuthUser, CurrentUser, Roles } from '../../common/decorators/auth.decorators';
 import { GeoFeature, VillagesService } from './villages.service';
 
@@ -35,6 +36,18 @@ class CreateVillageDto {
 class AssignPolsekRegionDto {
   @IsArray() @ArrayMinSize(1, { message: 'Pilih minimal satu kecamatan' }) @ArrayMaxSize(100)
   @Matches(/^\d{2}\.\d{2}\.\d{2}$/, { each: true, message: 'Kode kecamatan tidak valid' }) kecamatanKodes: string[];
+}
+
+class PolsekPointDto {
+  @Type(() => Number) @IsNumber() @Min(-12) @Max(7) lat: number;
+  @Type(() => Number) @IsNumber() @Min(94) @Max(142) lng: number;
+}
+
+class CreatePolsekDto {
+  @IsUUID() polresId: string;
+  @IsString() @Length(3, 150) nama: string;
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(-12) @Max(7) lat?: number;
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(94) @Max(142) lng?: number;
 }
 
 class GeometryDto {
@@ -74,6 +87,32 @@ export class VillagesController {
   tree(@CurrentUser() me: AuthUser, @Query('parent') parent?: string) {
     if (parent && !/^\d{2}(\.\d{2})?$/.test(parent)) throw new BadRequestException({ code: 'INVALID_KODE', message: 'kode wilayah tidak valid' });
     return this.villages.tree(me, parent || undefined);
+  }
+
+  /** Seluruh Polsek nasional beserta kecamatan dan koordinatnya. */
+  @Get('admin/villages/polsek')
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
+  polsekList(@CurrentUser() me: AuthUser, @Query() q: { q?: string; koordinat?: string; page?: string; limit?: string }) {
+    return this.villages.polsekList(me, { q: q.q || undefined, koordinat: q.koordinat, page: Math.max(Number(q.page) || 1, 1), limit: Math.min(Number(q.limit) || 20, 100) });
+  }
+
+  /** Daftar Polda, atau Polres di bawah `parent`, untuk formulir tambah Polsek. */
+  @Get('admin/villages/polri-units')
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
+  polriUnits(@Query('parent', new ParseUUIDPipe({ optional: true })) parent?: string) {
+    return this.villages.polriUnits(parent);
+  }
+
+  @Post('admin/villages/polsek')
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
+  createPolsek(@CurrentUser() me: AuthUser, @Body() dto: CreatePolsekDto) {
+    return this.villages.createPolsek(me, dto);
+  }
+
+  @Put('admin/villages/polsek/:id/koordinat')
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
+  setPolsekPoint(@CurrentUser() me: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: PolsekPointDto) {
+    return this.villages.setPolsekPoint(me, id, dto.lat, dto.lng);
   }
 
   /** Polsek nasional yang belum terhubung ke wilayah Kemendagri mana pun. */

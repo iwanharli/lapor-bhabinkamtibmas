@@ -606,6 +606,8 @@ model PolriUnit {
   lat      Float?
   lng      Float?
   active   Boolean @default(true)
+  /// Dibuat atau koordinatnya diubah admin; dipertahankan saat seed:polri.
+  manual   Boolean @default(false)
 
   parent   PolriUnit?     @relation("PolriTree", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   children PolriUnit[]    @relation("PolriTree")

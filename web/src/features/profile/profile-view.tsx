@@ -198,7 +198,7 @@ function ActivityTable({ rows, tz, base }: { rows: ReturnType<typeof collapse>; 
 export function ProfileView({ p, compact }: { p: Profile; compact?: boolean }) {
   const tz = p.unit.timezone;
   const bhabin = p.role === 'BHABIN';
-  const activeVillage = p.villages.find((v) => !v.until);
+  const activeVillages = p.villages.filter((v) => !v.until);
   const pastVillages = p.villages.filter((v) => v.until);
   const stats = [
     { icon: FileText, label: 'Laporan terkirim', value: p.stats.reportsSubmitted, cls: 'bg-primary/10 text-primary' },
@@ -318,16 +318,18 @@ export function ProfileView({ p, compact }: { p: Profile; compact?: boolean }) {
         </div>
           {bhabin && (
             <Card title="Desa binaan" icon={MapPinned}>
-              {activeVillage ? (
-                <div className="p-4">
-                  <div className="rounded-xl border border-[var(--brand)]/20 bg-[var(--brand)]/5 p-3.5">
-                    <p className="flex items-center gap-2 text-base font-semibold"><MapPinned size={17} className="text-[var(--brand)]" /> Desa {activeVillage.village.nama}</p>
-                    <p className="mt-1 text-sm text-muted">Kec. {activeVillage.village.kecamatan}, {activeVillage.village.kabupaten}, {activeVillage.village.provinsi}</p>
-                    <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-                      <span>Kode wilayah <span className="font-mono text-ink">{activeVillage.village.kodeWilayah}</span></span>
-                      <span>Sejak <span className="text-ink">{tanggal(activeVillage.since, tz)}</span></span>
-                    </p>
-                  </div>
+              {activeVillages.length ? (
+                <div className="space-y-2 p-4">
+                  {activeVillages.map((v) => (
+                    <div key={v.village.kodeWilayah} className="rounded-xl border border-[var(--brand)]/20 bg-[var(--brand)]/5 p-3.5">
+                      <p className="flex items-center gap-2 text-base font-semibold"><MapPinned size={17} className="text-[var(--brand)]" /> Desa {v.village.nama}</p>
+                      <p className="mt-1 text-sm text-muted">Kec. {v.village.kecamatan}, {v.village.kabupaten}, {v.village.provinsi}</p>
+                      <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+                        <span>Kode wilayah <span className="font-mono text-ink">{v.village.kodeWilayah}</span></span>
+                        <span>Sejak <span className="text-ink">{tanggal(v.since, tz)}</span></span>
+                      </p>
+                    </div>
+                  ))}
                 </div>
               ) : <p className="px-4 py-6 text-center text-sm text-muted">Belum ada desa binaan. Hubungi admin satuan.</p>}
               {pastVillages.length > 0 && (

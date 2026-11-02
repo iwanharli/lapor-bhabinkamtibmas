@@ -4,7 +4,8 @@ import { Badge, Card, CellStack, cn, EmptyState, PageHeader, Pagination, SearchI
 import { boundaryHref } from '@/features/villages/links';
 import { VillageBoundaryView } from '@/features/villages/village-boundary-view';
 import { GeojsonImportButton } from '@/features/villages/geojson-import';
-import type { PolsekManual, PolsekWithoutRegion, RegionNode, VillageRow, VillageStats } from '@/features/villages/types';
+import type { PolsekManual, PolsekRow, PolsekWithoutRegion, RegionNode, VillageRow, VillageStats } from '@/features/villages/types';
+import { AddPolsekButton, PolsekCoordinateButton } from '@/features/villages/polsek-forms';
 import { VillageExplorer } from '@/features/villages/village-explorer';
 import { VillageFormButton } from '@/features/villages/village-form';
 import { AssignPolsekRegionButton, RemovePolsekRegionButton } from '@/features/villages/assign-polsek-region';
@@ -15,10 +16,11 @@ import type { Paged, UnitSummary } from '@/lib/types';
 import { withParams } from '@/lib/url';
 
 const SIZES = [20, 50, 100];
-type Search = { tab?: string; kode?: string; jenis?: string; q?: string; polsekId?: string; batas?: string; page?: string; limit?: string };
+type Search = { tab?: string; kode?: string; koordinat?: string; jenis?: string; q?: string; polsekId?: string; batas?: string; page?: string; limit?: string };
 const TAB_POLSEK = 'polsek-tanpa-wilayah';
 const TAB_MANUAL = 'penetapan-manual';
 const TAB_MAP = 'peta-batas';
+const TAB_DATA = 'data-polsek';
 
 export default async function DesaPage({ searchParams }: { searchParams: Promise<Search> }) {
   const sp = await searchParams;
@@ -28,15 +30,17 @@ export default async function DesaPage({ searchParams }: { searchParams: Promise
   const orphanTab = sp.tab === TAB_POLSEK;
   const manualTab = sp.tab === TAB_MANUAL;
   const mapTab = sp.tab === TAB_MAP;
+  const dataTab = sp.tab === TAB_DATA;
   const kode = mapTab && sp.kode && /^[\d.]{2,13}$/.test(sp.kode) ? sp.kode : undefined;
-  const filtered = !orphanTab && !manualTab && !mapTab && !!(sp.q || sp.polsekId || sp.batas);
-  const [list, summary, roots, orphans, manual] = await Promise.all([
-    apiGet<Paged<VillageRow> & { stats: VillageStats }>(withParams('/admin/villages', orphanTab || manualTab || mapTab ? { limit: '1' } : { q: sp.q, polsekId: sp.polsekId, batas: sp.batas, page: String(page), limit: String(limit) })),
+  const filtered = !orphanTab && !manualTab && !mapTab && !dataTab && !!(sp.q || sp.polsekId || sp.batas);
+  const [list, summary, roots, orphans, manual, polseks] = await Promise.all([
+    apiGet<Paged<VillageRow> & { stats: VillageStats }>(withParams('/admin/villages', orphanTab || manualTab || mapTab || dataTab ? { limit: '1' } : { q: sp.q, polsekId: sp.polsekId, batas: sp.batas, page: String(page), limit: String(limit) })),
     apiGet<UnitSummary>('/units/summary'),
-    filtered || orphanTab || manualTab || mapTab ? [] : apiGet<RegionNode[]>('/admin/villages/tree'),
+    filtered || orphanTab || manualTab || mapTab || dataTab ? [] : apiGet<RegionNode[]>('/admin/villages/tree'),
     apiGet<Paged<PolsekWithoutRegion> & { stats: { total: number; kawasan: number } }>(
       withParams('/admin/villages/polsek-tanpa-wilayah', orphanTab ? { q: sp.q, jenis: sp.jenis, page: String(page), limit: String(limit) } : { limit: '1' })),
     apiGet<PolsekManual[]>('/admin/villages/polsek-manual'),
+    dataTab ? apiGet<Paged<PolsekRow>>(withParams('/admin/villages/polsek', { q: sp.q, koordinat: sp.koordinat, page: String(page), limit: String(limit) })) : null,
   ]);
   const { data, meta, stats } = list;
 
@@ -61,7 +65,8 @@ export default async function DesaPage({ searchParams }: { searchParams: Promise
         <nav aria-label="Bagian halaman desa" className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-1 rounded-xl bg-surface p-1 ring-1 ring-line">
           {[
-            { href: '/admin/desa', label: 'Struktur wilayah', on: !orphanTab && !manualTab && !mapTab },
+            { href: '/admin/desa', label: 'Struktur wilayah', on: !orphanTab && !manualTab && !mapTab && !dataTab },
+            { href: `/admin/desa?tab=${TAB_DATA}`, label: 'Data Polsek', on: dataTab },
             { href: `/admin/desa?tab=${TAB_POLSEK}`, label: 'Polsek tanpa wilayah', on: orphanTab, count: orphans.stats.total, warn: true },
             { href: `/admin/desa?tab=${TAB_MANUAL}`, label: 'Penetapan manual', on: manualTab, count: manual.length },
           ].map((t) => (
@@ -76,7 +81,41 @@ export default async function DesaPage({ searchParams }: { searchParams: Promise
           </Link>
         </nav>
 
-        {mapTab ? <VillageBoundaryView key={kode ?? ''} kode={kode} /> : manualTab ? (
+        {mapTab ? <VillageBoundaryView key={kode ?? ''} kode={kode} /> : dataTab && polseks ? (
+          <Card>
+            <div className="flex flex-col gap-3 border-b border-line p-4 lg:flex-row lg:items-center">
+              <SearchInput placeholder="Cari Polsek, Polres, atau Polda…" className="flex-1" />
+              <UrlSelect param="koordinat" label="Koordinat" options={[{ value: '', label: 'Semua koordinat' }, { value: 'ada', label: 'Ada koordinat' }, { value: 'belum', label: 'Belum ada koordinat' }]} />
+              <AddPolsekButton />
+            </div>
+            {polseks.data.length === 0 ? (
+              <EmptyState icon={<Building2 size={22} />} tone="neutral" title="Tidak ada Polsek" className="py-14">Tidak ada Polsek untuk pencarian ini.</EmptyState>
+            ) : (
+              <Table minWidth={860}>
+                <THead>
+                  <Th className="pl-5">Polsek</Th>
+                  <Th>Polres / Polda</Th>
+                  <Th>Kecamatan</Th>
+                  <Th>Koordinat</Th>
+                  <Th className="pr-5" />
+                </THead>
+                <tbody>
+                  {polseks.data.map((o) => (
+                    <Tr key={o.id}>
+                      <Td className="pl-5 font-medium">{o.nama}{o.manual && <Badge tone="info" className="ml-2">Diubah admin</Badge>}</Td>
+                      <Td><CellStack primary={o.polres} secondary={o.polda} /></Td>
+                      <Td>{o.kecamatan.length ? o.kecamatan.join(', ') : <Badge tone="warn">Belum ada wilayah</Badge>}</Td>
+                      <Td className="font-mono text-xs text-muted">{o.lat != null && o.lng != null ? `${o.lat}, ${o.lng}` : <Badge tone="warn">Belum ada</Badge>}</Td>
+                      <Td align="right" className="pr-5"><PolsekCoordinateButton polsek={o} /></Td>
+                    </Tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+            <Pagination page={page} limit={limit} total={polseks.meta.total} sizes={SIZES} noun="Polsek"
+              hrefFor={(p, l) => withParams('/admin/desa', sp, { page: p > 1 ? String(p) : undefined, limit: l !== 20 ? String(l) : undefined })} />
+          </Card>
+        ) : manualTab ? (
           <Card>
             {manual.length === 0 ? (
               <EmptyState icon={<Building2 size={22} />} tone="neutral" title="Belum ada penetapan manual" className="py-14">Tetapkan wilayah dari tab Polsek tanpa wilayah.</EmptyState>
@@ -131,7 +170,7 @@ export default async function DesaPage({ searchParams }: { searchParams: Promise
                       <Td>{o.polda}</Td>
                       <Td>{o.kawasan ? <Badge tone="info">Kawasan</Badge> : <Badge tone="warn">Perlu ditinjau</Badge>}</Td>
                       <Td className="font-mono text-xs text-muted">{o.lat != null && o.lng != null ? `${o.lat}, ${o.lng}` : '—'}</Td>
-                      <Td align="right" className="pr-5"><AssignPolsekRegionButton polsek={o} /></Td>
+                      <Td align="right" className="pr-5"><span className="inline-flex gap-2"><PolsekCoordinateButton polsek={o} /><AssignPolsekRegionButton polsek={o} /></span></Td>
                     </Tr>
                   ))}
                 </tbody>

@@ -72,7 +72,7 @@ docs/teknis/             Dokumentasi teknis (arsitektur, API, database, keamanan
   - Bhabin diberi tahu saat desa binaannya diubah.
 - **Ekspor CSV** lewat antrean (`export_jobs`): diunduh otomatis saat selesai, berkas disimpan 24 jam.
 
-**Aturan desa binaan:** 1 Bhabin membina 1 desa dan 1 desa dibina 1 Bhabin (dijaga indeks unik di database); desa & waktu kegiatan di formulir Bhabin terkunci.
+**Aturan desa binaan:** untuk sementara 1 Bhabin boleh membina beberapa desa, sedangkan 1 desa tetap dibina 1 Bhabin (dijaga indeks unik di database). Laporan tidak bisa dikirim bila titik GPS lebih dari 200 m dari batas desa yang dipilih; waktu kegiatan di formulir Bhabin terkunci.
 
 **Peran:** Bhabinkamtibmas (web `/bhabin` & mobile), Pimpinan, Admin Unit, Superadmin, Auditor. Peran Verifikator **tidak dipakai lagi**. Akses dibatasi cakupan unit (Polda → Polres → Polsek). Rincian: [docs/teknis/02-peran-hak-akses.md](docs/teknis/02-peran-hak-akses.md).
 

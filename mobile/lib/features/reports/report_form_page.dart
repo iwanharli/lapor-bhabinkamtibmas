@@ -57,6 +57,13 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
   String? _locError;
   /// Jarak (m) titik GPS ke batas desa binaan bila di luar toleransi 200 m — laporan tidak bisa dikirim (server juga menolak).
   num? _outsideM;
+  /// Desa terpilih untuk laporan baru (Bhabin bisa membina beberapa desa).
+  String? _pickedVillageId;
+
+  String? get _villageId {
+    final mine = ref.read(authControllerProvider).valueOrNull?.villages ?? const [];
+    return (_report?['village']?['id'] ?? _pickedVillageId ?? mine.firstOrNull?['id']) as String?;
+  }
 
   bool get _ralat => _report?['status'] == 'SUBMITTED';
   List<FormStep> get _steps => _schema!.steps ?? [FormStep.fromJson({'title': _schema!.title, 'fields': _schema!.fields.map((f) => f.key).toList()})];
@@ -124,7 +131,7 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
   }
 
   Future<void> _checkDistance(Fix f) async {
-    final villageId = _report?['village']?['id'] ?? ref.read(authControllerProvider).valueOrNull?.villages.firstOrNull?['id'];
+    final villageId = _villageId;
     if (villageId == null) return;
     if (mounted) setState(() => _outsideM = null);
     try {
@@ -213,7 +220,7 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
 
   Future<void> _save({required bool send}) async {
     final errs = send || _ralat ? _errorsFor(_schema!.fields) : <String>[];
-    final villageId = _report?['village']?['id'] ?? ref.read(authControllerProvider).valueOrNull?.villages.firstOrNull?['id'];
+    final villageId = _villageId;
     if (villageId == null) errs.insert(0, 'Anda belum punya desa binaan. Hubungi admin satuan.');
     if (_report == null && _fix == null) errs.insert(0, 'Lokasi GPS belum didapat. Tekan "Ambil lokasi".');
     if (send && !_ralat && _outsideM != null) errs.insert(0, 'Titik GPS di luar desa binaan (±${jarak(_outsideM!)}). Laporan hanya dapat dikirim dari dalam desa binaan.');
@@ -320,7 +327,8 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
     final steps = _steps;
     final last = _step == steps.length - 1;
     final me = ref.watch(authControllerProvider).valueOrNull;
-    final desa = _report?['village'] ?? me?.villages.firstOrNull;
+    final desa = _report?['village'] ?? me?.villages.where((v) => v['id'] == _villageId).firstOrNull;
+    final choices = _report == null ? (me?.villages ?? const <Map<String, dynamic>>[]) : const <Map<String, dynamic>>[];
 
     return PopScope(
       canPop: _step == 0,
@@ -334,7 +342,22 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
           if (_step == 0) ...[
             Card(
               child: Column(children: [
-                ListTile(
+                if (choices.length > 1)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _villageId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'Desa binaan', prefixIcon: Icon(Icons.place_outlined)),
+                      items: [for (final v in choices) DropdownMenuItem(value: v['id'] as String, child: Text('${v['nama']}, ${v['kecamatan']}', overflow: TextOverflow.ellipsis))],
+                      onChanged: (id) {
+                        setState(() => _pickedVillageId = id);
+                        if (_fix != null) _checkDistance(_fix!);
+                      },
+                    ),
+                  )
+                else
+                  ListTile(
                   leading: const Icon(Icons.place_outlined), dense: true,
                   title: Text(desa == null ? 'Belum ada desa binaan' : 'Desa ${desa['nama']}', style: const TextStyle(fontWeight: FontWeight.w600)),
                   subtitle: const Text('Desa binaan (terkunci)'), trailing: const Icon(Icons.lock_outline, size: 16, color: muted),

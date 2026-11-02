@@ -153,7 +153,7 @@ export class ReportWriterService {
           ...(data && { data, sensitive: null }),
         },
       });
-      if (ralat) await this.finalize(tx, u, schema, full!, commodities, !!dto.location);
+      if (ralat) await this.finalize(tx, u, schema, full!, commodities, !!dto.location || !!dto.villageId);
       await this.audit.log({ actorId: me.id, action: 'REPORT_UPDATE', entity: 'report', entityId: id, meta: { ralat } }, tx);
       return tx.report.findUniqueOrThrow({ where: { id } });
     });
@@ -176,7 +176,7 @@ export class ReportWriterService {
   }
 
   /** Item harga, prioritas, dan cek lokasi terhadap desa binaan — saat kirim maupun ralat. */
-  /** `checkLocation`: tolak bila titik GPS di luar desa binaan (kirim laporan, atau ralat yang mengubah lokasi). */
+  /** `checkLocation`: tolak bila titik GPS di luar desa binaan (kirim laporan, atau ralat yang mengubah lokasi/desa). */
   private async finalize(tx: Prisma.TransactionClient, r: Report, schema: FormSchemaJson, data: Record<string, unknown>, commodities: { id: number; satuanDefault: string }[], checkLocation = true) {
     if (r.category === ReportCategory.HARGA_PANGAN) {
       const satuan = new Map(commodities.map((c) => [c.id, c.satuanDefault]));

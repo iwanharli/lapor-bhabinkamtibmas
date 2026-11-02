@@ -109,7 +109,7 @@ export class MonthlyReportService {
         terakhir: Date | null; hadir: number; terlambat: number;
       }>(
         `SELECT u.nrp, u.nama, u.pangkat, u.unit_id, un.nama AS satuan,
-           (SELECT v.nama FROM user_villages uv JOIN villages v ON v.id = uv.village_id WHERE uv.user_id = u.id AND uv.until IS NULL LIMIT 1) AS desa,
+           (SELECT string_agg(v.nama, ', ' ORDER BY v.nama) FROM user_villages uv JOIN villages v ON v.id = uv.village_id WHERE uv.user_id = u.id AND uv.until IS NULL) AS desa,
            coalesce(a.total, 0)::int laporan, coalesce(a.lokasi, 0)::int lokasi,
            coalesce(a.sambang, 0)::int sambang, coalesce(a.deteksi_dini, 0)::int deteksi_dini, coalesce(a.problem_solving, 0)::int problem_solving,
            coalesce(a.penyuluhan, 0)::int penyuluhan, coalesce(a.harga_pangan, 0)::int harga_pangan, coalesce(a.mapping_kk, 0)::int mapping_kk,

@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, UserRole } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { randomBytes } from 'crypto';
@@ -9,9 +9,11 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { UnitsService } from '../units/units.service';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 
+const MIN_REASON = 5;
+
 const PUBLIC_FIELDS = {
   id: true, nrp: true, nama: true, pangkat: true, jabatan: true, role: true, phone: true,
-  active: true, lastLoginAt: true, unit: { select: { id: true, nama: true, level: true } },
+  active: true, deactivatedReason: true, deactivatedAt: true, lastLoginAt: true, unit: { select: { id: true, nama: true, level: true } },
 } satisfies Prisma.UserSelect;
 
 /** Sandi sementara yang mudah didiktekan; wajib diganti saat login pertama. */
@@ -108,9 +110,28 @@ export class UsersService {
     await this.findInScope(me, id);
     if (dto.role) this.assertCanAssignRole(me, dto.role);
     if (dto.unitId) await this.units.assertInScope(me.unitId, dto.unitId);
-    const user = await this.prisma.user.update({ where: { id }, data: dto, select: PUBLIC_FIELDS });
+    const { deactivatedReason, ...fields } = dto;
+    const { active: wasActive } = await this.prisma.user.findUniqueOrThrow({ where: { id }, select: { active: true } });
+    const deactivating = wasActive && dto.active === false;
+    const activating = !wasActive && dto.active === true;
+    const reason = deactivatedReason?.trim();
+    if (deactivating && (reason?.length ?? 0) < MIN_REASON) {
+      throw new BadRequestException({ code: 'REASON_REQUIRED', message: `Alasan menonaktifkan akun wajib diisi (minimal ${MIN_REASON} karakter)` });
+    }
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: {
+        ...fields,
+        ...(deactivating && { deactivatedReason: reason, deactivatedAt: new Date() }),
+        ...(activating && { deactivatedReason: null, deactivatedAt: null }),
+      },
+      select: PUBLIC_FIELDS,
+    });
     if (dto.active === false) await this.revokeAllSessions(id);
-    await this.audit.log({ actorId: me.id, action: 'USER_UPDATE', entity: 'user', entityId: id, meta: { fields: Object.keys(dto) } });
+    await this.audit.log({
+      actorId: me.id, action: deactivating ? 'USER_DEACTIVATE' : activating ? 'USER_ACTIVATE' : 'USER_UPDATE', entity: 'user', entityId: id,
+      meta: { fields: Object.keys(fields), ...(deactivating && { reason }) },
+    });
     return user;
   }
 

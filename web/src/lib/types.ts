@@ -191,6 +191,8 @@ export interface UserListItem extends PersonRef {
 }
 
 export interface UserDetail extends UserListItem {
+  deactivatedReason: string | null;
+  deactivatedAt: string | null;
   jabatan: string | null;
   phone: string | null;
   unitId: string;

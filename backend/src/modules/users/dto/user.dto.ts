@@ -1,6 +1,6 @@
 import { UserRole } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsIn, IsOptional, IsString, IsUUID, Length, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsIn, IsOptional, IsString, IsUUID, Length, MaxLength, ValidateNested } from 'class-validator';
 
 /** Peran yang bisa diberikan. Verifikator tidak dipakai lagi (laporan langsung final, tanpa verifikasi). */
 export const ASSIGNABLE_ROLES = Object.values(UserRole).filter((r) => r !== UserRole.VERIFIKATOR);
@@ -24,6 +24,8 @@ export class UpdateUserDto {
   @IsOptional() @IsUUID() unitId?: string;
   @IsOptional() @IsString() phone?: string;
   @IsOptional() @IsBoolean() active?: boolean;
+  /** Wajib saat menonaktifkan akun. */
+  @IsOptional() @IsString() @MaxLength(500) deactivatedReason?: string;
 }
 
 export class SetVillagesDto {

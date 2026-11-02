@@ -16,6 +16,8 @@ export const ACTION_META: Record<string, { label: string; tone: BadgeTone }> = {
   EXPORT_CREATE: { label: 'Ekspor data', tone: 'warn' },
   USER_CREATE: { label: 'Tambah pengguna', tone: 'success' },
   USER_UPDATE: { label: 'Ubah pengguna', tone: 'info' },
+  USER_DEACTIVATE: { label: 'Nonaktifkan pengguna', tone: 'danger' },
+  USER_ACTIVATE: { label: 'Aktifkan pengguna', tone: 'success' },
   USER_IMPORT: { label: 'Impor pengguna', tone: 'success' },
   USER_RESET_PASSWORD: { label: 'Reset sandi', tone: 'warn' },
   USER_SET_VILLAGES: { label: 'Atur desa binaan', tone: 'info' },

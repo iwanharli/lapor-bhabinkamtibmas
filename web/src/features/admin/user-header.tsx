@@ -29,6 +29,9 @@ export function UserHeader({ user: u, tz }: { user: UserDetail; tz?: string }) {
             {u.mustChangePassword && <Badge tone="info">Belum ganti sandi</Badge>}
           </div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-[1.75rem]">{personName(u)}</h1>
+          {!u.active && u.deactivatedReason && (
+            <p className="mt-1 text-sm text-danger">Dinonaktifkan{u.deactivatedAt ? ` ${tanggal(u.deactivatedAt, tz)}` : ''}: {u.deactivatedReason}</p>
+          )}
           <p className="font-mono text-sm text-muted">NRP {u.nrp}</p>
           <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
             <Meta icon={<Building2 size={16} />}>{u.unit.nama}</Meta>

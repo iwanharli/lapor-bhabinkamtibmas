@@ -87,5 +87,5 @@ export async function createUser(role = 'PIMPINAN') {
 }
 
 export async function deactivateUser(id: string, adminToken: string) {
-  await api(`/admin/users/${id}`, { method: 'PATCH', token: adminToken, body: { active: false } });
+  await api(`/admin/users/${id}`, { method: 'PATCH', token: adminToken, body: { active: false, deactivatedReason: 'Akun test E2E selesai' } });
 }

@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Alert, Button, ButtonLink, Checkbox, ErrorText, Field, FormGrid, Input, Select } from '@/components/ui';
+import { Alert, Button, ButtonLink, Checkbox, ErrorText, Field, FormGrid, Input, Select, Textarea } from '@/components/ui';
 import { callApi } from '@/lib/api/client';
 import { ROLE_LABEL } from '@/lib/format';
 import { ASSIGNABLE_ROLES } from '@/lib/units';
@@ -46,6 +46,9 @@ export function UserForm({
   const router = useRouter();
   const isEdit = !!initial?.id;
   const [v, setV] = useState<UserFormValue>(initial ?? EMPTY);
+  const [reason, setReason] = useState('');
+  // Alasan hanya diminta saat akun yang aktif dinonaktifkan.
+  const deactivating = isEdit && initial!.active && !v.active;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
@@ -64,6 +67,7 @@ export function UserForm({
     e.preventDefault();
     const invalid = validate(v);
     if (invalid) return setError(invalid);
+    if (deactivating && reason.trim().length < 5) return setError('Isi alasan menonaktifkan akun (minimal 5 karakter).');
     setError('');
 
     const payload = {
@@ -77,7 +81,7 @@ export function UserForm({
     setBusy(true);
     try {
       if (isEdit) {
-        await callApi(`/admin/users/${initial!.id}`, { method: 'PATCH', body: { ...payload, active: v.active } });
+        await callApi(`/admin/users/${initial!.id}`, { method: 'PATCH', body: { ...payload, active: v.active, ...(deactivating && { deactivatedReason: reason.trim() }) } });
         setSaved(true);
         router.refresh();
       } else {
@@ -142,6 +146,11 @@ export function UserForm({
       {isEdit && (
         <Field label="Status akun" hint={!v.active ? 'Akun nonaktif tidak dapat login; semua sesinya dicabut.' : undefined}>
           {(id) => <Checkbox id={id} label="Aktif" className="py-2" checked={v.active} onChange={(e) => set('active', e.target.checked)} />}
+        </Field>
+      )}
+      {deactivating && (
+        <Field label="Alasan menonaktifkan" required className="sm:col-span-2" hint="Tercatat di audit log dan tampil di halaman pengguna.">
+          {(id) => <Textarea id={id} rows={2} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="mis. Pindah tugas ke Polres lain" />}
         </Field>
       )}
 

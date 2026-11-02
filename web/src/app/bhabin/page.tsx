@@ -1,6 +1,6 @@
-import { ChevronRight, LogIn, LogOut, UserCheck } from 'lucide-react';
+import { ChevronRight, LogIn, LogOut, UserCheck, ClipboardList } from 'lucide-react';
 import Link from 'next/link';
-import { cn } from '@/components/ui';
+import { cn, EmptyState } from '@/components/ui';
 import type { MyAttendance } from '@/features/bhabin/attendance-panel';
 import { activeSchemas, getMe, slugOf } from '@/features/bhabin/data';
 import { ReportCard } from '@/features/bhabin/report-card';
@@ -81,7 +81,7 @@ export default async function BerandaBhabinPage() {
         <Link href="/bhabin/laporan" className="text-xs font-semibold text-primary">Lihat semua</Link>
       </div>
       {recent.data.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-sm text-muted">Belum ada laporan. Mulai dengan memilih jenis laporan di atas.</p>
+        <EmptyState icon={<ClipboardList size={24} />} tone="neutral" title="Belum ada laporan" className="rounded-2xl border border-dashed border-line py-8">Mulai dengan memilih jenis laporan di atas.</EmptyState>
       ) : (
         <ul className="space-y-2.5">{recent.data.map((r) => <li key={r.id}><ReportCard r={r} /></li>)}</ul>
       )}

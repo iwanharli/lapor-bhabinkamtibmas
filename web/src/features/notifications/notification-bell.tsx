@@ -1,10 +1,10 @@
 'use client';
 
-import { Bell, CheckCheck } from 'lucide-react';
+import { Bell, CheckCheck, BellOff } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { cn } from '@/components/ui';
+import { cn, EmptyState } from '@/components/ui';
 import { callApi } from '@/lib/api/client';
 import { NotificationItem } from './notification-item';
 import type { AppNotification, NotificationPage } from './types';
@@ -90,7 +90,7 @@ export function NotificationBell({ href, dark }: { href: string; dark?: boolean 
             {items === null ? (
               Array.from({ length: 3 }).map((_, i) => <div key={i} className="mx-4 my-3 h-12 animate-pulse rounded-lg bg-bg" />)
             ) : items.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-muted">Belum ada notifikasi.</p>
+              <EmptyState icon={<BellOff size={22} />} tone="neutral" title="Belum ada notifikasi" className="py-8">Pemberitahuan penting akan muncul di sini.</EmptyState>
             ) : (
               items.map((n) => <NotificationItem key={n.id} n={n} onOpen={openItem} compact />)
             )}

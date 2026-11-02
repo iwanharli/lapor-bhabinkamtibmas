@@ -62,17 +62,19 @@ export class ExportsController {
   @Get('bulanan')
   @Roles(...MonthlyReportService.ROLES)
   async monthly(
-    @CurrentUser() me: AuthUser, @Query() q: { bulan?: string; unitId?: string; format?: string }, @Res({ passthrough: true }) res: Response,
+    @CurrentUser() me: AuthUser, @Query() q: { bulan?: string; unitId?: string; format?: string; kategori?: string; wilayah?: string; pembanding?: string }, @Res({ passthrough: true }) res: Response,
   ) {
     const format = q.format === 'xlsx' || q.format === 'pdf' ? q.format : 'json';
-    const report = await this.monthlyReports.build(me, q.bulan ?? '', q.unitId || undefined);
+    const report = await this.monthlyReports.build(me, q.bulan ?? '', q.unitId || undefined, {
+      kategori: q.kategori || undefined, wilayah: q.wilayah || undefined, pembanding: q.pembanding === 'tahun' ? 'tahun' : 'bulan',
+    });
     if (format === 'json') {
       // Pratinjau di web: tanpa daftar Bhabin per orang (bisa puluhan ribu baris), cukup jumlah yang perlu perhatian.
       const { bhabin, ...rest } = report;
       const perhatian = bhabin.filter((b) => b.laporan === 0 || (report.hariKerja && b.hadir / report.hariKerja < 0.5)).length;
-      return { ...rest, bhabin: [], bhabinPerhatian: perhatian, perSatuan: report.perSatuan.slice(0, 15), prioritas: report.prioritas.slice(0, 5) };
+      return { ...rest, bhabin: [], bhabinPerhatian: perhatian, prioritas: report.prioritas.slice(0, 5) };
     }
-    await this.audit.log({ actorId: me.id, action: 'EXPORT_CREATE', entity: 'unit', entityId: report.unit.id, meta: { kind: 'bulanan', bulan: report.bulan, format } });
+    await this.audit.log({ actorId: me.id, action: 'EXPORT_CREATE', entity: 'unit', entityId: report.unit.id, meta: { kind: 'bulanan', bulan: report.bulan, format, kategori: q.kategori, wilayah: q.wilayah, pembanding: q.pembanding } });
     const data = format === 'xlsx' ? await monthlyXlsx(report) : await monthlyPdf(report);
     const name = `laporan-bulanan-${report.unit.nama.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${report.bulan}.${format}`;
     res.setHeader('Content-Type', format === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/pdf');

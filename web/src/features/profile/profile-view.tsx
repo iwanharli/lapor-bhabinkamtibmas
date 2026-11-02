@@ -1,10 +1,7 @@
-import {
-  Activity, BadgeCheck, Building2, CalendarCheck, CalendarDays, ChevronRight, FilePen, FileText, Flame, Globe2, IdCard, KeyRound,
-  LogIn, MapPin, MapPinned, Monitor, ShieldAlert, Smartphone, UserRound,
-} from 'lucide-react';
+import { Activity, BadgeCheck, Building2, CalendarCheck, CalendarDays, ChevronRight, FilePen, FileText, Flame, Globe2, IdCard, KeyRound, LogIn, MapPin, MapPinned, Monitor, ShieldAlert, Smartphone, UserRound, History } from 'lucide-react';
 import Link from 'next/link';
 import { PersonalCard } from './personal-card';
-import { cn } from '@/components/ui';
+import { cn, EmptyState } from '@/components/ui';
 import { CATEGORY_LABEL, ROLE_LABEL, relatif, tanggal, tanggalJam, tzLabel } from '@/lib/format';
 
 export interface Profile {
@@ -331,7 +328,7 @@ export function ProfileView({ p, compact }: { p: Profile; compact?: boolean }) {
                     </div>
                   ))}
                 </div>
-              ) : <p className="px-4 py-6 text-center text-sm text-muted">Belum ada desa binaan. Hubungi admin satuan.</p>}
+              ) : <EmptyState icon={<MapPinned size={24} />} tone="neutral" title="Belum ada desa binaan" className="py-8">Hubungi admin satuan untuk menetapkan desa binaan.</EmptyState>}
               {pastVillages.length > 0 && (
                 <div className="border-t border-line px-4 py-3">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Riwayat</p>
@@ -389,7 +386,7 @@ export function ProfileView({ p, compact }: { p: Profile; compact?: boolean }) {
                   </li>
                 ))}
               </ol>
-            ) : <p className="px-4 py-6 text-center text-sm text-muted">Belum ada aktivitas tercatat.</p>}
+            ) : <EmptyState icon={<History size={24} />} tone="neutral" title="Belum ada aktivitas" className="py-8">Aktivitas akun Anda akan tercatat di sini.</EmptyState>}
           </Card>
       </div>
     </div>

@@ -1,9 +1,9 @@
 'use client';
 
-import { Building2, ChevronRight, Home, Landmark, Loader2, Map as MapIcon, Shield, UsersRound } from 'lucide-react';
+import { Building2, ChevronRight, Home, Landmark, Loader2, Map as MapIcon, Shield, UsersRound, MapPinned } from 'lucide-react';
 import Link from 'next/link';
 import { Fragment, useCallback, useEffect, useState } from 'react';
-import { Badge, cn } from '@/components/ui';
+import { Badge, cn, EmptyState } from '@/components/ui';
 import { callApi } from '@/lib/api/client';
 import { boundaryHref } from './links';
 import type { RegionNode, VillageRow } from './types';
@@ -139,7 +139,7 @@ export function VillageExplorer({ roots }: { roots: RegionNode[] }) {
         <p className="text-sm font-semibold">Struktur wilayah</p>
         <p className="inline-flex items-center gap-1.5 text-xs text-muted"><UsersRound size={13} /> terbina = punya Bhabin aktif</p>
       </div>
-      {roots.length ? <ul>{rows(roots, 0)}</ul> : <p className="p-8 text-center text-sm text-muted">Belum ada desa dalam cakupan Anda.</p>}
+      {roots.length ? <ul>{rows(roots, 0)}</ul> : <EmptyState icon={<MapPinned size={24} />} tone="neutral" title="Belum ada desa">Belum ada desa dalam cakupan Anda.</EmptyState>}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Inbox } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from './cn';
 
@@ -45,6 +45,7 @@ export function EmptyState({
   title,
   tone = 'success',
   children,
+  action,
   className,
 }: {
   icon?: React.ReactNode;
@@ -52,13 +53,22 @@ export function EmptyState({
   /** success untuk "semua beres", neutral untuk "belum ada data". */
   tone?: 'success' | 'neutral';
   children?: React.ReactNode;
+  /** Tombol/tautan langkah berikutnya. */
+  action?: React.ReactNode;
   className?: string;
 }) {
+  const ok = tone === 'success';
   return (
-    <div className={cn('flex flex-col items-center justify-center gap-2 px-5 py-8 text-center', className)}>
-      {icon && <span className={cn('mb-1 grid h-12 w-12 place-items-center rounded-2xl', tone === 'success' ? 'bg-success-soft text-success' : 'bg-bg text-muted')}>{icon}</span>}
-      {title && <p className="font-semibold">{title}</p>}
-      {children && <p className="max-w-xs text-sm text-muted">{children}</p>}
+    <div className={cn('flex flex-col items-center justify-center gap-1.5 px-5 py-10 text-center', className)}>
+      {/* Lingkaran berlapis sebagai ilustrasi ringan; warna mengikuti token, jadi ikut mode malam & panel peta. */}
+      <span aria-hidden className={cn('mb-3 grid h-20 w-20 place-items-center rounded-full', ok ? 'bg-success-soft/50' : 'bg-primary-soft/50')}>
+        <span className={cn('grid h-14 w-14 place-items-center rounded-full ring-1', ok ? 'bg-success-soft text-success ring-success/20' : 'bg-primary-soft text-primary ring-primary/15')}>
+          {icon ?? <Inbox size={24} />}
+        </span>
+      </span>
+      {title && <p className="text-[15px] font-semibold text-ink">{title}</p>}
+      {children && <div className="max-w-sm text-sm leading-relaxed text-muted">{children}</div>}
+      {action && <div className="mt-3">{action}</div>}
     </div>
   );
 }

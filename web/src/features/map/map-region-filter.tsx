@@ -68,7 +68,7 @@ export function MapRegionFilter() {
               disabled={l.disabled}
               onChange={(e) => update(e.target.value, l.parent)}
               className={cn(
-                'h-full max-w-[9.5rem] cursor-pointer appearance-none truncate [field-sizing:content] rounded-lg bg-transparent [&>option]:bg-[#0c1626] pl-2.5 pr-7 text-xs outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed',
+                'h-full max-w-[9.5rem] cursor-pointer appearance-none truncate [field-sizing:content] rounded-lg bg-transparent pl-2.5 pr-7 text-xs outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed',
                 l.value ? 'font-semibold text-ink' : 'text-muted',
                 l.disabled && 'opacity-45',
               )}

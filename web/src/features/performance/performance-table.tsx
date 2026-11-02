@@ -29,7 +29,7 @@ function CategoryMix({ b }: { b: BhabinPerformance }) {
 }
 
 export function PerformanceTable({ rows, days, sort, hrefFor }: { rows: BhabinPerformance[]; days: number; sort: SortKey; hrefFor: (k: SortKey) => string }) {
-  if (!rows.length) return <EmptyState icon={<UsersRound size={22} />} tone="neutral" title="Belum ada Bhabin aktif">Tambahkan Bhabin di menu Pengguna.</EmptyState>;
+  if (!rows.length) return <EmptyState icon={<UsersRound size={22} />} tone="neutral" title="Tidak ada Bhabin ditemukan">Coba ubah pencarian atau unit. Bila masih kosong, tambahkan Bhabin di menu Pengguna.</EmptyState>;
   return (
     <Table minWidth={1040}>
       <THead>

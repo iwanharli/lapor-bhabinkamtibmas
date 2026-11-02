@@ -3,7 +3,7 @@
 import { BellOff, CheckCheck, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { cn } from '@/components/ui';
+import { cn, EmptyState } from '@/components/ui';
 import { callApi } from '@/lib/api/client';
 import { NotificationItem, TYPE_META } from './notification-item';
 import type { AppNotification, NotificationPage } from './types';
@@ -119,11 +119,9 @@ export function NotificationList() {
       </div>
 
       {items.length === 0 && !loading ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line bg-surface px-4 py-16 text-center">
-          <span className="grid h-14 w-14 place-items-center rounded-full bg-bg text-muted"><BellOff size={24} /></span>
-          <p className="font-semibold">{filter === 'unread' ? 'Semua sudah dibaca' : 'Belum ada notifikasi'}</p>
-          <p className="max-w-xs text-sm text-muted">{filter === 'unread' ? 'Tidak ada pemberitahuan baru untuk Anda.' : 'Pemberitahuan penting akan muncul di sini.'}</p>
-        </div>
+        <EmptyState icon={<BellOff size={24} />} tone={filter === 'unread' ? 'success' : 'neutral'} title={filter === 'unread' ? 'Semua sudah dibaca' : 'Belum ada notifikasi'} className="rounded-2xl border border-dashed border-line bg-surface py-14">
+          {filter === 'unread' ? 'Tidak ada pemberitahuan baru untuk Anda.' : 'Pemberitahuan penting akan muncul di sini.'}
+        </EmptyState>
       ) : (
         groups.map((g) => (
           <section key={g.key}>

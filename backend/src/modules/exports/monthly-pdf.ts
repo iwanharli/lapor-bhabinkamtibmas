@@ -68,7 +68,7 @@ export async function monthlyPdf(r: MonthlyReport): Promise<Buffer> {
   if (existsSync(LOGO)) doc.image(LOGO, doc.page.width / 2 - 21, y, { height: 42 });
   y += 48;
   doc.fillColor(NAVY).font('Helvetica-Bold').fontSize(14).text('LAPORAN BULANAN BHABINKAMTIBMAS', M, y, { width: W, align: 'center' });
-  doc.fillColor(INK).font('Helvetica').fontSize(9.5).text(t(`${r.unit.nama} · ${r.bulanLabel}`), M, doc.y + 2, { width: W, align: 'center' });
+  doc.fillColor(INK).font('Helvetica').fontSize(9.5).text(t(`${r.unit.nama} · ${r.bulanLabel}${r.filterLabel ? ` · Disaring: ${r.filterLabel}` : ''}`), M, doc.y + 2, { width: W, align: 'center' });
   doc.fillColor(MUTED).fontSize(8).text(t(
     `Nomor: ${r.nomor} · Periode ${tanggal(r.dari)} s.d. ${tanggal(r.sampai)}${r.berjalan ? ' (bulan berjalan)' : ''} · ${r.hariKerja} hari kerja · pembanding ${r.pembanding.label}`,
   ), M, doc.y + 2, { width: W, align: 'center' });

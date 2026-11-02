@@ -20,10 +20,15 @@ export interface MonthlyBhabin {
   laporan: number; perKategori: Record<string, number>; lokasiJanggal: number; hadir: number; terlambat: number; terakhir: Date | null;
 }
 export interface MonthlyUnitRow {
-  nama: string; level: string; bhabin: number; bhabinAktif: number; laporan: number; prioritas: number; lokasiJanggal: number;
+  id: string; nama: string; level: string; bhabin: number; bhabinAktif: number; laporan: number; prioritas: number; lokasiJanggal: number;
   hadir: number; terlambat: number; kehadiranPersen: number | null;
 }
+/** Penyaring opsional laporan bulanan. */
+export interface MonthlyFilter { kategori?: string; wilayah?: string; pembanding?: 'bulan' | 'tahun' }
+
 export interface MonthlyReport {
+  /** Keterangan penyaring aktif (mis. "Deteksi Dini · Kec. Tebet"); kosong = seluruh data satuan. */
+  filterLabel: string | null;
   unit: { id: string; kode: string; nama: string; level: string; levelLabel: string; timezone: string };
   bulan: string; bulanLabel: string; dari: string; sampai: string; hariKerja: number; berjalan: boolean;
   /** Periode pembanding setara: bulan lalu penuh, atau tanggal yang sama di bulan lalu bila bulan ini masih berjalan. */
@@ -71,7 +76,11 @@ const lastDay = (y: number, m: number) => new Date(Date.UTC(y, m, 0)).getUTCDate
 export class MonthlyReportService {
   constructor(private prisma: PrismaService, private units: UnitsService) {}
 
-  async build(me: AuthUser, bulan: string, unitId?: string): Promise<MonthlyReport> {
+  async build(me: AuthUser, bulan: string, unitId?: string, filter: MonthlyFilter = {}): Promise<MonthlyReport> {
+    const { kategori, wilayah } = filter;
+    // Nilai ini masuk ke SQL sebagai teks, jadi harus lolos daftar/pola ketat.
+    if (kategori && !CATEGORIES.includes(kategori)) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Kategori tidak dikenal' });
+    if (wilayah && !/^\d{2}(\.\d{2}(\.\d{2}(\.\d{4})?)?)?$/.test(wilayah)) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Kode wilayah tidak valid' });
     if (!/^\d{4}-\d{2}$/.test(bulan)) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Bulan harus YYYY-MM' });
     const target = unitId ?? me.unitId;
     if (unitId) await this.units.assertInScope(me.unitId, unitId);
@@ -86,23 +95,41 @@ export class MonthlyReportService {
     const sampai = akhir < today ? akhir : today;
     const [py, pm] = m === 1 ? [y - 1, 12] : [y, m - 1];
     // Bulan berjalan dibandingkan dengan tanggal yang sama di bulan lalu (1–26 vs 1–26), bukan bulan lalu penuh.
-    const pDari = `${py}-${pad(pm)}-01`;
-    const pHari = sampai < akhir ? Math.min(Number(sampai.slice(8)), lastDay(py, pm)) : lastDay(py, pm);
-    const pSampai = `${py}-${pad(pm)}-${pad(pHari)}`;
-    const pembanding = { dari: pDari, sampai: pSampai, label: sampai < akhir ? `1–${pHari} ${MONTHS_SHORT[pm - 1]} ${py}` : `${MONTHS[pm - 1]} ${py}` };
+    // Atau bulan yang sama tahun lalu, untuk melihat pola musiman.
+    const [cy, cm] = filter.pembanding === 'tahun' ? [y - 1, m] : [py, pm];
+    const pDari = `${cy}-${pad(cm)}-01`;
+    const pHari = sampai < akhir ? Math.min(Number(sampai.slice(8)), lastDay(cy, cm)) : lastDay(cy, cm);
+    const pSampai = `${cy}-${pad(cm)}-${pad(pHari)}`;
+    const pembanding = { dari: pDari, sampai: pSampai, label: sampai < akhir ? `1–${pHari} ${MONTHS_SHORT[cm - 1]} ${cy}` : `${MONTHS[cm - 1]} ${cy}` };
     let hariKerja = 0;
     for (let d = new Date(`${dari}T00:00:00Z`); d.toISOString().slice(0, 10) <= sampai; d.setUTCDate(d.getUTCDate() + 1)) if (d.getUTCDay() % 6 !== 0) hariKerja++;
 
     const scope = (col: string) => `${col} IN (SELECT unit_subtree($1::uuid))`;
     const q = <T>(sql: string, ...args: unknown[]) => this.prisma.$queryRawUnsafe<T[]>(sql, target, ...args);
 
+    // Agregat tidak menyimpan wilayah: saat disaring, sumber yang sama dihitung langsung dari tabel laporan.
+    const filtered = !!(kategori || wilayah);
+    const rFilter = `${kategori ? ` AND r.category = '${kategori}'` : ''}${wilayah ? ` AND v.kode_wilayah LIKE '${wilayah}%'` : ''}`;
+    const rawBase = `FROM reports r JOIN units ru ON ru.id = r.unit_id JOIN villages v ON v.id = r.village_id WHERE ${scope('r.unit_id')}${rFilter}`;
+    const hariOf = `(r.occurred_at AT TIME ZONE ru.timezone)::date`;
+    const janggal = `(r.is_mock_location OR r.inside_village = false)`;
+    const unitSrc = !filtered ? 'agg_unit_daily' : `(SELECT r.unit_id, r.category, r.status, ${hariOf} AS hari, count(*) jumlah, count(*) FILTER (WHERE r.priority) prioritas, count(*) FILTER (WHERE ${janggal}) lokasi_janggal ${rawBase} GROUP BY 1, 2, 3, 4) src`;
+    const userSrc = !filtered ? 'agg_user_daily' : `(SELECT r.user_id, r.unit_id, ${hariOf} AS hari, 1 total, ${janggal}::int lokasi_janggal,
+        ${CATEGORIES.map((c) => `(r.category = '${c}')::int ${c.toLowerCase()}`).join(', ')}, r.occurred_at last_at ${rawBase} AND r.status = 'SUBMITTED') src`;
+    const bhabinInRegion = wilayah ? ` AND EXISTS (SELECT 1 FROM user_villages uv JOIN villages uvv ON uvv.id = uv.village_id WHERE uv.user_id = u.id AND uv.until IS NULL AND uvv.kode_wilayah LIKE '${wilayah}%')` : '';
+    const [wilayahRow] = wilayah
+      ? await this.prisma.$queryRawUnsafe<{ nama: string; level: number }[]>(`SELECT nama, level FROM regions WHERE kode = $1 UNION ALL SELECT nama, 4 FROM villages WHERE kode_wilayah = $1 LIMIT 1`, wilayah)
+      : [];
+    if (wilayah && !wilayahRow) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Wilayah tidak ditemukan' });
+    const filterLabel = [kategori && CATEGORY_LABEL[kategori], wilayahRow && `${['', '', '', 'Kec. ', 'Desa '][wilayahRow.level]}${wilayahRow.nama}`].filter(Boolean).join(' · ') || null;
+
     const [cats, prevCats, bhabinRows, prioritas, harga, prevHarga, [keluarga], childMap, harianRows, chain, actorFull] = await Promise.all([
       q<{ category: string; jumlah: number; prioritas: number; lokasi: number }>(
         `SELECT category::text, sum(jumlah)::int jumlah, sum(prioritas)::int prioritas, sum(lokasi_janggal)::int lokasi
-         FROM agg_unit_daily WHERE ${scope('unit_id')} AND status <> 'DRAFT' AND hari BETWEEN $2::date AND $3::date GROUP BY 1`, dari, sampai),
+         FROM ${unitSrc} WHERE ${scope('unit_id')} AND status <> 'DRAFT' AND hari BETWEEN $2::date AND $3::date GROUP BY 1`, dari, sampai),
       q<{ category: string; jumlah: number; prioritas: number }>(
         `SELECT category::text, sum(jumlah)::int jumlah, sum(prioritas)::int prioritas
-         FROM agg_unit_daily WHERE ${scope('unit_id')} AND status <> 'DRAFT' AND hari BETWEEN $2::date AND $3::date GROUP BY 1`, pDari, pSampai),
+         FROM ${unitSrc} WHERE ${scope('unit_id')} AND status <> 'DRAFT' AND hari BETWEEN $2::date AND $3::date GROUP BY 1`, pDari, pSampai),
       q<{
         nrp: string; nama: string; pangkat: string | null; unit_id: string; satuan: string; desa: string | null; laporan: number; lokasi: number;
         sambang: number; deteksi_dini: number; problem_solving: number; penyuluhan: number; harga_pangan: number; mapping_kk: number; ketahanan_pangan: number;
@@ -120,7 +147,7 @@ export class MonthlyReportService {
            SELECT user_id, sum(total) total, sum(lokasi_janggal) lokasi, sum(sambang) sambang, sum(deteksi_dini) deteksi_dini,
              sum(problem_solving) problem_solving, sum(penyuluhan) penyuluhan, sum(harga_pangan) harga_pangan, sum(mapping_kk) mapping_kk,
              sum(ketahanan_pangan) ketahanan_pangan, max(last_at) terakhir
-           FROM agg_user_daily WHERE ${scope('unit_id')} AND hari BETWEEN $2::date AND $3::date GROUP BY user_id
+           FROM ${userSrc} WHERE ${scope('unit_id')} AND hari BETWEEN $2::date AND $3::date GROUP BY user_id
          ) a ON a.user_id = u.id
          LEFT JOIN (
            SELECT at.user_id, count(*) hadir,
@@ -129,21 +156,21 @@ export class MonthlyReportService {
            WHERE ${scope('at.unit_id')} AND at.type = 'CHECK_IN' AND at.work_date BETWEEN $2::date AND $3::date AND extract(isodow FROM at.work_date) < 6
            GROUP BY at.user_id
          ) t ON t.user_id = u.id
-         WHERE ${scope('u.unit_id')} AND u.role = 'BHABIN' AND u.active
+         WHERE ${scope('u.unit_id')} AND u.role = 'BHABIN' AND u.active${bhabinInRegion}
          ORDER BY laporan ASC, u.nama LIMIT ${MAX_BHABIN + 1}`, dari, sampai, LATE_AFTER),
       q<{ nomor: string; tanggal: Date; kategori: string; desa: string; bhabin: string; ringkasan: string | null; health: { belum_ditangani?: number } | null }>(
         `SELECT r.nomor, r.occurred_at tanggal, r.category::text kategori, v.nama desa, concat_ws(' ', u.pangkat, u.nama) bhabin,
            left(coalesce(r.data->>'uraian', r.data->>'tanggapan', r.data->>'permasalahan', r.data->>'catatan'), 160) ringkasan, r.health
          FROM reports r JOIN villages v ON v.id = r.village_id JOIN users u ON u.id = r.user_id JOIN units ru ON ru.id = r.unit_id
-         WHERE ${scope('r.unit_id')} AND r.status = 'SUBMITTED' AND r.priority
+         WHERE ${scope('r.unit_id')} AND r.status = 'SUBMITTED' AND r.priority${rFilter}
            AND (r.occurred_at AT TIME ZONE ru.timezone)::date BETWEEN $2::date AND $3::date
          ORDER BY r.occurred_at DESC LIMIT 100`, dari, sampai),
-      this.priceRows(target, dari, sampai),
-      this.priceRows(target, pDari, pSampai),
+      this.priceRows(target, dari, sampai, filtered ? rFilter : null),
+      this.priceRows(target, pDari, pSampai, filtered ? rFilter : null),
       q<Record<string, number>>(
         `WITH k AS (
-           SELECT DISTINCT ON (coalesce(r.kk_hash, r.id::text)) r.data, r.health FROM reports r JOIN units ru ON ru.id = r.unit_id
-           WHERE ${scope('r.unit_id')} AND r.category = 'MAPPING_KK' AND r.status = 'SUBMITTED' AND r.schema_version = 2
+           SELECT DISTINCT ON (coalesce(r.kk_hash, r.id::text)) r.data, r.health FROM reports r JOIN units ru ON ru.id = r.unit_id JOIN villages v ON v.id = r.village_id
+           WHERE ${scope('r.unit_id')} AND r.category = 'MAPPING_KK' AND r.status = 'SUBMITTED' AND r.schema_version = 2${rFilter}
              AND (r.occurred_at AT TIME ZONE ru.timezone)::date BETWEEN $2::date AND $3::date
            ORDER BY coalesce(r.kk_hash, r.id::text), r.submitted_at DESC)
          SELECT count(*)::int kk,
@@ -160,7 +187,7 @@ export class MonthlyReportService {
            SELECT u.id, c.child_id, c.child_nama, c.child_level FROM units u JOIN c ON u.parent_id = c.unit_id WHERE u.deleted_at IS NULL)
          SELECT * FROM c`),
       q<{ hari: string; jumlah: number }>(
-        `SELECT hari::text, sum(jumlah)::int jumlah FROM agg_unit_daily WHERE ${scope('unit_id')} AND status <> 'DRAFT' AND hari BETWEEN $2::date AND $3::date GROUP BY 1`, dari, sampai),
+        `SELECT hari::text, sum(jumlah)::int jumlah FROM ${unitSrc} WHERE ${scope('unit_id')} AND status <> 'DRAFT' AND hari BETWEEN $2::date AND $3::date GROUP BY 1`, dari, sampai),
       // Rantai satuan dari atas (tanpa Mabes) sampai satuan laporan, untuk kop surat.
       q<{ level: string; nama: string }>(
         `WITH RECURSIVE a AS (SELECT id, parent_id, level::text, nama, 0 d FROM units WHERE id = $1::uuid
@@ -177,7 +204,7 @@ export class MonthlyReportService {
 
     const unitReports = await q<{ unit_id: string; jumlah: number; prioritas: number; lokasi: number }>(
       `SELECT unit_id, sum(jumlah)::int jumlah, sum(prioritas)::int prioritas, sum(lokasi_janggal)::int lokasi
-       FROM agg_unit_daily WHERE ${scope('unit_id')} AND status <> 'DRAFT' AND hari BETWEEN $2::date AND $3::date GROUP BY unit_id`, dari, sampai);
+       FROM ${unitSrc} WHERE ${scope('unit_id')} AND status <> 'DRAFT' AND hari BETWEEN $2::date AND $3::date GROUP BY unit_id`, dari, sampai);
 
     const bhabinTerpotong = bhabinRows.length > MAX_BHABIN;
     const bhabin: MonthlyBhabin[] = bhabinRows.slice(0, MAX_BHABIN).map((b) => ({
@@ -190,7 +217,7 @@ export class MonthlyReportService {
     // Rekap per satuan bawahan langsung.
     const childOf = new Map(childMap.map((r) => [r.unit_id, r]));
     const perChild = new Map<string, MonthlyUnitRow>();
-    for (const r of childMap) if (r.unit_id === r.child_id) perChild.set(r.child_id, { nama: r.child_nama, level: LEVEL_LABEL[r.child_level] ?? r.child_level, bhabin: 0, bhabinAktif: 0, laporan: 0, prioritas: 0, lokasiJanggal: 0, hadir: 0, terlambat: 0, kehadiranPersen: null });
+    for (const r of childMap) if (r.unit_id === r.child_id) perChild.set(r.child_id, { id: r.child_id, nama: r.child_nama, level: LEVEL_LABEL[r.child_level] ?? r.child_level, bhabin: 0, bhabinAktif: 0, laporan: 0, prioritas: 0, lokasiJanggal: 0, hadir: 0, terlambat: 0, kehadiranPersen: null });
     for (const r of unitReports) {
       const c = childOf.get(r.unit_id); const row = c && perChild.get(c.child_id);
       if (row) { row.laporan += r.jumlah; row.prioritas += r.prioritas; row.lokasiJanggal += r.lokasi; }
@@ -200,7 +227,7 @@ export class MonthlyReportService {
       if (row) { row.bhabin++; if (b.laporan > 0) row.bhabinAktif++; row.hadir += b.hadir; row.terlambat += b.terlambat; }
     }
     const persen = (hadir: number, orang: number) => (orang && hariKerja ? Math.round((hadir / (orang * hariKerja)) * 1000) / 10 : null);
-    const perSatuan = [...perChild.values()].map((r) => ({ ...r, kehadiranPersen: persen(r.hadir, r.bhabin) }))
+    const perSatuan = [...perChild.values()].filter((r) => !wilayah || r.bhabin || r.laporan).map((r) => ({ ...r, kehadiranPersen: persen(r.hadir, r.bhabin) }))
       .sort((a, b) => b.laporan - a.laporan || a.nama.localeCompare(b.nama, 'id'));
 
     const prevBy = new Map(prevCats.map((c) => [c.category, c]));
@@ -213,6 +240,7 @@ export class MonthlyReportService {
 
     const prevPrice = new Map(prevHarga.map((h) => [h.commodity_id, h]));
     return {
+      filterLabel,
       unit: { ...unit, level: unit.level, levelLabel: LEVEL_LABEL[unit.level] ?? unit.level },
       bulan, bulanLabel: `${MONTHS[m - 1]} ${y}`, dari, sampai, hariKerja, berjalan: sampai < akhir, pembanding, harian,
       dibuat: new Date(), dibuatOleh: [actor.pangkat, actor.nama].filter(Boolean).join(' '),
@@ -250,13 +278,20 @@ export class MonthlyReportService {
     };
   }
 
-  private priceRows(target: string, dari: string, sampai: string) {
+  /** `rFilter`: penyaring laporan (alias r, v); bila ada, harga dihitung langsung dari item laporan, bukan agregat. */
+  private priceRows(target: string, dari: string, sampai: string, rFilter: string | null) {
+    const source = rFilter === null
+      ? `agg_price_daily a ON a.commodity_id = c.id AND a.unit_id IN (SELECT unit_subtree($1::uuid)) AND a.hari BETWEEN $2::date AND $3::date`
+      : `(SELECT i.commodity_id, i.harga jumlah_harga, 1 sampel, i.harga minimum, i.harga maksimum, (i.stok = 'KOSONG')::int kosong
+          FROM report_items i JOIN reports r ON r.id = i.report_id JOIN units ru ON ru.id = r.unit_id JOIN villages v ON v.id = r.village_id
+          WHERE r.unit_id IN (SELECT unit_subtree($1::uuid)) AND r.status = 'SUBMITTED'${rFilter}
+            AND (r.occurred_at AT TIME ZONE ru.timezone)::date BETWEEN $2::date AND $3::date) a ON a.commodity_id = c.id`;
     return this.prisma.$queryRawUnsafe<{ commodity_id: number; nama: string; satuan: string; rata2: number | null; minimum: number | null; maksimum: number | null; sampel: number; kosong: number }[]>(
       `SELECT c.id commodity_id, c.nama, c.satuan_default satuan,
          round(sum(a.jumlah_harga)::numeric / nullif(sum(a.sampel), 0))::int rata2, min(a.minimum)::int minimum, max(a.maksimum)::int maksimum,
          coalesce(sum(a.sampel), 0)::int sampel, coalesce(sum(a.kosong), 0)::int kosong
        FROM commodities c
-       LEFT JOIN agg_price_daily a ON a.commodity_id = c.id AND a.unit_id IN (SELECT unit_subtree($1::uuid)) AND a.hari BETWEEN $2::date AND $3::date
+       LEFT JOIN ${source}
        GROUP BY c.id ORDER BY c.urutan`, target, dari, sampai);
   }
 

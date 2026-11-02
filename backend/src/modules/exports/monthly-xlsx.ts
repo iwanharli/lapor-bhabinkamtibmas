@@ -49,6 +49,7 @@ export async function monthlyXlsx(r: MonthlyReport): Promise<Buffer> {
   put([`Laporan Bulanan Bhabinkamtibmas — ${r.bulanLabel}`], { bold: true, size: 15, color: NAVY });
   put([`${r.unit.levelLabel} · ${r.unit.nama}`], { bold: true, size: 12 });
   put([`Nomor ${r.nomor} · Periode ${periode} · pembanding ${r.pembanding.label}`], { color: 'FF64748B' });
+  if (r.filterLabel) put([`Disaring: ${r.filterLabel}`], { bold: true, color: 'FFB45309' });
   put([`Dibuat ${r.dibuat.toLocaleString('id-ID', { timeZone: r.unit.timezone })} oleh ${r.dibuatOleh}. Tidak memuat NIK/No. KK maupun data kesehatan per orang.`], { color: 'FF64748B' });
   put([]);
   const s = r.ringkasan;

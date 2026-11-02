@@ -5,7 +5,7 @@ import type { GeoJSON as GeoJSONLayer, Map as LeafletMap, Path } from 'leaflet';
 import { ArrowRight, Baby, ChevronRight, Droplets, Home, Loader2, MapPinned, Siren, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { cn } from '@/components/ui';
+import { cn, EmptyState } from '@/components/ui';
 import { addBaseLayers } from '@/features/map/tiles';
 import { withParams } from '@/lib/url';
 import { AreaStats, COLORS, colorFor, countBreaks, FEW, fmt, METRICS, MetricKey } from './metrics';
@@ -266,7 +266,7 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
                 </li>
               ))}
             </ol>
-          ) : <p className="px-4 py-4 text-xs text-muted">Belum ada wilayah berdata cukup di tingkat ini.</p>}
+          ) : <EmptyState icon={<Trophy size={22} />} tone="neutral" title="Belum cukup data" className="py-6">Belum ada wilayah berdata cukup di tingkat ini.</EmptyState>}
         </section>
         <p className="map-glass-card shrink-0 px-3 py-2 text-[11px] leading-snug text-muted">{m.hint} Satu KK yang dilaporkan ulang dihitung sekali. Tanpa titik rumah.</p>
       </aside>

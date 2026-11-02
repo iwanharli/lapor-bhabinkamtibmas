@@ -2,9 +2,9 @@
 
 import 'leaflet/dist/leaflet.css';
 import type { LayerGroup, LatLngExpression, Map as LeafletMap, Marker } from 'leaflet';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Navigation } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { cn } from '@/components/ui';
+import { cn, EmptyState } from '@/components/ui';
 import { callApi } from '@/lib/api/client';
 import { withParams } from '@/lib/url';
 import { STATUS, type LivePerson, type LiveResponse, type LiveStatus } from './types';
@@ -221,7 +221,7 @@ export function TrackingMonitor({ unitId, home }: { unitId?: string; home?: [num
         </div>
         {error && <div className="m-3 rounded-lg bg-danger/10 p-3 text-xs text-danger">{error}</div>}
         <ul className="min-h-0 flex-1 divide-y divide-line overflow-y-auto">
-          {people && list.length === 0 && <li className="p-6 text-center text-sm text-muted">Belum ada Bhabin yang absen masuk hari ini.</li>}
+          {people && list.length === 0 && <li><EmptyState icon={<Navigation size={24} />} tone="neutral" title="Belum ada yang bertugas">Posisi tampil setelah Bhabin absen masuk lewat aplikasi HP.</EmptyState></li>}
           {list.map(({ p, st }) => {
             const s = STATUS[st];
             const fresh = now - (flash[p.user_id] ?? 0) < 2500;

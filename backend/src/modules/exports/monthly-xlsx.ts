@@ -31,6 +31,9 @@ function table(wb: ExcelJS.Workbook, name: string, title: string, cols: Col[], r
   return ws;
 }
 
+/** Lembar yang bisa dilepas lewat pengaturan unduhan; lembar Ringkasan selalu ada. */
+const SHEETS: Record<string, string> = { satuan: 'Per Satuan', bhabin: 'Bhabin', prioritas: 'Prioritas', harga: 'Harga Pangan' };
+
 export async function monthlyXlsx(r: MonthlyReport): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Lapor Bhabinkamtibmas';
@@ -112,5 +115,9 @@ export async function monthlyXlsx(r: MonthlyReport): Promise<Buffer> {
     { header: 'Stok kosong', key: 'kosong', width: 11, fmt: NUM },
   ], r.harga);
 
+  for (const [bagian, nama] of Object.entries(SHEETS)) if (r.bagian && !r.bagian.includes(bagian)) {
+    const ws = wb.getWorksheet(nama);
+    if (ws) wb.removeWorksheet(ws.id);
+  }
   return Buffer.from(await wb.xlsx.writeBuffer());
 }

@@ -1,11 +1,14 @@
-import { Baby, CalendarDays, FileSpreadsheet, FileText, Flame, HeartPulse, Home, Info, ShieldAlert, Siren, UserCheck, Users } from 'lucide-react';
-import { Card, cn, StatCard, UrlSelect, EmptyState } from '@/components/ui';
+import { Baby, CalendarDays, FileText, Flame, HeartPulse, Home, Info, ShieldAlert, Siren, UserCheck, Users } from 'lucide-react';
+import { Card, cn, StatCard, EmptyState } from '@/components/ui';
 import { MapRegionFilter } from '@/features/map/map-region-filter';
+import Link from 'next/link';
+import { ExportDrawer } from '@/features/monthly/export-drawer';
+import { FilterPanel, FilterSelects } from '@/features/monthly/filter-panel';
 import { MonthSelect } from '@/features/monthly/month-select';
 import { MonthlyUnitTree, type MonthlyUnit } from '@/features/monthly/unit-tree';
 import { UrlUnitFilter } from '@/features/units/unit-combobox';
 import { apiGet, getSessionUser } from '@/lib/api/server';
-import { CATEGORY_LABEL, localDateStr } from '@/lib/format';
+import { localDateStr } from '@/lib/format';
 import { withParams } from '@/lib/url';
 
 type Preview = {
@@ -45,10 +48,10 @@ export default async function LaporanBulananPage({ searchParams }: { searchParam
   const p = await apiGet<Preview>(withParams('/exports/bulanan', { ...params, format: 'json' }));
   const s = p.ringkasan;
   const treeQuery = withParams('/x', { ...params, format: 'json' }).split('?')[1] ?? '';
-  const file = (format: 'pdf' | 'xlsx') => `/api/proxy${withParams('/exports/bulanan', { ...params, format })}`;
 
   // Kehadiran & keluarga tidak bergantung pada kategori laporan yang dipilih.
   const showFamily = !sp.kategori || sp.kategori === 'MAPPING_KK';
+  const activeLabel = [p.filterLabel && `Disaring: ${p.filterLabel}`, sp.pembanding === 'tahun' && 'Banding tahun lalu'].filter(Boolean).join(' · ');
   const maxKat = Math.max(1, ...p.perKategori.map((c) => Math.max(c.jumlah, c.sebelumnya)));
   const family = [
     { label: 'Keluarga', v: p.keluarga.kk, icon: Home, tone: 'bg-primary-soft text-primary' },
@@ -61,33 +64,40 @@ export default async function LaporanBulananPage({ searchParams }: { searchParam
   return (
     <div className="space-y-5">
       <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-[var(--brand-deep)] via-[#16397c] to-[var(--brand)] text-white shadow-lg">
-        <div className="flex flex-col gap-5 p-6 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/60">{p.unit.levelLabel} · {p.unit.nama}</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Laporan Bulanan</h1>
-            <p className="mt-1 text-lg font-medium text-white/90">{p.bulanLabel}</p>
-            <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/70">
-              <span className="inline-flex items-center gap-1.5"><CalendarDays size={15} /> {tgl(p.dari)} – {tgl(p.sampai)}{p.berjalan ? ' (berjalan)' : ''}</span>
-                  <span>{p.hariKerja} hari kerja</span>
-              {p.filterLabel && <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-bold text-[#1a1405]">Disaring: {p.filterLabel}</span>}
+            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Laporan Bulanan</h1>
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-white/70">
+              <span className="font-medium text-white/90">{p.unit.nama}</span>
+              <span aria-hidden>·</span>
+              <span className="inline-flex items-center gap-1"><CalendarDays size={14} /> {tgl(p.dari)} – {tgl(p.sampai)}{p.berjalan ? ' (berjalan)' : ''}</span>
+              <span aria-hidden>·</span>
+              <span>{p.hariKerja} hari kerja</span>
             </p>
           </div>
-          <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-            <a href={file('pdf')} className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-[var(--brand-deep)] shadow-sm transition hover:bg-white/90">
-              <FileText size={18} className="text-red-600" /> Unduh PDF
-            </a>
-            <a href={file('xlsx')} className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-[var(--brand-deep)] shadow-sm transition hover:bg-white/90">
-              <FileSpreadsheet size={18} className="text-emerald-600" /> Unduh Excel
-            </a>
+          <div className="flex shrink-0 gap-2">
+            <ExportDrawer baseHref={`/api/proxy${withParams('/exports/bulanan', params)}`} summary={[
+              { label: 'Satuan', value: p.unit.nama },
+              { label: 'Periode', value: `${tgl(p.dari)} – ${tgl(p.sampai)}` },
+              { label: 'Pembanding', value: p.pembanding.label },
+              { label: 'Penyaring', value: p.filterLabel ?? 'Tidak ada' },
+            ]} />
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 border-t border-white/15 bg-black/15 px-6 py-3 text-ink">
-          <MonthSelect value={bulan} max={thisMonth} />
-          <UrlUnitFilter levels={['MABES', 'POLDA', 'POLRES', 'POLSEK']} emptyLabel="Satuan saya" />
-          <UrlSelect param="kategori" label="Kategori" options={[{ value: '', label: 'Semua kategori' }, ...Object.entries(CATEGORY_LABEL).map(([value, label]) => ({ value, label }))]} />
-          <UrlSelect param="pembanding" label="Pembanding" options={[{ value: '', label: 'Banding bulan lalu' }, { value: 'tahun', label: 'Banding tahun lalu' }]} />
-          <div className="max-w-full overflow-x-auto rounded-xl bg-surface [scrollbar-width:none]"><MapRegionFilter /></div>
-        </div>
+        <FilterPanel
+          count={[sp.kategori, wilayah, sp.pembanding].filter(Boolean).length}
+          controls={<>
+            <MonthSelect value={bulan} max={thisMonth} />
+            <UrlUnitFilter levels={['MABES', 'POLDA', 'POLRES', 'POLSEK']} emptyLabel="Satuan saya" />
+          </>}
+          status={activeLabel ? <>
+            <span className="truncate rounded-full bg-accent px-3 py-1 text-xs font-bold text-[#1a1405]">{activeLabel}</span>
+            <Link href={withParams('/laporan-bulanan', { bulan, unitId: sp.unitId })} className="rounded-md px-2 py-1 text-xs font-medium text-white/80 hover:bg-white/10 hover:text-white">Reset</Link>
+          </> : undefined}
+        >
+          <FilterSelects kategori={sp.kategori ?? ''} pembanding={sp.pembanding ?? ''} />
+          <div className="max-w-full overflow-x-auto rounded-lg bg-surface [scrollbar-width:none]"><MapRegionFilter /></div>
+        </FilterPanel>
       </section>
 
       <div className={cn('grid gap-4 sm:grid-cols-2 [&>*]:h-full', sp.kategori ? 'xl:grid-cols-3' : 'xl:grid-cols-4')}>

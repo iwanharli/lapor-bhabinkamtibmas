@@ -27,6 +27,8 @@ export interface MonthlyUnitRow {
 export interface MonthlyFilter { kategori?: string; wilayah?: string; pembanding?: 'bulan' | 'tahun' }
 
 export interface MonthlyReport {
+  /** Bagian yang ikut diekspor; kosong = semua. */
+  bagian?: string[];
   /** Keterangan penyaring aktif (mis. "Deteksi Dini · Kec. Tebet"); kosong = seluruh data satuan. */
   filterLabel: string | null;
   unit: { id: string; kode: string; nama: string; level: string; levelLabel: string; timezone: string };

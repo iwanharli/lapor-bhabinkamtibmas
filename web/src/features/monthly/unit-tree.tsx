@@ -2,7 +2,7 @@
 
 import { ChevronRight, Loader2, Search } from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
-import { cn, EmptyState, Input, Select } from '@/components/ui';
+import { cn, EmptyState, Input, Listbox } from '@/components/ui';
 import { callApi } from '@/lib/api/client';
 
 export interface MonthlyUnit { id: string; nama: string; level: string; bhabin: number; bhabinAktif: number; laporan: number; prioritas: number; kehadiranPersen: number | null }
@@ -103,10 +103,8 @@ export function MonthlyUnitTree({ rows, query, showAttendance }: { rows: Monthly
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <Input aria-label="Cari satuan" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari satuan…" className="pl-9" />
         </div>
-        <Select aria-label="Saring satuan" value={filter} onChange={(e) => setFilter(e.target.value)} className="sm:w-60">
-          <option value="">Semua satuan</option>
-          {Object.entries(FILTERS).map(([k, f]) => <option key={k} value={k}>{f.label}</option>)}
-        </Select>
+<Listbox label="Saring satuan" value={filter} onChange={setFilter} className="sm:w-60"
+          options={[{ value: '', label: 'Semua satuan' }, ...Object.entries(FILTERS).map(([value, f]) => ({ value, label: f.label }))]} />
       </div>
       {active && <p className="border-b border-line bg-bg/50 px-5 py-2 text-xs text-muted">Pencarian mencakup satuan yang sudah dimuat. Buka cabang untuk mencari di tingkat bawahnya.</p>}
       {error && <p className="px-5 py-2 text-sm text-danger">{error}</p>}

@@ -41,6 +41,7 @@ type Col = {
 };
 
 export async function monthlyPdf(r: MonthlyReport): Promise<Buffer> {
+  const on = (bagian: string) => !r.bagian || r.bagian.includes(bagian);
   const doc = new PDFDocument({ size: 'A4', margins: { top: M, bottom: M + 14, left: M, right: M }, bufferPages: true, info: {
     Title: `Laporan Bulanan Bhabinkamtibmas ${r.bulanLabel} - ${r.unit.nama}`, Author: 'Lapor Bhabinkamtibmas', Creator: 'Lapor Bhabinkamtibmas', Subject: r.nomor,
   } });
@@ -192,6 +193,7 @@ export async function monthlyPdf(r: MonthlyReport): Promise<Buffer> {
   doc.y = y0 + 2 * (bh + 8);
 
   // ---------- Grafik laporan per hari ----------
+  if (on('harian')) {
   if (r.harian.length) {
     section('Laporan per hari', `Jumlah laporan terkirim per tanggal kegiatan · total ${n(s.laporan)}`, 95);
     const ch = 54, labelH = 10;
@@ -213,8 +215,10 @@ export async function monthlyPdf(r: MonthlyReport): Promise<Buffer> {
     doc.y = cy + ch + labelH;
     note('Batang muda = Sabtu/Minggu. Angka di atas batang = hari dengan laporan terbanyak.');
   }
+  }
 
   // ---------- Per kategori ----------
+  if (on('kategori')) {
   const maxKat = Math.max(1, ...r.perKategori.map((c) => c.jumlah));
   section('Laporan per kategori', `Dibanding ${r.pembanding.label}`);
   tableOf([
@@ -226,8 +230,10 @@ export async function monthlyPdf(r: MonthlyReport): Promise<Buffer> {
     { title: 'Urgensi tinggi', width: 14, align: 'right', get: (c) => n(c.prioritas), color: (c) => (c.prioritas ? RED : undefined) },
   ], r.perKategori, { total: { label: 'Jumlah', jumlah: s.laporan, sebelumnya: s.laporanSebelumnya, prioritas: s.prioritas } });
   note(`Perubahan tidak dihitung (—) bila pembanding kurang dari ${MIN_BASE} laporan.`);
+  }
 
   // ---------- Keluarga & stunting (label–nilai) ----------
+  if (on('keluarga')) {
   const k = r.keluarga;
   const pairs: [string, string, boolean?][] = [
     ['Keluarga (KK) terdata', n(k.kk)], ['Balita', n(k.balita)],
@@ -249,8 +255,10 @@ export async function monthlyPdf(r: MonthlyReport): Promise<Buffer> {
   });
   doc.y = ky0 + Math.ceil(pairs.length / 2) * ROW;
   doc.x = M;
+  }
 
   // ---------- Rekap per satuan ----------
+  if (on('satuan')) {
   if (r.perSatuan.length) {
     const top = r.perSatuan.slice(0, 60);
     section('Rekap per satuan', `${r.perSatuan.length} satuan${r.perSatuan.length > top.length ? ` · ${top.length} teratas ditampilkan; lengkap di Excel` : ''}`);
@@ -268,8 +276,10 @@ export async function monthlyPdf(r: MonthlyReport): Promise<Buffer> {
     ], top, { total: { nama: 'Jumlah', ...tot, kehadiranPersen: s.kehadiranPersen } });
     note('Merah: ada laporan urgensi tinggi / lokasi perlu dicek, atau kehadiran di bawah 50% hari kerja.');
   }
+  }
 
   // ---------- Bhabin perlu perhatian ----------
+  if (on('bhabin')) {
   const shown = perhatian.slice(0, 40);
   section('Bhabin perlu perhatian', `Tidak mengirim laporan atau kehadiran di bawah 50% hari kerja: ${n(perhatian.length)} orang${perhatian.length > shown.length ? ` · ${shown.length} ditampilkan; lengkap di Excel` : ''}`);
   if (shown.length) {
@@ -283,8 +293,10 @@ export async function monthlyPdf(r: MonthlyReport): Promise<Buffer> {
     ], shown);
     note('Merah: tidak ada laporan, atau hadir kurang dari setengah hari kerja.');
   } else note('Semua Bhabin melapor dan hadir minimal setengah hari kerja.');
+  }
 
   // ---------- Laporan urgensi tinggi ----------
+  if (on('prioritas')) {
   const pr = r.prioritas.slice(0, 25);
   section('Laporan deteksi dini urgensi tinggi', `${n(r.prioritas.length)} laporan${r.prioritas.length > pr.length ? ` · ${pr.length} terbaru ditampilkan` : ''}`, pr.length ? 80 : 30);
   if (pr.length) {
@@ -296,8 +308,10 @@ export async function monthlyPdf(r: MonthlyReport): Promise<Buffer> {
       { title: 'Ringkasan', width: 40, get: (p) => p.ringkasan || '—' },
     ], pr);
   } else note('Tidak ada laporan deteksi dini urgensi tinggi pada periode ini.');
+  }
 
   // ---------- Harga pangan ----------
+  if (on('harga')) {
   section('Harga pangan', `Rata-rata laporan harga periode ini dibanding ${r.pembanding.label}`);
   tableOf([
     { title: 'Komoditas', width: 24, get: (h) => h.komoditas },
@@ -312,6 +326,7 @@ export async function monthlyPdf(r: MonthlyReport): Promise<Buffer> {
     { title: 'Sampel', width: 8, align: 'right', get: (h) => n(h.sampel) },
   ], r.harga, { highlight: (h) => h.perubahan != null && h.perubahan >= 10 });
   note('Segitiga merah = harga naik, hijau = turun, garis abu-abu = tetap. Baris bersorot merah: naik 10% atau lebih.');
+  }
 
   // ---------- Pengesahan ----------
   if (doc.y > bottom() - 100) doc.addPage();

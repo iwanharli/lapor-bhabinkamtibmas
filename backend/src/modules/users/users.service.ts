@@ -173,6 +173,8 @@ export class UsersService {
       const current = await tx.userVillage.findMany({ where: { userId: id, until: null }, select: { villageId: true } });
       const have = new Set(current.map((c) => c.villageId));
       const add = villageIds.filter((v) => !have.has(v));
+      // Dilepas lalu ditetapkan lagi di hari yang sama: baris (user, desa, tanggal) sudah ada, jadi cukup dibuka kembali.
+      if (add.length) await tx.userVillage.updateMany({ where: { userId: id, villageId: { in: add }, since: today }, data: { until: null } });
       if (add.length) await tx.userVillage.createMany({ data: add.map((villageId) => ({ userId: id, villageId, since: today })), skipDuplicates: true });
       await this.audit.log({ actorId: me.id, action: 'USER_SET_VILLAGES', entity: 'user', entityId: id, meta: { villageIds } }, tx);
     });

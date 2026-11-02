@@ -33,7 +33,7 @@ test('peta: klik wilayah turun dari provinsi sampai desa, satuan Polri tampil', 
   await expect(page.getByText(/Desa\/Kelurahan · klik untuk membuka/)).toBeVisible();
 
   await openFirstArea(page, 'desaKode');
-  await expect(page.getByLabel('Desa atau kelurahan')).not.toHaveValue('');
+  await expect(page.getByRole('combobox', { name: 'Desa atau kelurahan' })).not.toHaveAttribute('data-value', '');
 
   await page.getByRole('button', { name: 'Hapus filter wilayah' }).click();
   await expect(page.getByText(/38 Provinsi · klik untuk membuka/)).toBeVisible();

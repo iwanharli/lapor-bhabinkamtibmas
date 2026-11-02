@@ -1,9 +1,9 @@
 'use client';
 
-import { ChevronDown, ChevronRight, MapPinned, X } from 'lucide-react';
+import { ChevronRight, MapPinned, X } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { cn } from '@/components/ui';
+import { Listbox } from '@/components/ui';
 import { regionQuery } from './categories';
 import { signalMapLoading } from './report-map';
 import { callApi } from '@/lib/api/client';
@@ -60,24 +60,8 @@ export function MapRegionFilter() {
       {levels.map((l, i) => (
         <Fragment key={l.level}>
           {i > 0 && <ChevronRight size={14} className="shrink-0 text-muted/50" aria-hidden />}
-          <label className={cn('relative flex h-7 items-center rounded-lg transition', !l.disabled && 'hover:bg-surface', l.value && 'bg-surface shadow-sm ring-1 ring-line/60')}>
-            <span className="sr-only">{l.label}</span>
-            <select
-              aria-label={l.label}
-              value={l.value}
-              disabled={l.disabled}
-              onChange={(e) => update(e.target.value, l.parent)}
-              className={cn(
-                'h-full max-w-[9.5rem] cursor-pointer appearance-none truncate [field-sizing:content] rounded-lg bg-transparent pl-2.5 pr-7 text-xs outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed',
-                l.value ? 'font-semibold text-ink' : 'text-muted',
-                l.disabled && 'opacity-45',
-              )}
-            >
-              <option value="">{l.all}</option>
-              {l.options.map((r) => <option key={r.kode} value={r.kode}>{r.nama}</option>)}
-            </select>
-            <ChevronDown size={13} className="pointer-events-none absolute right-2 text-muted" aria-hidden />
-          </label>
+          <Listbox compact label={l.label} value={l.value} disabled={l.disabled} onChange={(v) => update(v, l.parent)}
+            options={[{ value: '', label: l.all }, ...l.options.map((r) => ({ value: r.kode, label: r.nama }))]} />
         </Fragment>
       ))}
       {province && (

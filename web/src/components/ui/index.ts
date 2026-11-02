@@ -14,5 +14,6 @@ export { SegmentedLinks } from './segmented';
 export { Avatar } from './avatar';
 export { CountTabs, type CountTab } from './count-tabs';
 export { SearchInput } from './search-input';
+export { Listbox } from './listbox';
 export { UrlSelect } from './url-select';
 export { ExportButton } from './export-button';

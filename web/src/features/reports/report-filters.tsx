@@ -1,9 +1,9 @@
 'use client';
 
-import { CalendarRange, ChevronDown, Flame, MapPinOff, Search, X } from 'lucide-react';
+import { CalendarRange, Flame, MapPinOff, Search, X } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
-import { cn, Input } from '@/components/ui';
+import { cn, Input, Listbox } from '@/components/ui';
 import { withParams } from '@/lib/url';
 import { RangePreset, ReportSearch, resolveRange } from './report-search';
 
@@ -87,20 +87,8 @@ export function ReportFilters({ value, tz }: { value: ReportSearch; tz?: string 
           <Flame size={16} /> Prioritas
         </button>
 
-        <label className={cn(
-          'relative inline-flex items-center gap-1.5 rounded-lg border py-2 pl-3 pr-8 text-sm font-medium transition',
-          value.lokasi === 'palsu' ? 'border-danger/40 bg-danger-soft text-danger' : value.lokasi === 'asli' ? 'border-success/40 bg-success-soft text-success' : 'border-line bg-surface text-muted hover:text-ink',
-        )}>
-          <MapPinOff size={16} aria-hidden />
-          <span className="sr-only">Lokasi GPS</span>
-          <select value={value.lokasi ?? ''} onChange={(e) => apply({ lokasi: e.target.value || undefined })}
-            className="appearance-none bg-transparent outline-none">
-            <option value="">Semua lokasi</option>
-            <option value="palsu">Lokasi palsu</option>
-            <option value="asli">Lokasi asli</option>
-          </select>
-          <ChevronDown size={14} className="pointer-events-none absolute right-2.5" aria-hidden />
-        </label>
+        <Listbox label="Lokasi GPS" icon={MapPinOff} value={value.lokasi ?? ''} onChange={(v) => apply({ lokasi: v || undefined })} className="min-w-40"
+          options={[{ value: '', label: 'Semua lokasi' }, { value: 'palsu', label: 'Lokasi palsu' }, { value: 'asli', label: 'Lokasi asli' }]} />
 
         {active && (
           <button type="button" onClick={() => {

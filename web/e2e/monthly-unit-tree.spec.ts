@@ -16,7 +16,8 @@ test('laporan bulanan: per satuan bertingkat dan bisa disaring', async ({ page }
   await expect(page.getByRole('row', { name: /Polda Bali/ })).toBeHidden();
 
   await page.getByLabel('Cari satuan').fill('');
-  await page.getByLabel('Saring satuan').selectOption('prioritas');
+  await page.getByRole('combobox', { name: 'Saring satuan' }).click();
+  await page.getByRole('option', { name: 'Ada laporan prioritas' }).click();
   await expect(page.getByRole('row', { name: /Polda Bali/ })).toBeHidden();
   await page.getByLabel('Cari satuan').fill('zzzz');
   await expect(page.getByText('Tidak ada satuan')).toBeVisible();

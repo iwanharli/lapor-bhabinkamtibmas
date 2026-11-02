@@ -2,7 +2,7 @@
 
 import { MapPin, Search, SearchX } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { cn, EmptyState } from '@/components/ui';
+import { cn, EmptyState, Listbox } from '@/components/ui';
 import { rupiah, tanggal } from '@/lib/format';
 import type { PriceAreaRow } from '@/lib/types';
 
@@ -58,10 +58,7 @@ export function PriceAreaTable({ rows, average, tz, filter }: { rows: PriceAreaR
               className="h-9 w-full rounded-lg border border-line bg-bg pl-8 pr-2 text-sm outline-none focus:border-primary/50" />
           </label>
           {kecamatan.length > 1 && (
-            <select value={kec} onChange={(e) => setKec(e.target.value)} className="h-9 max-w-[9.5rem] rounded-lg border border-line bg-bg px-2 text-sm">
-              <option value="">Semua kec.</option>
-              {kecamatan.map((k) => <option key={k} value={k}>{k}</option>)}
-            </select>
+            <Listbox label="Kecamatan" value={kec} onChange={setKec} className="w-40" options={[{ value: '', label: 'Semua kec.' }, ...kecamatan.map((k) => ({ value: k, label: k }))]} />
           )}
         </div>
         <div className="flex items-center justify-between gap-2 text-xs">

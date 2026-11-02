@@ -191,7 +191,8 @@ export class AnalyticsService {
       ${f.category ? Prisma.sql`AND r.category::text = ${f.category}` : Prisma.empty}
       ${f.status ? Prisma.sql`AND r.status::text = ${f.status}` : Prisma.empty}
       ${f.priority ? Prisma.sql`AND r.priority` : Prisma.empty}
-      ${f.regionCode && f.regionLevel ? Prisma.sql`AND r.village_id IN (
+      ${f.regionCode && f.regionLevel === 4 ? Prisma.sql`AND r.village_id = (SELECT id FROM villages WHERE kode_wilayah = ${f.regionCode})` : Prisma.empty}
+      ${f.regionCode && f.regionLevel && f.regionLevel < 4 ? Prisma.sql`AND r.village_id IN (
         -- Tidak berkorelasi: daftar desa wilayah dihitung sekali (bukan per laporan) lalu di-hash.
         WITH RECURSIVE selected_regions AS (
           SELECT kode FROM regions WHERE kode = ${f.regionCode} AND level = ${f.regionLevel}

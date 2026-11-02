@@ -50,8 +50,9 @@ docs/teknis/             Dokumentasi teknis (arsitektur, API, database, keamanan
 **Dashboard web**
 - **Ringkasan:** total laporan, tren harian, sesuai desa binaan, partisipasi Bhabin, deteksi dini prioritas, lonjakan harga.
 - **Peta sebaran:**
-  - batas wilayah Kemendagri 2025 (provinsi → kabupaten → kecamatan → desa, mengikuti zoom),
+  - batas wilayah Kemendagri 2025,
   - titik berdekatan dikelompokkan dan laporan prioritas beranimasi,
+  - drilldown: klik wilayah untuk turun provinsi → kabupaten/kota → kecamatan → desa, dengan satuan Polri yang mencakupnya (`npm run seed:polri`),
   - filter periode, kategori, dan wilayah.
 - **Kinerja Bhabin:** hari aktif, komposisi kategori, lokasi perlu dicek; paginasi, cari, dan filter unit.
 - **Absensi lapangan:** check-in/out harian dengan GPS & swafoto; rekap per hari (hadir, terlambat, di luar desa, lokasi palsu).

@@ -6,6 +6,8 @@ import { AppModule } from './app.module';
 import { requestContextMiddleware } from './common/context/request-context';
 import { HttpErrorFilter } from './common/filters/http-error.filter';
 
+const SHUTDOWN_GRACE_MS = 5000;
+
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   // Impor pengguna mengirim hingga 1.000 baris JSON.
@@ -15,6 +17,10 @@ async function bootstrap() {
   app.set('trust proxy', process.env.TRUST_PROXY ?? 'loopback');
   // SIGINT/SIGTERM (pm2 reload, systemd stop): tutup koneksi DB & LISTEN dengan rapi.
   app.enableShutdownHooks();
+  // Koneksi yang tak pernah selesai (stream SSE /tracking/stream) menahan app.close selamanya: batasi tunggunya, di bawah kill_timeout PM2.
+  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+    process.once(signal, () => setTimeout(() => process.exit(0), SHUTDOWN_GRACE_MS).unref());
+  }
   app.use(requestContextMiddleware);
   app.setGlobalPrefix('api/v1');
   app.enableCors({ origin: (process.env.CORS_ORIGINS ?? '').split(',').filter(Boolean), credentials: true });

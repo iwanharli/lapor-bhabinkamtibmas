@@ -8,8 +8,8 @@ import { cn } from '@/components/ui';
 import { callApi } from '@/lib/api/client';
 import { withParams } from '@/lib/url';
 import { STATUS, type LivePerson, type LiveResponse, type LiveStatus } from './types';
+import { addBaseLayers } from '@/features/map/tiles';
 
-const TILE_URL = process.env.NEXT_PUBLIC_TILE_URL ?? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const INDONESIA: [[number, number], [number, number]] = [[-11.2, 94.7], [6.2, 141.1]];
 /** Cadangan bila aliran langsung terputus lama; normalnya data datang lewat SSE. */
 const FALLBACK_MS = 60_000;
@@ -127,7 +127,7 @@ export function TrackingMonitor({ unitId, home }: { unitId?: string; home?: [num
       if (cancelled || !el.current || map.current) return;
       lib.current = L;
       map.current = L.map(el.current).fitBounds(home ? [[home[1], home[0]], [home[3], home[2]]] : INDONESIA, { maxZoom: 15 });
-      L.tileLayer(TILE_URL, { maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>' }).addTo(map.current);
+      addBaseLayers(L, map.current);
       layer.current = L.layerGroup().addTo(map.current);
       setReady(true);
     })();
@@ -191,11 +191,11 @@ export function TrackingMonitor({ unitId, home }: { unitId?: string; home?: [num
   const list = (people ?? []).map((p) => ({ p, st: statusOf(p, staleMin, now) }));
   const count = (...s: LiveStatus[]) => list.filter((x) => s.includes(x.st)).length;
   return (
-    <div className="grid h-[calc(100dvh-13rem)] min-h-[520px] gap-4 lg:grid-cols-[1fr_340px]">
-      <div className="relative isolate overflow-hidden rounded-2xl border border-line bg-[#e8edf3]">
-        <div ref={el} className="absolute inset-0" />
-        <div className={cn('pointer-events-none absolute right-3 top-3 z-[500] flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold shadow-md ring-1',
-          conn === 'live' ? 'bg-surface text-success ring-success/30' : 'bg-surface text-warn ring-warn/30')}>
+    <div className="absolute inset-0">
+      <div className="absolute inset-0 isolate bg-[#0b1626]">
+        <div ref={el} className="map-under-bar map-attr-left absolute inset-0" />
+        <div className={cn('pointer-events-none absolute bottom-3 left-3 z-[500] flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold shadow-md ring-1',
+          conn === 'live' ? 'bg-surface/85 text-success ring-success/30' : 'bg-surface/85 text-warn ring-warn/30')}>
           <span className="relative flex size-2.5">
             {conn === 'live' && <span className="absolute inline-flex size-full animate-ping rounded-full bg-success/60 motion-reduce:hidden" />}
             <span className={cn('relative inline-flex size-2.5 rounded-full', conn === 'live' ? 'bg-success' : 'bg-warn')} />
@@ -204,7 +204,7 @@ export function TrackingMonitor({ unitId, home }: { unitId?: string; home?: [num
         </div>
       </div>
 
-      <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface">
+      <aside className="map-glass-card absolute inset-x-3 bottom-3 z-[550] flex h-[42%] flex-col overflow-hidden lg:inset-x-auto lg:right-3 lg:top-3 lg:h-auto lg:w-[21rem]">
         <div className="border-b border-line p-4">
           <div className="grid grid-cols-3 gap-2 text-center">
             {([['Aktif', count('aktif'), 'text-success'], ['Terputus', count('terputus', 'belum_ada_titik'), 'text-warn'], ['Selesai', count('selesai'), 'text-muted']] as const).map(([l, v, c]) => (

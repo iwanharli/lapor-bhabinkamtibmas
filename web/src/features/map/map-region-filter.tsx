@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, MapPinned, X } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/components/ui';
+import { regionQuery } from './categories';
 import { signalMapLoading } from './report-map';
 import { callApi } from '@/lib/api/client';
 
@@ -23,72 +24,38 @@ function useRegions(parent: string | null) {
   return rows;
 }
 
-/** Tiga tingkat filter geografis yang mengubah filter laporan pada peta. */
-
+/** Empat tingkat filter geografis yang mengubah filter laporan pada peta. */
 export function MapRegionFilter() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const query = params.toString();
-  const [province, setProvince] = useState(params.get('provinsiKode') ?? '');
-  const [city, setCity] = useState(params.get('kabupatenKode') ?? '');
-  const [district, setDistrict] = useState(params.get('kecamatanKode') ?? '');
+  const province = params.get('provinsiKode') ?? '';
+  const city = params.get('kabupatenKode') ?? '';
+  const district = params.get('kecamatanKode') ?? '';
+  const village = params.get('desaKode') ?? '';
   const provinces = useRegions('');
   const cities = useRegions(province || null);
   const districts = useRegions(city || null);
+  const villages = useRegions(district || null);
 
-  useEffect(() => {
-    const next = new URLSearchParams(query);
-    setProvince(next.get('provinsiKode') ?? '');
-    setCity(next.get('kabupatenKode') ?? '');
-    setDistrict(next.get('kecamatanKode') ?? '');
-  }, [query]);
-
-  function update(level: 1 | 2 | 3, code: string) {
-    const next = new URLSearchParams(query);
-    if (level === 1) {
-      setProvince(code);
-      setCity('');
-      setDistrict('');
-      if (code) next.set('provinsiKode', code);
-      else next.delete('provinsiKode');
-      next.delete('kabupatenKode');
-      next.delete('kecamatanKode');
-    } else if (level === 2) {
-      setCity(code);
-      setDistrict('');
-      if (code) next.set('kabupatenKode', code);
-      else next.delete('kabupatenKode');
-      next.delete('kecamatanKode');
-    } else {
-      setDistrict(code);
-      if (code) next.set('kecamatanKode', code);
-      else next.delete('kecamatanKode');
-    }
-
-    const selected = level === 3 ? code || city || province : level === 2 ? code || province : code;
-    const selectedLevel = level === 3 ? (code ? '3' : city ? '2' : province ? '1' : '') : level === 2 ? (code ? '2' : province ? '1' : '') : code ? '1' : '';
-    if (selected && selectedLevel) {
-      next.set('regionCode', selected);
-      next.set('regionLevel', selectedLevel);
-    } else {
-      next.delete('regionCode');
-      next.delete('regionLevel');
-    }
-
+  /** Pilih wilayah; mengosongkan satu tingkat kembali ke tingkat di atasnya. */
+  function update(code: string, parent: string) {
+    const next = regionQuery(query, code || parent);
     // Peta terbang ke batas wilayah & menyorotnya setelah filter berlaku (ReportMap).
     signalMapLoading();
     router.push(next.size ? `${pathname}?${next}` : pathname);
   }
 
   const levels = [
-    { label: 'Provinsi', all: 'Semua provinsi', value: province, options: provinces, level: 1 as const, disabled: false },
-    { label: 'Kabupaten atau kota', all: 'Semua kab/kota', value: city, options: cities, level: 2 as const, disabled: !province },
-    { label: 'Kecamatan', all: 'Semua kecamatan', value: district, options: districts, level: 3 as const, disabled: !city },
+    { label: 'Provinsi', all: 'Semua provinsi', value: province, options: provinces, level: 1, parent: '', disabled: false },
+    { label: 'Kabupaten atau kota', all: 'Semua kab/kota', value: city, options: cities, level: 2, parent: province, disabled: !province },
+    { label: 'Kecamatan', all: 'Semua kecamatan', value: district, options: districts, level: 3, parent: city, disabled: !city },
+    { label: 'Desa atau kelurahan', all: 'Semua desa', value: village, options: villages, level: 4, parent: district, disabled: !district },
   ];
 
   return (
-    <div className="flex h-9 items-center rounded-xl bg-bg/80 pl-2.5 pr-1 ring-1 ring-line/70">
+    <div className="flex h-9 items-center pl-1.5 pr-1">
       <MapPinned size={15} className="mr-1 shrink-0 text-primary" aria-hidden />
       {levels.map((l, i) => (
         <Fragment key={l.level}>
@@ -99,9 +66,9 @@ export function MapRegionFilter() {
               aria-label={l.label}
               value={l.value}
               disabled={l.disabled}
-              onChange={(e) => update(l.level, e.target.value)}
+              onChange={(e) => update(e.target.value, l.parent)}
               className={cn(
-                'h-full max-w-[13rem] cursor-pointer appearance-none truncate [field-sizing:content] rounded-lg bg-transparent pl-2.5 pr-7 text-xs outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed',
+                'h-full max-w-[9.5rem] cursor-pointer appearance-none truncate [field-sizing:content] rounded-lg bg-transparent [&>option]:bg-[#0c1626] pl-2.5 pr-7 text-xs outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed',
                 l.value ? 'font-semibold text-ink' : 'text-muted',
                 l.disabled && 'opacity-45',
               )}
@@ -114,7 +81,7 @@ export function MapRegionFilter() {
         </Fragment>
       ))}
       {province && (
-        <button type="button" onClick={() => update(1, '')} aria-label="Hapus filter wilayah" title="Hapus filter wilayah"
+        <button type="button" onClick={() => update('', '')} aria-label="Hapus filter wilayah" title="Hapus filter wilayah"
           className="ml-1 grid h-7 w-7 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-danger/10 hover:text-danger">
           <X size={14} />
         </button>

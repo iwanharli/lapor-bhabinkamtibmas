@@ -17,7 +17,7 @@ function mapFilter(q: MapQuery) {
   const b = q.bbox?.split(',').map(Number);
   if (b && (b.length !== 4 || b.some((n) => !Number.isFinite(n)))) throw new BadRequestException({ code: 'INVALID_BBOX', message: 'bbox harus w,s,e,n' });
   const regionLevel = q.regionLevel ? Number(q.regionLevel) : undefined;
-  if (q.regionCode && ![1, 2, 3].includes(regionLevel ?? 0)) throw new BadRequestException({ code: 'INVALID_REGION_LEVEL', message: 'regionLevel harus 1–3' });
+  if (q.regionCode && ![1, 2, 3, 4].includes(regionLevel ?? 0)) throw new BadRequestException({ code: 'INVALID_REGION_LEVEL', message: 'regionLevel harus 1–4' });
   return {
     category: q.category || undefined,
     status: q.status || undefined,

@@ -18,7 +18,7 @@ const WORLD: [number, number][] = [[-85, -180], [-85, 180], [85, 180], [85, -180
 /**
  * Sorotan wilayah terpilih: area di luar wilayah digelapkan (lapisan peta, ikut animasi zoom) dan diburamkan
  * (lapisan backdrop-filter di atas peta yang dilubangi bentuk wilayah lewat clip-path), dengan garis tepi menyala
- * dan isi biru transparan yang "bernapas" pelan (globals.css .map-focus-line).
+ * dan isi kuning transparan yang "bernapas" pelan (globals.css .map-focus-line).
  */
 export function attachFocus(L: Leaflet, map: LeafletMap) {
   if (!map.getPane('regionMask')) map.createPane('regionMask').style.zIndex = '360';
@@ -66,7 +66,7 @@ export function attachFocus(L: Leaflet, map: LeafletMap) {
         const latlngs = outerRings(shape.geometry);
         rings = latlngs.map((r) => r.map(([lat, lng]) => L.latLng(lat, lng)));
         mask = L.polygon([WORLD, ...latlngs], { pane: 'regionMask', stroke: false, fillColor: '#081325', fillOpacity: 0.42, interactive: false, fillRule: 'evenodd' }).addTo(map);
-        line = L.polygon(latlngs, { pane: 'regionLine', color: '#3b82f6', weight: 3, opacity: 0.95, fillColor: '#3b82f6', fillOpacity: 0.12, interactive: false, className: 'map-focus-line' }).addTo(map);
+        line = L.polygon(latlngs, { pane: 'regionLine', color: '#fbbf24', weight: 3, opacity: 0.95, fillColor: '#fbbf24', fillOpacity: 0.12, interactive: false, className: 'map-focus-line' }).addTo(map);
       }
       // Peredup "luar Indonesia" (boundary-layer) memakai batas provinsi tersederhana yang saling tumpang-tindih
       // sehingga muncul pita gelap; selama ada sorotan wilayah lapisan itu tidak diperlukan.

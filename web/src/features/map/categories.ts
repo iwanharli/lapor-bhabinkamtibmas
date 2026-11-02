@@ -43,3 +43,16 @@ export interface MapSummary {
   flagged: number;
   priority: MapPoint[];
 }
+
+const REGION_PARAMS = ['provinsiKode', 'kabupatenKode', 'kecamatanKode', 'desaKode'];
+
+/** Parameter URL untuk membuka satu wilayah (kosong: seluruh Indonesia); tingkatnya terbaca dari kode "11.01.01.2001". */
+export function regionQuery(query: string, kode: string) {
+  const next = new URLSearchParams(query);
+  const parts = kode ? kode.split('.') : [];
+  REGION_PARAMS.forEach((name, i) => {
+    if (i < parts.length) next.set(name, parts.slice(0, i + 1).join('.'));
+    else next.delete(name);
+  });
+  return next;
+}

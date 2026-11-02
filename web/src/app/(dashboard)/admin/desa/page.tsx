@@ -1,9 +1,12 @@
-import { MapPinned, MapPinOff, Shapes, UsersRound } from 'lucide-react';
-import { Badge, Card, CellStack, EmptyState, PageHeader, Pagination, SearchInput, Stack, StatCard, Table, Td, Th, THead, Tr, UrlSelect } from '@/components/ui';
+import Link from 'next/link';
+import { Building2, MapPinned, MapPinOff, Shapes, UsersRound } from 'lucide-react';
+import { Badge, Card, CellStack, cn, EmptyState, PageHeader, Pagination, SearchInput, Stack, StatCard, Table, Td, Th, THead, Tr, UrlSelect } from '@/components/ui';
 import { BoundaryMap } from '@/features/villages/boundary-map';
 import { GeojsonImportButton } from '@/features/villages/geojson-import';
-import type { VillageGeoJson, VillageRow, VillageStats } from '@/features/villages/types';
+import type { PolsekManual, PolsekWithoutRegion, RegionNode, VillageGeoJson, VillageRow, VillageStats } from '@/features/villages/types';
+import { VillageExplorer } from '@/features/villages/village-explorer';
 import { VillageFormButton } from '@/features/villages/village-form';
+import { AssignPolsekRegionButton, RemovePolsekRegionButton } from '@/features/villages/assign-polsek-region';
 import { AssignVillagesButton } from '@/features/villages/assign-villages';
 import { UrlUnitFilter } from '@/features/units/unit-combobox';
 import { apiGet } from '@/lib/api/server';
@@ -11,17 +14,26 @@ import type { Paged, UnitSummary } from '@/lib/types';
 import { withParams } from '@/lib/url';
 
 const SIZES = [20, 50, 100];
-type Search = { q?: string; polsekId?: string; batas?: string; page?: string; limit?: string };
+type Search = { tab?: string; jenis?: string; q?: string; polsekId?: string; batas?: string; page?: string; limit?: string };
+const TAB_POLSEK = 'polsek-tanpa-wilayah';
+const TAB_MANUAL = 'penetapan-manual';
 
 export default async function DesaPage({ searchParams }: { searchParams: Promise<Search> }) {
   const sp = await searchParams;
   const page = Math.max(Number(sp.page) || 1, 1);
   const limit = SIZES.includes(Number(sp.limit)) ? Number(sp.limit) : 20;
 
-  const [list, geo, summary] = await Promise.all([
-    apiGet<Paged<VillageRow> & { stats: VillageStats }>(withParams('/admin/villages', { q: sp.q, polsekId: sp.polsekId, batas: sp.batas, page: String(page), limit: String(limit) })),
-    apiGet<VillageGeoJson>(withParams('/villages/geojson', { polsekId: sp.polsekId })),
+  const orphanTab = sp.tab === TAB_POLSEK;
+  const manualTab = sp.tab === TAB_MANUAL;
+  const filtered = !orphanTab && !manualTab && !!(sp.q || sp.polsekId || sp.batas);
+  const [list, geo, summary, roots, orphans, manual] = await Promise.all([
+    apiGet<Paged<VillageRow> & { stats: VillageStats }>(withParams('/admin/villages', orphanTab || manualTab ? { limit: '1' } : { q: sp.q, polsekId: sp.polsekId, batas: sp.batas, page: String(page), limit: String(limit) })),
+    sp.polsekId ? apiGet<VillageGeoJson>(withParams('/villages/geojson', { polsekId: sp.polsekId })) : null,
     apiGet<UnitSummary>('/units/summary'),
+    filtered || orphanTab || manualTab ? [] : apiGet<RegionNode[]>('/admin/villages/tree'),
+    apiGet<Paged<PolsekWithoutRegion> & { stats: { total: number; kawasan: number } }>(
+      withParams('/admin/villages/polsek-tanpa-wilayah', orphanTab ? { q: sp.q, jenis: sp.jenis, page: String(page), limit: String(limit) } : { limit: '1' })),
+    apiGet<PolsekManual[]>('/admin/villages/polsek-manual'),
   ]);
   const { data, meta, stats } = list;
 
@@ -43,13 +55,93 @@ export default async function DesaPage({ searchParams }: { searchParams: Promise
             value={stats.tanpa_bhabin} footer={stats.tanpa_bhabin ? 'atur di halaman Pengguna' : 'semua desa terbina'} />
         </div>
 
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <nav aria-label="Bagian halaman desa" className="flex flex-wrap gap-1 self-start rounded-xl bg-surface p-1 ring-1 ring-line">
+          {[
+            { href: '/admin/desa', label: 'Struktur wilayah', on: !orphanTab && !manualTab },
+            { href: `/admin/desa?tab=${TAB_POLSEK}`, label: 'Polsek tanpa wilayah', on: orphanTab, count: orphans.stats.total, warn: true },
+            { href: `/admin/desa?tab=${TAB_MANUAL}`, label: 'Penetapan manual', on: manualTab, count: manual.length },
+          ].map((t) => (
+            <Link key={t.href} href={t.href} aria-current={t.on ? 'page' : undefined} className={cn('inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition', t.on ? 'bg-primary text-white' : 'text-muted hover:text-ink')}>
+              {t.label}
+              {t.count != null && <span className={cn('rounded-full px-2 py-0.5 text-xs font-bold tabular-nums', t.on ? 'bg-white/20 text-white' : t.warn ? 'bg-warn-soft text-warn' : 'bg-bg text-muted')}>{t.count}</span>}
+            </Link>
+          ))}
+        </nav>
+
+        {manualTab ? (
           <Card>
-            <div className="flex flex-col gap-3 border-b border-line p-4 lg:flex-row lg:items-center">
-              <SearchInput placeholder="Cari nama desa, kecamatan, atau kode…" className="flex-1" />
-              <UrlUnitFilter param="polsekId" levels={['POLSEK']} emptyLabel="Semua Polsek" />
-              <UrlSelect param="batas" label="Batas wilayah" options={[{ value: '', label: 'Semua' }, { value: 'ada', label: 'Ada batas' }, { value: 'belum', label: 'Belum ada batas' }]} />
+            {manual.length === 0 ? (
+              <EmptyState icon={<Building2 size={22} />} tone="neutral" title="Belum ada penetapan manual" className="py-14">Tetapkan wilayah dari tab Polsek tanpa wilayah.</EmptyState>
+            ) : (
+              <ul className="divide-y divide-line">
+                {manual.map((m) => (
+                  <li key={m.id} className="flex flex-wrap items-start gap-x-4 gap-y-3 px-5 py-4">
+                    <div className="min-w-48 flex-1">
+                      <p className="font-medium">{m.nama}</p>
+                      <p className="text-xs text-muted">{m.polres} · {m.polda}</p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {m.wilayah.map((w) => (
+                          <span key={w.kode} title={w.chain} className="inline-flex items-center gap-1 rounded-full bg-primary-soft py-0.5 pl-2.5 pr-1 text-xs font-medium text-primary">
+                            {w.nama}
+                            <RemovePolsekRegionButton polsekId={m.id} polsekNama={m.nama} kode={w.kode} nama={w.nama} />
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <AssignPolsekRegionButton polsek={m} existing={m.wilayah.map((w) => w.kode)} label="Tambah kecamatan" />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        ) : orphanTab ? (
+          <Card>
+            <div className="border-b border-line bg-warn-soft/40 px-4 py-3 text-sm">
+              <strong className="tabular-nums">{orphans.stats.total}</strong> Polsek belum terhubung ke wilayah Kemendagri: <strong className="tabular-nums">{orphans.stats.kawasan}</strong> satuan kawasan dan <strong className="tabular-nums">{orphans.stats.total - orphans.stats.kawasan}</strong> Polsek biasa. Polsek ini tidak muncul di pohon wilayah sampai kecamatannya ditetapkan.
             </div>
+            <div className="flex flex-col gap-3 border-b border-line p-4 lg:flex-row lg:items-center">
+              <SearchInput placeholder="Cari Polsek, Polres, atau Polda…" className="flex-1" />
+              <UrlSelect param="jenis" label="Jenis" options={[{ value: '', label: 'Semua jenis' }, { value: 'biasa', label: 'Polsek biasa' }, { value: 'kawasan', label: 'Satuan kawasan' }]} />
+            </div>
+            {orphans.data.length === 0 ? (
+              <EmptyState icon={<Building2 size={22} />} tone="neutral" title="Tidak ada Polsek" className="py-14">Tidak ada Polsek tanpa wilayah untuk pencarian ini.</EmptyState>
+            ) : (
+              <Table minWidth={720}>
+                <THead>
+                  <Th className="pl-5">Polsek</Th>
+                  <Th>Polres</Th>
+                  <Th>Polda</Th>
+                  <Th>Jenis</Th>
+                  <Th>Koordinat</Th>
+                  <Th className="pr-5" />
+                </THead>
+                <tbody>
+                  {orphans.data.map((o) => (
+                    <Tr key={o.id}>
+                      <Td className="pl-5 font-medium">{o.nama}</Td>
+                      <Td>{o.polres}</Td>
+                      <Td>{o.polda}</Td>
+                      <Td>{o.kawasan ? <Badge tone="info">Kawasan</Badge> : <Badge tone="warn">Perlu ditinjau</Badge>}</Td>
+                      <Td className="font-mono text-xs text-muted">{o.lat != null && o.lng != null ? `${o.lat}, ${o.lng}` : '—'}</Td>
+                      <Td align="right" className="pr-5"><AssignPolsekRegionButton polsek={o} /></Td>
+                    </Tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+            <Pagination page={page} limit={limit} total={orphans.meta.total} sizes={SIZES} noun="Polsek"
+              hrefFor={(p, l) => withParams('/admin/desa', sp, { page: p > 1 ? String(p) : undefined, limit: l !== 20 ? String(l) : undefined })} />
+          </Card>
+        ) : (
+        <Card>
+          <div className="flex flex-col gap-3 border-b border-line p-4 lg:flex-row lg:items-center">
+            <SearchInput placeholder="Cari nama desa, kecamatan, atau kode…" className="flex-1" />
+            <UrlUnitFilter param="polsekId" levels={['POLSEK']} emptyLabel="Semua Polsek" />
+            <UrlSelect param="batas" label="Batas wilayah" options={[{ value: '', label: 'Semua' }, { value: 'ada', label: 'Ada batas' }, { value: 'belum', label: 'Belum ada batas' }]} />
+          </div>
+          {!filtered ? <VillageExplorer roots={roots} /> : (
+            <div className="grid grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+              <div className="min-w-0">
             {data.length === 0 ? (
               <EmptyState icon={<MapPinned size={22} />} tone="neutral" title="Belum ada desa" className="py-14">Tambah desa satu per satu atau impor dari GeoJSON.</EmptyState>
             ) : (
@@ -80,14 +172,18 @@ export default async function DesaPage({ searchParams }: { searchParams: Promise
             )}
             <Pagination page={page} limit={limit} total={meta.total} sizes={SIZES} noun="desa"
               hrefFor={(p, l) => withParams('/admin/desa', sp, { page: p > 1 ? String(p) : undefined, limit: l !== 20 ? String(l) : undefined })} />
-          </Card>
-
-          <Card title="Peta batas desa" subtitle={`${(geo.total ?? geo.features.length).toLocaleString('id-ID')} desa berbatas`} className="flex flex-col self-start xl:sticky xl:top-20" bodyClassName="h-[460px]">
-            {geo.features.length ? <BoundaryMap data={geo} />
-              : geo.truncated ? <EmptyState icon={<Shapes size={22} />} tone="neutral" title="Terlalu banyak desa untuk digambar" className="h-full">Pilih Polsek di filter untuk melihat batas desanya di peta.</EmptyState>
-              : <EmptyState icon={<Shapes size={22} />} tone="neutral" title="Belum ada batas wilayah" className="h-full">Impor GeoJSON untuk menampilkan peta.</EmptyState>}
-          </Card>
-        </div>
+              </div>
+              <div className="border-t border-line xl:border-l xl:border-t-0">
+                <p className="border-b border-line px-4 py-2.5 text-sm font-semibold">Peta batas desa</p>
+                <div className="h-[460px]">
+                  {geo?.features.length ? <BoundaryMap data={geo} />
+                    : <EmptyState icon={<Shapes size={22} />} tone="neutral" title="Pilih satu Polsek" className="h-full">Peta hasil pencarian tampil setelah memilih Polsek di filter.</EmptyState>}
+                </div>
+              </div>
+            </div>
+          )}
+        </Card>
+        )}
       </Stack>
     </>
   );

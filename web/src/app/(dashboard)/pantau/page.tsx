@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation';
-import { PageHeader } from '@/components/ui';
 import { TrackingMonitor } from '@/features/tracking/tracking-monitor';
 import { UrlUnitFilter } from '@/features/units/unit-combobox';
 import { apiGet, getSessionUser } from '@/lib/api/server';
@@ -13,13 +12,15 @@ export default async function PantauPage({ searchParams }: { searchParams: Promi
   const { unitId } = await searchParams;
   const { bbox } = await apiGet<{ bbox: [number, number, number, number] | null }>(withParams('/units/bounds', { unitId }));
   return (
-    <>
-      <PageHeader
-        title="Monitoring Personel"
-        subtitle="Posisi terkini Bhabinkamtibmas selama jam dinas"
-        actions={<UrlUnitFilter emptyLabel="Semua wilayah" className="w-64" />}
-      />
+    <main className="map-glass relative isolate h-[calc(100dvh-4rem)] min-h-[520px] overflow-hidden">
       <TrackingMonitor key={unitId ?? ''} unitId={unitId} home={bbox} />
-    </>
+      <div className="map-glass-card absolute left-3 top-3 z-[600] flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
+        <div>
+          <h1 className="text-sm font-bold">Monitoring Personel</h1>
+          <p className="text-[11px] text-muted">Posisi terkini Bhabinkamtibmas selama jam dinas</p>
+        </div>
+        <UrlUnitFilter emptyLabel="Semua wilayah" className="w-56" />
+      </div>
+    </main>
   );
 }

@@ -8,6 +8,9 @@ import { UnitsService } from '../units/units.service';
 /** Batas jumlah poligon desa per permintaan peta. */
 const GEOJSON_MAX = 2000;
 
+/** Nama satuan kawasan, bukan wilayah kecamatan. */
+const KAWASAN = 'kawasan|pelabuhan|bandara|kp3|kspn';
+
 @Injectable()
 export class VillagesService {
   constructor(private prisma: PrismaService, private units: UnitsService, private audit: AuditService) {}
@@ -66,12 +69,111 @@ export class VillagesService {
     return Prisma.sql`v.polsek_id IN (SELECT unit_subtree(${me.unitId}::uuid))`;
   }
 
+  /** Anak satu wilayah untuk pohon desa, hanya yang berisi desa dalam cakupan: jumlah desa, yang terbina Bhabin, dan satuan Polri pembinanya. */
+  async tree(me: AuthUser, parent?: string) {
+    const scope = await this.scopeSql(me);
+    const len = parent ? parent.length + 3 : 2;
+    return this.prisma.$queryRaw<{ kode: string; nama: string; level: number; desa: number; terbina: number; satuan: string[] }[]>`
+      SELECT r.kode, r.nama, r.level, c.desa, c.terbina,
+             ARRAY(SELECT u.name FROM polri_wilayah m JOIN polri_units u ON u.id = m.unit_id
+                   WHERE m.kode = r.kode AND m.method NOT IN ('via_polres', 'via_polsek') ORDER BY u.name) AS satuan
+      FROM regions r
+      JOIN (
+        SELECT left(v.kecamatan_kode, ${len}::int) AS kode, count(*)::int AS desa,
+               count(*) FILTER (WHERE EXISTS (
+                 SELECT 1 FROM user_villages uv JOIN users us ON us.id = uv.user_id
+                 WHERE uv.village_id = v.id AND uv.until IS NULL AND us.active))::int AS terbina
+        FROM villages v
+        WHERE ${scope} ${parent ? Prisma.sql`AND v.kecamatan_kode LIKE ${parent + '.%'}` : Prisma.empty}
+        GROUP BY 1
+      ) c ON c.kode = r.kode
+      ORDER BY r.nama`;
+  }
+
+  /** Polsek tanpa pemetaan ke kecamatan, untuk ditinjau manual. Satuan kawasan (pelabuhan, bandara, dst.) memang bisa tidak punya kecamatan sendiri. */
+  async polsekWithoutRegion(me: AuthUser, q: { q?: string; jenis?: string; page: number; limit: number }) {
+    const kawasan = Prisma.sql`s.name ~* ${KAWASAN}`;
+    const base = Prisma.sql`s.kind = 'POLSEK' AND NOT EXISTS (SELECT 1 FROM polri_wilayah m WHERE m.unit_id = s.id)
+      ${me.role === UserRole.SUPERADMIN ? Prisma.empty : Prisma.sql`AND s.id IN (SELECT unit_subtree(${me.unitId}::uuid))`}`;
+    const search = Prisma.sql`${q.q ? Prisma.sql`AND (s.name ILIKE ${'%' + q.q + '%'} OR res.name ILIKE ${'%' + q.q + '%'} OR da.name ILIKE ${'%' + q.q + '%'})` : Prisma.empty}`;
+    const from = Prisma.sql`FROM polri_units s JOIN polri_units res ON res.id = s.parent_id JOIN polri_units da ON da.id = res.parent_id`;
+    const where = Prisma.sql`${base} ${search}
+      ${q.jenis === 'kawasan' ? Prisma.sql`AND ${kawasan}` : q.jenis === 'biasa' ? Prisma.sql`AND NOT ${kawasan}` : Prisma.empty}`;
+    const [data, [{ total }], [stats]] = await Promise.all([
+      this.prisma.$queryRaw<unknown[]>`
+        SELECT s.id, s.name AS nama, res.name AS polres, da.name AS polda, s.lat, s.lng, ${kawasan} AS kawasan
+        ${from} WHERE ${where} ORDER BY da.name, res.name, s.name
+        LIMIT ${q.limit} OFFSET ${(q.page - 1) * q.limit}`,
+      this.prisma.$queryRaw<{ total: number }[]>`SELECT count(*)::int AS total ${from} WHERE ${where}`,
+      this.prisma.$queryRaw<{ total: number; kawasan: number }[]>`
+        SELECT count(*)::int AS total, count(*) FILTER (WHERE ${kawasan})::int AS kawasan ${from} WHERE ${base}`,
+    ]);
+    return { data, meta: { page: q.page, limit: q.limit, total }, stats };
+  }
+
+  /** Polsek dalam cakupan admin beserta induknya; 404 bila tidak ada. */
+  private async polsekInScope(me: AuthUser, polsekId: string) {
+    const [polsek] = await this.prisma.$queryRaw<{ polres_id: string; polda_id: string; source: boolean }[]>`
+      SELECT s.parent_id AS polres_id, res.parent_id AS polda_id,
+             EXISTS (SELECT 1 FROM polri_wilayah m WHERE m.unit_id = s.id AND m.method <> 'admin') AS source
+      FROM polri_units s JOIN polri_units res ON res.id = s.parent_id
+      WHERE s.id = ${polsekId}::uuid AND s.kind = 'POLSEK'
+        ${me.role === UserRole.SUPERADMIN ? Prisma.empty : Prisma.sql`AND s.id IN (SELECT unit_subtree(${me.unitId}::uuid))`}`;
+    if (!polsek) throw new NotFoundException({ code: 'NOT_FOUND' });
+    return polsek;
+  }
+
+  /** Tetapkan kecamatan Polsek secara manual. Harus di provinsi cakupan Polda-nya; cakupan Polres ikut bertambah bila kab/kotanya baru. */
+  async assignPolsekRegions(me: AuthUser, polsekId: string, kodes: string[]) {
+    const polsek = await this.polsekInScope(me, polsekId);
+    if (polsek.source) throw new ConflictException({ code: 'ALREADY_MAPPED', message: 'Wilayah Polsek ini berasal dari data sumber dan tidak bisa diubah di sini.' });
+    const unique = [...new Set(kodes)];
+    const found = await this.prisma.region.count({ where: { kode: { in: unique }, level: 3 } });
+    if (found !== unique.length) throw new BadRequestException({ code: 'INVALID_KODE', message: 'Kecamatan tidak ditemukan.' });
+    const provinces = [...new Set(unique.map((k) => k.slice(0, 2)))];
+    const inPolda = await this.prisma.polriWilayah.count({ where: { unitId: polsek.polda_id, kode: { in: provinces } } });
+    if (inPolda !== provinces.length) throw new BadRequestException({ code: 'OUTSIDE_POLDA', message: 'Kecamatan berada di luar provinsi cakupan Polda satuan ini.' });
+    await this.prisma.$transaction([
+      this.prisma.polriWilayah.createMany({ data: unique.map((kode) => ({ unitId: polsekId, kode, method: 'admin' })), skipDuplicates: true }),
+      this.prisma.polriWilayah.createMany({ data: unique.map((k) => ({ unitId: polsek.polres_id, kode: k.slice(0, 5), method: 'via_polsek' })), skipDuplicates: true }),
+    ]);
+    await this.audit.log({ actorId: me.id, action: 'POLSEK_REGION_SET', entity: 'polri_unit', entityId: polsekId, meta: { kecamatanKodes: unique } });
+    return { id: polsekId, kecamatanKodes: unique };
+  }
+
+  async removePolsekRegion(me: AuthUser, polsekId: string, kode: string) {
+    const polsek = await this.polsekInScope(me, polsekId);
+    const { count } = await this.prisma.polriWilayah.deleteMany({ where: { unitId: polsekId, kode, method: 'admin' } });
+    if (!count) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Penetapan manual ini tidak ditemukan.' });
+    // Cakupan turunan Polres dilepas bila tidak ada lagi Polsek-nya di kab/kota itu.
+    await this.prisma.$executeRaw`
+      DELETE FROM polri_wilayah p
+      WHERE p.unit_id = ${polsek.polres_id}::uuid AND p.kode = ${kode.slice(0, 5)} AND p.method = 'via_polsek'
+        AND NOT EXISTS (SELECT 1 FROM polri_wilayah m JOIN polri_units s ON s.id = m.unit_id
+                        WHERE s.parent_id = ${polsek.polres_id}::uuid AND m.kode LIKE ${kode.slice(0, 5) + '.%'})`;
+    await this.audit.log({ actorId: me.id, action: 'POLSEK_REGION_REMOVE', entity: 'polri_unit', entityId: polsekId, meta: { kode } });
+    return { id: polsekId, kode };
+  }
+
+  async polsekManual(me: AuthUser) {
+    return this.prisma.$queryRaw<{ id: string; nama: string; polres: string; polda: string; wilayah: { kode: string; nama: string; chain: string }[] }[]>`
+      SELECT s.id, s.name AS nama, res.name AS polres, da.name AS polda,
+             json_agg(json_build_object('kode', r.kode, 'nama', r.nama, 'chain', r.chain) ORDER BY r.kode) AS wilayah
+      FROM polri_wilayah m
+      JOIN polri_units s ON s.id = m.unit_id JOIN polri_units res ON res.id = s.parent_id JOIN polri_units da ON da.id = res.parent_id
+      JOIN regions r ON r.kode = m.kode
+      WHERE m.method = 'admin' ${me.role === UserRole.SUPERADMIN ? Prisma.empty : Prisma.sql`AND s.id IN (SELECT unit_subtree(${me.unitId}::uuid))`}
+      GROUP BY s.id, s.name, res.name, da.name
+      ORDER BY da.name, res.name, s.name`;
+  }
+
   /** Daftar desa untuk halaman admin: status batas wilayah, jumlah Bhabin, dan laporan 30 hari. */
-  async adminList(me: AuthUser, q: { q?: string; polsekId?: string; batas?: string; page: number; limit: number }) {
+  async adminList(me: AuthUser, q: { q?: string; polsekId?: string; kecamatanKode?: string; batas?: string; page: number; limit: number }) {
     if (q.polsekId) await this.units.assertInScope(me.unitId, q.polsekId);
     const scope = await this.scopeSql(me);
     const where = Prisma.sql`${scope}
       ${q.polsekId ? Prisma.sql`AND v.polsek_id = ${q.polsekId}::uuid` : Prisma.empty}
+      ${q.kecamatanKode ? Prisma.sql`AND v.kecamatan_kode = ${q.kecamatanKode}` : Prisma.empty}
       ${q.q ? Prisma.sql`AND (v.nama ILIKE ${'%' + q.q + '%'} OR v.kecamatan ILIKE ${'%' + q.q + '%'} OR v.kode_wilayah LIKE ${q.q + '%'})` : Prisma.empty}
       ${q.batas === 'ada' ? Prisma.sql`AND v.geom IS NOT NULL` : q.batas === 'belum' ? Prisma.sql`AND v.geom IS NULL` : Prisma.empty}`;
     const [data, [{ total }], [stats]] = await Promise.all([

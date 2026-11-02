@@ -75,7 +75,27 @@ export class RegionsService {
              CASE WHEN r.level = 3 THEN (SELECT count(*) FROM villages v WHERE v.kecamatan_kode = r.kode)::int ELSE 0 END AS desa
       FROM regions r
       WHERE ${parent ? Prisma.sql`r.parent_kode = ${parent}` : Prisma.sql`r.level = 1`}
-      ORDER BY r.nama`;
+      UNION ALL
+      SELECT v.kode_wilayah, v.nama, 4, ST_Y(ST_PointOnSurface(v.geom))::float, ST_X(ST_PointOnSurface(v.geom))::float, 0
+      FROM villages v
+      WHERE ${parent ? Prisma.sql`v.kecamatan_kode = ${parent}` : Prisma.sql`false`}
+      ORDER BY nama`;
+  }
+
+  /** Satuan Polri yang mencakup satu wilayah: satuan tingkat terdalam yang terpetakan beserta induknya (Polda → Polres → Polsek). */
+  async polri(kode: string) {
+    const parts = kode.split('.').slice(0, 3);
+    const chain = parts.map((_, i) => parts.slice(0, i + 1).join('.'));
+    return this.prisma.$queryRaw<{ kind: string; name: string }[]>`
+      WITH RECURSIVE deepest AS (
+        SELECT m.unit_id FROM polri_wilayah m
+        WHERE m.kode = (SELECT x.kode FROM polri_wilayah x WHERE x.kode = ANY(${chain}) ORDER BY length(x.kode) DESC LIMIT 1)
+      ), up AS (
+        SELECT u.id, u.parent_id, u.kind, u.name FROM polri_units u JOIN deepest d ON d.unit_id = u.id
+        UNION
+        SELECT p.id, p.parent_id, p.kind, p.name FROM polri_units p JOIN up ON up.parent_id = p.id
+      )
+      SELECT kind, name FROM up ORDER BY array_position(ARRAY['POLDA','POLRES','POLSEK'], kind), name`;
   }
 
   /** Rantai wilayah (provinsi → desa) yang memuat satu titik. */

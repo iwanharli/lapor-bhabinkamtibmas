@@ -13,13 +13,13 @@ export default async function PetaStuntingPage({ searchParams }: { searchParams:
   const metric = (sp.metrik && sp.metrik in METRICS ? sp.metrik : 'rasio') as MetricKey;
 
   return (
-    <main className="relative isolate flex h-[calc(100dvh-4rem)] min-h-[520px] flex-col overflow-hidden">
-      <div className="z-10 flex flex-wrap items-center gap-2 border-b border-line bg-surface px-4 py-2.5">
+    <main className="map-glass relative isolate h-[calc(100dvh-4rem)] min-h-[520px] overflow-hidden">
+      <div className="map-glass-card absolute left-3 right-3 top-3 z-[600] flex flex-wrap items-center gap-2 px-3 py-2 lg:right-[23rem]">
         <span className="mr-1 inline-flex items-center gap-2 font-semibold"><HeartPulse size={18} className="text-danger" /> Peta Stunting</span>
-        <nav aria-label="Ukuran yang diwarnai" className="flex flex-wrap gap-1 rounded-xl bg-bg p-1 ring-1 ring-line/60">
+        <nav aria-label="Ukuran yang diwarnai" className="flex flex-wrap gap-1 rounded-xl bg-bg p-1">
           {(Object.keys(METRICS) as MetricKey[]).map((k) => (
             <Link key={k} href={withParams('/peta-stunting', sp, { metrik: k === 'rasio' ? undefined : k })} aria-current={k === metric ? 'page' : undefined}
-              className={cn('rounded-lg px-3 py-1.5 text-xs font-medium transition', k === metric ? 'bg-surface text-primary shadow-sm' : 'text-muted hover:text-ink')}>
+              className={cn('rounded-lg px-3 py-1.5 text-xs font-medium transition', k === metric ? 'bg-accent font-bold text-[#1a1405]' : 'text-muted hover:text-ink')}>
               {METRICS[k].short}
             </Link>
           ))}
@@ -29,9 +29,7 @@ export default async function PetaStuntingPage({ searchParams }: { searchParams:
           <UrlUnitFilter levels={['POLDA', 'POLRES', 'POLSEK']} emptyLabel="Semua wilayah" className="sm:w-56" />
         </div>
       </div>
-      <div className="relative min-h-0 flex-1">
-        <StuntingMap key={sp.unitId ?? ''} metric={metric} unitId={sp.unitId} />
-      </div>
+      <StuntingMap key={sp.unitId ?? ''} metric={metric} unitId={sp.unitId} />
     </main>
   );
 }

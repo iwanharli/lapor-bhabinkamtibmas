@@ -26,3 +26,33 @@ export interface VillageGeoJson {
   truncated?: boolean;
   features: { type: 'Feature'; id: string; properties: { id: string; nama: string; kecamatan: string }; geometry: GeoJSON.Geometry }[];
 }
+
+/** Satu wilayah di pohon desa (provinsi, kabupaten/kota, atau kecamatan). */
+export interface RegionNode {
+  kode: string;
+  nama: string;
+  level: number;
+  desa: number;
+  terbina: number;
+  satuan: string[];
+}
+
+/** Polsek nasional yang belum terhubung ke kecamatan mana pun. */
+export interface PolsekWithoutRegion {
+  id: string;
+  nama: string;
+  polres: string;
+  polda: string;
+  lat: number | null;
+  lng: number | null;
+  kawasan: boolean;
+}
+
+/** Polsek yang wilayahnya ditetapkan manual oleh admin. */
+export interface PolsekManual {
+  id: string;
+  nama: string;
+  polres: string;
+  polda: string;
+  wilayah: { kode: string; nama: string; chain: string }[];
+}

@@ -2,15 +2,15 @@
 
 import 'leaflet/dist/leaflet.css';
 import type { FeatureGroup, Map as LeafletMap, Point } from 'leaflet';
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { CATEGORY_LABEL, STATUS_LABEL, tanggalJam } from '@/lib/format';
 import { withParams } from '@/lib/url';
 import { attachBoundaries } from './boundary-layer';
 import { attachFocus, type FocusShape } from './focus-layer';
-import { CATEGORY_COLOR, type MapCluster, type MapPoint, type MapView } from './categories';
+import { CATEGORY_COLOR, regionQuery, type MapCluster, type MapPoint, type MapView } from './categories';
+import { addBaseLayers } from './tiles';
 
-/** Ubin peta; untuk server internal arahkan ke tile server sendiri lewat NEXT_PUBLIC_TILE_URL. */
-const TILE_URL = process.env.NEXT_PUBLIC_TILE_URL ?? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 type Leaflet = typeof import('leaflet');
@@ -157,7 +157,7 @@ function MapLoading({ show }: { show: boolean }) {
   return (
     <div
       aria-hidden={!show}
-      className={`pointer-events-none absolute inset-0 z-[450] grid place-items-center bg-bg/30 backdrop-blur-[3px] transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
+      className={`pointer-events-none absolute inset-0 z-[450] grid place-items-center bg-black/20 backdrop-blur-[2px] transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
     >
       <div role="status" className="flex items-center gap-3 rounded-full border border-line/80 bg-surface/85 px-5 py-2.5 shadow-[0_12px_32px_-16px_rgba(15,35,65,.5)] backdrop-blur-xl">
         <span className="relative grid h-5 w-5 place-items-center">
@@ -185,6 +185,12 @@ export function ReportMap({ filters, home }: { filters: MapFilters; home?: [numb
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<LeafletMap | null>(null);
   const detach = useRef<(() => void) | null>(null);
+  const router = useRouter();
+  const openRegion = useRef((kode: string) => {
+    signalMapLoading();
+    router.push(`${window.location.pathname}?${regionQuery(window.location.search, kode)}`);
+  });
+  const boundaries = useRef<ReturnType<typeof attachBoundaries> | null>(null);
   const focus = useRef<ReturnType<typeof attachFocus> | null>(null);
   const insets = useRef<(() => { topLeft: Point; bottomRight: Point }) | null>(null);
   const firstFocus = useRef(true);
@@ -280,8 +286,8 @@ export function ReportMap({ filters, home }: { filters: MapFilters; home?: [numb
         mm.fitBounds(homeRef.current, { paddingTopLeft: initialInsets.topLeft, paddingBottomRight: initialInsets.bottomRight, maxZoom: 15 });
         fitIndonesia();
         mm.on('resize', fitIndonesia);
-        L.tileLayer(TILE_URL, { maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · Kemendagri 2025' }).addTo(map.current);
-        const detachBoundaries = attachBoundaries(L, map.current);
+        addBaseLayers(L, map.current, 'Kemendagri 2025');
+        boundaries.current = attachBoundaries(L, map.current, (kode) => openRegion.current(kode));
         focus.current = attachFocus(L, mm);
         insets.current = mapInsets;
         setMapReady(true);
@@ -292,7 +298,7 @@ export function ReportMap({ filters, home }: { filters: MapFilters; home?: [numb
         window.addEventListener(MAP_INDONESIA_EVENT, showIndonesia);
         detach.current = () => {
           window.removeEventListener(MAP_INDONESIA_EVENT, showIndonesia);
-          detachBoundaries();
+          boundaries.current?.detach();
           focus.current?.detach();
         };
       }
@@ -323,6 +329,11 @@ export function ReportMap({ filters, home }: { filters: MapFilters; home?: [numb
     map.current = null;
   }, []);
 
+  // Drilldown: batas yang digambar mengikuti wilayah terbuka.
+  useEffect(() => {
+    if (mapReady) boundaries.current?.setArea(filters.regionCode);
+  }, [mapReady, filters.regionCode]);
+
   // Sorotan wilayah: filter wilayah (prov/kab/kec) atau satuan → terbang & perbesar ke batasnya, area lain digelapkan & diburamkan.
   // Tanpa filter: wilayah satuan akun (akun nasional tanpa sorotan).
   useEffect(() => {
@@ -349,7 +360,7 @@ export function ReportMap({ filters, home }: { filters: MapFilters; home?: [numb
 
   return (
     <div className="relative h-full min-h-0 w-full">
-      <div ref={el} className="map-under-bar h-full min-h-0 w-full bg-bg" aria-label="Peta sebaran laporan" aria-busy={busy} />
+      <div ref={el} className="map-under-bar h-full min-h-0 w-full bg-[#0b1626]" aria-label="Peta sebaran laporan" aria-busy={busy} />
       <MapLoading show={busy} />
     </div>
   );

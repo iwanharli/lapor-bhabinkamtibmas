@@ -36,6 +36,14 @@ export class RegionsController {
     return { shape: await this.regions.shape(kode) };
   }
 
+  /** GET /regions/polri?kode= — satuan Polri yang mencakup satu wilayah. */
+  @Get('polri')
+  @Roles(...ALL_ROLES)
+  polri(@Query('kode') kode?: string) {
+    if (!kode || !/^[\d.]{2,13}$/.test(kode)) throw new BadRequestException({ code: 'INVALID_KODE', message: 'kode wilayah tidak valid' });
+    return this.regions.polri(kode);
+  }
+
   /** GET /regions/at?lat=&lng= — rantai provinsi → desa pada satu titik. */
   @Get('at')
   @Roles(...ALL_ROLES)

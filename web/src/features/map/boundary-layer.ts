@@ -8,8 +8,6 @@ interface Boundaries { type: 'FeatureCollection'; truncated: boolean; features: 
 
 export const LEVEL_LABEL: Record<Level, string> = { 1: 'Provinsi', 2: 'Kabupaten/Kota', 3: 'Kecamatan', 4: 'Desa/Kelurahan' };
 
-/** Tingkat wilayah yang digambar untuk satu zoom. */
-const levelFor = (zoom: number): Level => (zoom <= 6 ? 1 : zoom <= 8 ? 2 : zoom <= 11 ? 3 : 4);
 const WEIGHT: Record<Level, number> = { 1: 1.6, 2: 1.3, 3: 1.1, 4: 1 };
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
@@ -20,19 +18,17 @@ async function get<T>(path: string, signal: AbortSignal): Promise<T> {
 }
 
 /**
- * Lapisan batas wilayah Kemendagri di bawah titik laporan: tingkatnya mengikuti zoom
- * (provinsi → kabupaten/kota → kecamatan → desa), dimuat ulang per bbox saat peta digeser,
- * dan panel rantai wilayah (provinsi › … › desa) untuk titik tengah peta.
- * Mengembalikan fungsi pembersih.
+ * Lapisan batas wilayah Kemendagri di bawah titik laporan, bertingkat seperti drilldown: klik satu wilayah untuk membuka
+ * wilayah di dalamnya (provinsi → kabupaten/kota → kecamatan → desa). Desa tidak punya anak, jadi tetap tampil di antara
+ * desa sekecamatan. Panel kiri bawah menampilkan satuan Polri yang mencakup wilayah terbuka.
  */
-export function attachBoundaries(L: Leaflet, map: LeafletMap): () => void {
+export function attachBoundaries(L: Leaflet, map: LeafletMap, onOpen: (kode: string) => void) {
   if (!map.getPane('batas')) map.createPane('batas').style.zIndex = '350';
   if (!map.getPane('focusMask')) map.createPane('focusMask').style.zIndex = '300';
 
   let layer: GeoJSONLayer | null = null;
   let focusMask: ReturnType<typeof L.polygon> | null = null;
   let abort: AbortController | null = null;
-  let timer: ReturnType<typeof setTimeout> | undefined;
   const provinces: { data?: Boundaries } = {};
 
   const addFocusMask = (data: Boundaries) => {
@@ -73,11 +69,11 @@ export function attachBoundaries(L: Leaflet, map: LeafletMap): () => void {
     })
     .catch(() => undefined);
 
-  // Tab samar di kiri bawah, menempel di atas strip prioritas (posisi bawah mengikuti --strip-h, lihat globals.css).
+  // Panel kaca di kiri bawah, di atas dok prioritas (posisi bawah mengikuti --strip-h, lihat globals.css).
   const panel = new L.Control({ position: 'bottomleft' });
   const box = L.DomUtil.create('div');
-  box.style.cssText =
-    'margin:0 0 0 16px;background:color-mix(in srgb,var(--surface) 55%,transparent);backdrop-filter:blur(10px);border:1px solid color-mix(in srgb,var(--line) 70%,transparent);border-bottom:0;border-radius:10px 10px 0 0;padding:5px 12px 6px;font:11.5px/1.4 inherit;color:color-mix(in srgb,var(--ink) 80%,transparent);max-width:min(520px,70vw)';
+  box.className = 'map-glass-card';
+  box.style.cssText = 'margin:0 0 10px 12px;padding:7px 13px;font-size:12px;line-height:1.4;color:var(--ink);max-width:min(460px,70vw)';
   panel.onAdd = () => box;
   panel.addTo(map);
 
@@ -85,56 +81,47 @@ export function attachBoundaries(L: Leaflet, map: LeafletMap): () => void {
     layer?.remove();
     layer = L.geoJSON(data, {
       pane: 'batas',
-      style: { color: '#244f91', weight: WEIGHT[level], opacity: 0.75, fillColor: '#3569ad', fillOpacity: 0.04 },
+      style: { color: '#ffffff', weight: WEIGHT[level], opacity: 0.85, fillColor: '#fbbf24', fillOpacity: 0.03 },
       onEachFeature: (f, l) => {
         const p = f.properties as RegionProps;
-        l.bindTooltip(`<b>${esc(p.nama)}</b>${p.chain ? `<br><span style="color:var(--muted)">${esc(p.chain)}</span>` : ''}`, { sticky: true, direction: 'top' });
-        l.on('mouseover', () => (l as L.Path).setStyle({ fillOpacity: 0.14, weight: WEIGHT[level] + 1 }));
+        l.bindTooltip(`<b>${esc(p.nama)}</b>`, { sticky: true, direction: 'top' });
+        l.on('mouseover', () => (l as L.Path).setStyle({ color: '#fbbf24', fillOpacity: 0.2, weight: WEIGHT[level] + 1 }));
         l.on('mouseout', () => layer?.resetStyle(l as L.Path));
+        l.on('click', () => onOpen(p.kode));
       },
     }).addTo(map);
   };
 
-  const refresh = async () => {
+  /** Tampilkan anak wilayah `kode` (kosong: provinsi). */
+  const setArea = async (kode?: string) => {
     abort?.abort();
     abort = new AbortController();
     const { signal } = abort;
-    const level = levelFor(map.getZoom());
-    const b = map.getBounds().pad(0.25);
-    const bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map((n) => n.toFixed(4)).join(',');
-    const c = map.getCenter();
+    const depth = kode ? kode.split('.').length : 0;
+    const level = Math.min(depth + 1, 4) as Level;
+    const parent = kode?.split('.').slice(0, 3).join('.');
     try {
-      const [data, chain] = await Promise.all([
-        level === 1 && provinces.data
-          ? provinces.data
-          : get<Boundaries>(`/regions/boundaries?level=${level}${level === 1 ? '' : `&bbox=${bbox}`}`, signal),
-        get<RegionProps[]>(`/regions/at?lat=${c.lat.toFixed(5)}&lng=${c.lng.toFixed(5)}`, signal),
+      const [data, units] = await Promise.all([
+        !kode && provinces.data ? provinces.data : get<Boundaries>(`/regions/boundaries?level=${level}${parent ? `&parent=${parent}` : ''}`, signal),
+        kode ? get<{ kind: string; name: string }[]>(`/regions/polri?kode=${kode}`, signal) : [],
       ]);
-      if (level === 1) provinces.data = data;
+      if (!kode) provinces.data = data;
       draw(data, level);
-      const trail = chain.map((r) => esc(r.nama)).join(' <span style="color:var(--muted)">›</span> ');
-      box.innerHTML = `<div style="font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">Batas ${LEVEL_LABEL[level]}${
-        data.truncated ? ' · perbesar untuk melihat semua' : ''
-      }${level === 4 && !data.features.length ? ' · data desa belum diimpor di area ini' : ''}</div>${trail || (level === 1 ? `Indonesia · ${data.features.length} provinsi` : '<span style="color:var(--muted)">Di luar wilayah administrasi</span>')}`;
+      const trail = units.map((u) => esc(u.name)).join(' <span style="color:var(--muted)">›</span> ');
+      box.innerHTML = `<div style="font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">${data.features.length} ${LEVEL_LABEL[level]} · klik untuk membuka</div>${trail || (kode ? '<span style="color:var(--muted)">Satuan Polri belum terpetakan</span>' : 'Indonesia')}`;
     } catch (e) {
       if ((e as Error).name !== 'AbortError') box.textContent = 'Batas wilayah tidak dapat dimuat';
     }
   };
 
-  const schedule = () => {
-    clearTimeout(timer);
-    timer = setTimeout(refresh, 250);
-  };
-  map.on('moveend', schedule);
-  refresh();
-
-  return () => {
-    clearTimeout(timer);
-    abort?.abort();
-    maskAbort.abort();
-    map.off('moveend', schedule);
-    layer?.remove();
-    focusMask?.remove();
-    panel.remove();
+  return {
+    setArea,
+    detach() {
+      abort?.abort();
+      maskAbort.abort();
+      layer?.remove();
+      focusMask?.remove();
+      panel.remove();
+    },
   };
 }

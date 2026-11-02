@@ -1,9 +1,12 @@
 'use client';
 
+import 'leaflet/dist/leaflet.css';
+import type { GeoJSON as GeoJSONLayer, Map as LeafletMap, Path } from 'leaflet';
 import { ArrowRight, Baby, ChevronRight, Droplets, Home, Loader2, MapPinned, Siren, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/components/ui';
+import { addBaseLayers } from '@/features/map/tiles';
 import { withParams } from '@/lib/url';
 import { AreaStats, COLORS, colorFor, countBreaks, FEW, fmt, METRICS, MetricKey } from './metrics';
 
@@ -15,33 +18,9 @@ type Regions = { level: number; parent: string | null; parentNama: string | null
 /** Satu langkah telusur: tingkat yang ditampilkan & induknya (null = seluruh Indonesia; 'orphan' = desa contoh tanpa kode kecamatan). */
 type Crumb = { level: number; parent: string | null; nama: string };
 
-const W = 1000;
+const EMPTY = '#94a3b8';
 
-/** Proyeksi Mercator → koordinat SVG yang pas dengan batas semua bentuk (dengan sedikit margin). */
-function project(features: Feature[]) {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  const merc = ([lng, lat]: number[]) => [lng, -Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) * (180 / Math.PI)];
-  const polys = (g: Feature['geometry']) => (g.type === 'Polygon' ? [g.coordinates] : g.coordinates);
-  for (const f of features) {
-    for (const poly of polys(f.geometry)) {
-      for (const ring of poly) {
-        for (const c of ring) {
-          const [x, y] = merc(c);
-          minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-        }
-      }
-    }
-  }
-  const pad = 0.03 * Math.max(maxX - minX, maxY - minY);
-  minX -= pad; maxX += pad; minY -= pad; maxY += pad;
-  const k = W / (maxX - minX || 1);
-  const H = Math.max(240, (maxY - minY) * k);
-  const toPath = (g: Feature['geometry']) => polys(g).map((poly) => poly.map((ring) =>
-    ring.map((c, i) => { const [x, y] = merc(c); return `${i ? 'L' : 'M'}${((x - minX) * k).toFixed(1)} ${((y - minY) * k).toFixed(1)}`; }).join('') + 'Z').join('')).join('');
-  return { H, toPath };
-}
-
-/** Peta tematik stunting SVG (tanpa pustaka peta/tile): telusur provinsi → kabupaten → kecamatan → desa. */
+/** Peta tematik stunting di atas citra satelit: telusur provinsi → kabupaten → kecamatan → desa. */
 export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: string }) {
   const [crumbs, setCrumbs] = useState<Crumb[]>([{ level: 1, parent: null, nama: 'Indonesia' }]);
   const [data, setData] = useState<Regions | null>(null);
@@ -51,6 +30,11 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
   const [picked, setPicked] = useState<AreaStats | null>(null);
   const autoDrill = useRef(true);
   const box = useRef<HTMLDivElement>(null);
+  const mapEl = useRef<HTMLDivElement>(null);
+  const map = useRef<LeafletMap | null>(null);
+  const layer = useRef<GeoJSONLayer | null>(null);
+  const leaflet = useRef<typeof import('leaflet') | null>(null);
+  const [mapReady, setMapReady] = useState(false);
   const here = crumbs[crumbs.length - 1];
   const orphanView = here.parent === 'orphan';
   const leaf = here.level >= 4 || orphanView;
@@ -88,10 +72,8 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
   }, [here.level, here.parent, orphanView, unitId]);
 
   const features = useMemo(() => data?.features ?? [], [data]);
-  const proj = useMemo(() => (features.length ? project(features) : null), [features]);
-  const paths = useMemo(() => (proj ? features.map((f) => ({ f, d: proj.toPath(f.geometry) })) : []), [features, proj]);
   const breaks = useMemo(() => m.breaks ?? countBreaks(features.map((f) => m.value(f.properties) ?? 0)), [features, m]);
-  const fill = (p: AreaStats) => (p.kk === 0 ? 'var(--map-empty)' : colorFor(m.value(p), breaks));
+  const fill = (p: AreaStats) => (p.kk === 0 ? EMPTY : colorFor(m.value(p), breaks));
   const ranking = useMemo(
     () => features.map((f) => f.properties).filter((p) => p.kk > 0 && m.value(p) != null).sort((a, b) => (m.value(b) ?? 0) - (m.value(a) ?? 0)).slice(0, 8),
     [features, m],
@@ -110,6 +92,65 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
   };
   const goTo = (i: number) => { autoDrill.current = false; setCrumbs((c) => c.slice(0, i + 1)); };
   const shown = picked ?? hover?.p ?? null;
+  const drillRef = useRef(drill);
+  drillRef.current = drill;
+  const styleOf = (p: AreaStats, on = false) => ({
+    color: on ? '#ffffff' : '#ffffffb0', weight: on ? 3 : (data?.level ?? 1) >= 3 ? 0.8 : 1.1, fillColor: fill(p), fillOpacity: p.kk === 0 ? 0.1 : on ? 0.8 : 0.62,
+  });
+  const styleRef = useRef(styleOf);
+  styleRef.current = styleOf;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const L = (await import('leaflet')).default;
+      if (cancelled || !mapEl.current) return;
+      leaflet.current = L;
+      const mm = (map.current = L.map(mapEl.current, { zoomControl: false, attributionControl: false }).setView([-2.5, 118], 5));
+      L.control.zoom({ position: 'bottomright' }).addTo(mm);
+      L.control.attribution({ position: 'bottomright', prefix: false }).addTo(mm);
+      addBaseLayers(L, mm, 'Kemendagri 2025');
+      setMapReady(true);
+    })();
+    return () => {
+      cancelled = true;
+      map.current?.remove();
+      map.current = null;
+    };
+  }, []);
+
+  // Gambar wilayah: warna mengikuti ukuran terpilih; peta hanya terbang saat wilayahnya berganti.
+  useEffect(() => {
+    const L = leaflet.current, mm = map.current;
+    if (!mapReady || !L || !mm) return;
+    layer.current?.remove();
+    layer.current = features.length ? L.geoJSON({ type: 'FeatureCollection', features } as GeoJSON.FeatureCollection, {
+      style: (f) => styleRef.current(f!.properties as AreaStats),
+      onEachFeature: (f, l) => {
+        const p = f.properties as AreaStats;
+        l.on('mousemove', (e) => setHover({ p, x: (e as L.LeafletMouseEvent).containerPoint.x, y: (e as L.LeafletMouseEvent).containerPoint.y }));
+        l.on('mouseout', () => setHover(null));
+        l.on('click', () => drillRef.current(p));
+      },
+    }).addTo(mm) : null;
+  }, [mapReady, features, metric, breaks]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const mm = map.current;
+    const bounds = layer.current?.getBounds();
+    if (!mm || !bounds?.isValid()) return;
+    const wide = mm.getSize().x >= 1024;
+    mm.flyToBounds(bounds, { paddingTopLeft: [24, 170], paddingBottomRight: [wide ? 380 : 24, 24], duration: 0.8, maxZoom: 15 });
+  }, [mapReady, features]);
+
+  // Sorotan wilayah yang diarahkan/diklik.
+  useEffect(() => {
+    layer.current?.eachLayer((l) => {
+      const p = (l as unknown as { feature: { properties: AreaStats } }).feature.properties;
+      (l as Path).setStyle(styleRef.current(p, p.kode === shown?.kode));
+    });
+  }, [shown?.kode]);
+
   const detail = shown
     ? { sub: LEVEL[shown.level], nama: shown.nama, chain: shown.chain, stats: shown }
     : {
@@ -123,67 +164,34 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
       label: m.unit === '%' ? (breaks[i + 1] ? `${b}–${breaks[i + 1]}%` : `≥ ${b}%`) : breaks[i + 1] && breaks[i + 1] - 1 > b ? `${b}–${breaks[i + 1] - 1}` : breaks[i + 1] ? `${b}` : `≥ ${b}`,
     })),
     ...(m.unit === '%' ? [{ color: FEW, label: 'data sedikit' }] : []),
-    { color: 'var(--map-empty)', label: 'belum ada data' },
+    { color: EMPTY, label: 'belum ada data' },
   ];
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-4 overflow-y-auto p-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:overflow-hidden">
-      <section className="relative flex min-h-[460px] flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-sm [--map-empty:#e2e8f0] [--map-stroke:#ffffff] dark:[--map-empty:#1e293b] dark:[--map-stroke:#0b1220]">
-        <nav aria-label="Tingkat wilayah" className="flex flex-wrap items-center gap-1 border-b border-line px-4 py-2.5 text-sm">
-          {crumbs.map((c, i) => (
-            <span key={`${c.level}-${c.parent}`} className="inline-flex items-center gap-1">
-              {i > 0 && <ChevronRight size={14} className="text-muted/60" />}
-              {i < crumbs.length - 1
-                ? <button type="button" onClick={() => goTo(i)} className="rounded-md px-1.5 py-0.5 text-primary hover:bg-primary-soft">{c.nama}</button>
-                : <span className="px-1.5 font-semibold">{c.nama}</span>}
-            </span>
-          ))}
-          <span className="ml-auto inline-flex items-center gap-2 text-xs text-muted">
-            {busy && <Loader2 size={14} className="animate-spin text-primary" />}
-            {LEVEL[data?.level ?? here.level]} · {n(features.filter((f) => f.properties.kk > 0).length)} dari {n(features.length)} berdata
-          </span>
-        </nav>
+    <div className="absolute inset-0">
+      <section className="absolute inset-0">
+        <div ref={box} className="absolute inset-0" onMouseLeave={() => setHover(null)}>
+          <div ref={mapEl} className="stunting-svg absolute inset-0 bg-[#0b1626]" role="img" aria-label={`Peta ${m.label}`} />
+          {error && <p className="map-glass-card absolute left-1/2 top-1/2 z-[500] -translate-x-1/2 -translate-y-1/2 p-4 text-sm text-muted">{error}</p>}
+          {!data && !error && <div className="absolute inset-0 z-[500] grid place-items-center"><Loader2 className="animate-spin text-white" /></div>}
 
-        <div ref={box} className="peta-laut relative min-h-0 flex-1" onMouseLeave={() => setHover(null)}>
-          {error ? (
-            <p className="grid h-full place-items-center p-8 text-sm text-muted">{error}</p>
-          ) : proj ? (
-            <svg key={`${here.level}-${here.parent}`} viewBox={`0 0 ${W} ${proj.H.toFixed(0)}`} preserveAspectRatio="xMidYMid meet"
-              className={cn('stunting-svg h-full w-full transition-opacity duration-300', busy && 'opacity-40')}
-              role="img" aria-label={`Peta ${m.label} per ${LEVEL[data!.level].toLowerCase()}`}>
-              <defs>
-                {/* Bayangan lembut di bawah daratan agar pulau tampak "terangkat" dari laut. */}
-                <filter id="daratan" x="-5%" y="-5%" width="110%" height="115%">
-                  <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#0f2a5c" floodOpacity="0.28" />
-                </filter>
-              </defs>
-              <g filter="url(#daratan)">
-              {paths.map(({ f, d }) => {
-                const p = f.properties;
-                return (
-                  <path key={p.kode} d={d} fill={fill(p)} fillRule="evenodd" stroke="var(--map-stroke)" strokeWidth={data!.level >= 3 ? 0.6 : 0.9}
-                    vectorEffect="non-scaling-stroke" className="cursor-pointer transition-[fill,opacity] duration-300 hover:opacity-85"
-                    onMouseMove={(e) => {
-                      const r = box.current!.getBoundingClientRect();
-                      setHover({ p, x: e.clientX - r.left, y: e.clientY - r.top });
-                    }}
-                    onClick={() => drill(p)}>
-                    <title>{p.nama}</title>
-                  </path>
-                );
-              })}
-              </g>
-              {/* Wilayah yang disorot digambar ulang di atas agar garis tepinya tidak tertutup tetangga. */}
-              {shown && paths.filter(({ f }) => f.properties.kode === shown.kode).map(({ d }) => (
-                <path key="sorot" d={d} fill="none" stroke="currentColor" strokeWidth={2.4} vectorEffect="non-scaling-stroke" pointerEvents="none" className="text-ink" />
-              ))}
-            </svg>
-          ) : (
-            <div className="grid h-full place-items-center"><Loader2 className="animate-spin text-muted" /></div>
-          )}
+          <nav aria-label="Tingkat wilayah" className="map-glass-card absolute left-3 top-[7.5rem] z-[500] flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-1 px-3 py-1.5 text-sm lg:max-w-[calc(100%-25rem)]">
+            {crumbs.map((c, i) => (
+              <span key={`${c.level}-${c.parent}`} className="inline-flex items-center gap-1">
+                {i > 0 && <ChevronRight size={14} className="text-muted/60" />}
+                {i < crumbs.length - 1
+                  ? <button type="button" onClick={() => goTo(i)} className="rounded-md px-1.5 py-0.5 text-primary hover:bg-primary-soft">{c.nama}</button>
+                  : <span className="px-1.5 font-semibold">{c.nama}</span>}
+              </span>
+            ))}
+            <span className="ml-2 inline-flex items-center gap-2 text-xs text-muted">
+              {busy && <Loader2 size={14} className="animate-spin text-primary" />}
+              {LEVEL[data?.level ?? here.level]} · {n(features.filter((f) => f.properties.kk > 0).length)} dari {n(features.length)} berdata
+            </span>
+          </nav>
 
           {hover && hover.x > 0 && !picked && (
-            <div className="pointer-events-none absolute z-10 w-56 -translate-x-1/2 -translate-y-[calc(100%+12px)] rounded-xl bg-surface/95 px-3 py-2 text-xs shadow-lg ring-1 ring-line backdrop-blur"
+            <div className="pointer-events-none absolute z-[700] w-56 -translate-x-1/2 -translate-y-[calc(100%+12px)] rounded-xl bg-surface/95 px-3 py-2 text-xs shadow-lg ring-1 ring-line backdrop-blur"
               style={{ left: hover.x, top: hover.y }}>
               <p className="truncate font-semibold">{hover.p.nama}</p>
               <p className="text-muted">{hover.p.kk === 0 ? 'Belum ada data Mapping' : `${m.short}: ${fmt(m.value(hover.p), m.unit)} · ${n(hover.p.kk)} KK`}</p>
@@ -191,7 +199,7 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
             </div>
           )}
 
-          <div className="absolute bottom-3 left-3 rounded-xl bg-surface/90 p-2.5 text-[11px] shadow ring-1 ring-line backdrop-blur">
+          <div className="map-glass-card absolute bottom-3 left-3 z-[500] p-2.5 text-[11px]">
             <p className="mb-1.5 font-semibold">{m.label}</p>
             <ul className="grid grid-cols-2 gap-x-3 gap-y-1">
               {legend.map((x) => <li key={x.label} className="flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-sm ring-1 ring-black/10" style={{ background: x.color }} />{x.label}</li>)}
@@ -200,9 +208,9 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
         </div>
       </section>
 
-      <aside className="flex min-h-0 flex-col gap-4 lg:overflow-y-auto">
+      <aside className="absolute inset-x-3 bottom-3 z-[550] flex max-h-[38%] flex-col gap-3 overflow-y-auto max-lg:hidden lg:inset-x-auto lg:right-3 lg:top-3 lg:max-h-none lg:w-[21rem] [scrollbar-width:none]">
         {/* Satu kartu rincian bertinggi tetap: wilayah yang disorot/diklik, atau gabungan wilayah yang sedang dilihat. */}
-        <section className="rounded-2xl border border-line bg-surface shadow-sm">
+        <section className="map-glass-card shrink-0 overflow-hidden">
           <div className="flex items-start gap-2 border-b border-line px-4 py-3">
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">{detail.sub}</p>
@@ -221,7 +229,7 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
               [Siren, 'Stunting · berisiko', `${n(detail.stats.stunting)} · ${n(detail.stats.berisiko)}`], [Siren, 'Belum ditangani', n(detail.stats.belum_ditangani)],
               [Home, 'Jamban tak layak', `${n(detail.stats.jamban_tidak_layak)} KK`], [Droplets, 'Air tak layak', `${n(detail.stats.air_tidak_layak)} KK`],
             ] as [typeof Home, string, string][]).map(([Icon, label, v]) => (
-              <div key={label} className="bg-surface px-4 py-2">
+              <div key={label} className="bg-[#0c1626] px-4 py-2">
                 <dt className="flex items-center gap-1 text-[11px] text-muted"><Icon size={11} /> {label}</dt>
                 <dd className={cn('font-semibold tabular-nums', label === 'Belum ditangani' && detail.stats.belum_ditangani > 0 && 'text-danger')}>{v}</dd>
               </div>
@@ -242,7 +250,7 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
           </div>
         </section>
 
-        <section className="rounded-2xl border border-line bg-surface shadow-sm">
+        <section className="map-glass-card shrink-0 overflow-hidden">
           <p className="flex items-center gap-2 border-b border-line px-4 py-2.5 text-sm font-semibold"><Trophy size={15} className="text-warn" /> Tertinggi · {m.short}</p>
           {ranking.length ? (
             <ol className="divide-y divide-line/60">
@@ -260,7 +268,7 @@ export function StuntingMap({ metric, unitId }: { metric: MetricKey; unitId?: st
             </ol>
           ) : <p className="px-4 py-4 text-xs text-muted">Belum ada wilayah berdata cukup di tingkat ini.</p>}
         </section>
-        <p className="px-1 text-[11px] leading-snug text-muted">{m.hint} Satu KK yang dilaporkan ulang dihitung sekali. Tanpa titik rumah.</p>
+        <p className="map-glass-card shrink-0 px-3 py-2 text-[11px] leading-snug text-muted">{m.hint} Satu KK yang dilaporkan ulang dihitung sekali. Tanpa titik rumah.</p>
       </aside>
     </div>
   );

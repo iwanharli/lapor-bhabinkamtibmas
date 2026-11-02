@@ -12,7 +12,7 @@ const SPEED = 18;
 const RESUME_MS = 4000;
 
 /**
- * Strip horizontal laporan Deteksi Dini prioritas, selebar peta & menempel di tepi bawah: bisa digeser (jari/roda/tombol)
+ * Strip horizontal laporan Deteksi Dini prioritas, dok kaca mengambang di tepi bawah peta: bisa digeser (jari/roda/tombol)
  * dan bergerak sendiri perlahan berulang. Berhenti saat disentuh/diarahkan; mati bila pengguna memilih kurangi gerakan.
  */
 export function PriorityStrip({ items }: { items: MapPoint[] }) {
@@ -80,9 +80,10 @@ export function PriorityStrip({ items }: { items: MapPoint[] }) {
     <aside
       ref={root}
       aria-label="Deteksi dini prioritas"
-      className="pointer-events-auto absolute inset-x-0 bottom-0 z-[500] overflow-hidden border-t border-line/80 bg-surface/90 shadow-[0_-10px_30px_-20px_rgba(15,35,65,.45)] backdrop-blur-xl"
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-[500] p-3"
     >
-      <header className="flex items-center justify-between gap-3 px-3 py-2 sm:px-5">
+      <div className="map-glass-card pointer-events-auto overflow-hidden">
+      <header className="flex items-center justify-between gap-3 px-3 py-2">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-danger/10 text-danger">
             <Flame size={16} />
@@ -124,13 +125,13 @@ export function PriorityStrip({ items }: { items: MapPoint[] }) {
           onBlur={() => (paused.current = false)}
           className="overflow-x-auto border-t border-line [mask-image:linear-gradient(90deg,transparent,#000_24px,#000_calc(100%_-_24px),transparent)] [scrollbar-width:none]"
         >
-          <ul className="flex w-max gap-3 px-3 pb-3 pt-2.5 sm:px-5">
+          <ul className="flex w-max gap-2.5 px-3 pb-3 pt-2.5">
             {rows.map((p, i) => (
               <li key={`${p.id}-${i}`} className="w-[17rem] shrink-0" aria-hidden={i >= items.length || undefined}>
                 <Link
                   href={`/laporan/${p.id}`}
                   tabIndex={i >= items.length ? -1 : undefined}
-                  className="group block h-full rounded-xl border border-danger/15 bg-gradient-to-br from-danger/[0.06] to-transparent p-3 transition hover:border-danger/40 hover:bg-danger/[0.08]"
+                  className="group block h-full rounded-xl border-l-[3px] border-danger bg-white/[0.06] p-3 transition hover:bg-white/[0.12]"
                 >
                   <span className="flex items-center justify-between gap-2 text-[11px] text-muted">
                     <span className="inline-flex items-center gap-1.5 font-semibold uppercase tracking-wide text-danger">
@@ -151,6 +152,7 @@ export function PriorityStrip({ items }: { items: MapPoint[] }) {
           </ul>
         </div>
       ))}
+      </div>
     </aside>
   );
 }

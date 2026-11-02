@@ -11,7 +11,7 @@ const COLLAPSE_KEY = 'lapor.sidebar.collapsed';
 export function AppShell({ sections, user, children }: { sections: NavSection[]; user: ShellUser; children: React.ReactNode }) {
   const pathname = usePathname();
   // Halaman peta memakai seluruh area konten (tanpa padding).
-  const mapPage = pathname === '/peta' || pathname === '/peta-stunting';
+  const mapPage = pathname === '/peta' || pathname === '/peta-stunting' || pathname === '/pantau';
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 

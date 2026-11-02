@@ -4,7 +4,7 @@ import { ACCOUNTS, login } from './helpers';
 test('peta stunting: wilayah berwarna, legenda, ganti ukuran', async ({ page }) => {
   await login(page, ACCOUNTS.pimpinan);
   await page.goto('/peta-stunting');
-  await expect(page.locator('.stunting-svg path').first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.stunting-svg path.leaflet-interactive:not([d="M0 0"])').first()).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/berdata/)).toBeVisible();
   await expect(page.getByText('Stunting & berisiko (% balita)').first()).toBeVisible();
   await page.getByRole('link', { name: '% jamban' }).click();

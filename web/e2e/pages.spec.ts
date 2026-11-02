@@ -35,5 +35,6 @@ test('halaman utama admin terbuka tanpa galat', async ({ page }) => {
 test('peta menampilkan titik laporan', async ({ page }) => {
   await login(page, ACCOUNTS.pimpinan);
   await page.goto('/peta?hari=30');
-  await expect(page.locator('path.leaflet-interactive').first()).toBeVisible({ timeout: 15_000 });
+  // Poligon di luar layar digambar "M0 0" (hidden): cari yang benar-benar tergambar.
+  await expect(page.locator('path.leaflet-interactive:not([d="M0 0"])').first()).toBeVisible({ timeout: 15_000 });
 });

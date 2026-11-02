@@ -22,3 +22,6 @@ docs/Laporan_*.md
 infra/loadtest/lt-*.json
 infra/loadtest/lt-*.jpg
 infra/loadtest/lt-created.txt
+
+# Satuan Polri dari Posko PBM (perlu login) — tidak dipublikasikan di repo publik; salin ke server terpisah
+backend/prisma/polri/*.csv

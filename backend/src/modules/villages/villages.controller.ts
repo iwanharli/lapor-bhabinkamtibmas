@@ -1,6 +1,6 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Patch, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
-import { ArrayMaxSize, IsArray, IsBoolean, IsObject, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsObject, IsOptional, IsString, IsUUID, Length, Matches } from 'class-validator';
 import { ALL_ROLES, AuthUser, CurrentUser, Roles } from '../../common/decorators/auth.decorators';
 import { GeoFeature, VillagesService } from './villages.service';
 
@@ -32,6 +32,11 @@ class CreateVillageDto {
   @IsOptional() @IsUUID() polsekId?: string;
 }
 
+class AssignPolsekRegionDto {
+  @IsArray() @ArrayMinSize(1, { message: 'Pilih minimal satu kecamatan' }) @ArrayMaxSize(100)
+  @Matches(/^\d{2}\.\d{2}\.\d{2}$/, { each: true, message: 'Kode kecamatan tidak valid' }) kecamatanKodes: string[];
+}
+
 class GeometryDto {
   /** GeoJSON Polygon atau MultiPolygon (EPSG:4326). */
   @IsObject() geometry: { type: 'Polygon' | 'MultiPolygon'; coordinates: unknown };
@@ -56,11 +61,49 @@ export class VillagesController {
 
   @Get('admin/villages')
   @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
-  adminList(@CurrentUser() me: AuthUser, @Query() q: { q?: string; polsekId?: string; batas?: string; page?: string; limit?: string }) {
+  adminList(@CurrentUser() me: AuthUser, @Query() q: { q?: string; polsekId?: string; kecamatanKode?: string; batas?: string; page?: string; limit?: string }) {
     return this.villages.adminList(me, {
-      q: q.q || undefined, polsekId: q.polsekId || undefined, batas: q.batas,
-      page: Math.max(Number(q.page) || 1, 1), limit: Math.min(Number(q.limit) || 20, 100),
+      q: q.q || undefined, polsekId: q.polsekId || undefined, kecamatanKode: q.kecamatanKode || undefined, batas: q.batas,
+      page: Math.max(Number(q.page) || 1, 1), limit: Math.min(Number(q.limit) || 20, q.kecamatanKode ? 300 : 100),
     });
+  }
+
+  /** Pohon wilayah bertahap: tanpa parent = provinsi, lalu kabupaten/kota dan kecamatan, beserta jumlah desanya. */
+  @Get('admin/villages/tree')
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
+  tree(@CurrentUser() me: AuthUser, @Query('parent') parent?: string) {
+    if (parent && !/^\d{2}(\.\d{2})?$/.test(parent)) throw new BadRequestException({ code: 'INVALID_KODE', message: 'kode wilayah tidak valid' });
+    return this.villages.tree(me, parent || undefined);
+  }
+
+  /** Polsek nasional yang belum terhubung ke wilayah Kemendagri mana pun. */
+  @Get('admin/villages/polsek-tanpa-wilayah')
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
+  polsekWithoutRegion(@CurrentUser() me: AuthUser, @Query() q: { q?: string; jenis?: string; page?: string; limit?: string }) {
+    return this.villages.polsekWithoutRegion(me, {
+      q: q.q || undefined, jenis: q.jenis, page: Math.max(Number(q.page) || 1, 1), limit: Math.min(Number(q.limit) || 20, 100),
+    });
+  }
+
+  @Post('admin/villages/polsek-tanpa-wilayah/:id/wilayah')
+  @HttpCode(200)
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
+  assignPolsekRegion(@CurrentUser() me: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: AssignPolsekRegionDto) {
+    return this.villages.assignPolsekRegions(me, id, dto.kecamatanKodes);
+  }
+
+  /** Lepas satu kecamatan hasil penetapan manual; bila habis, Polsek kembali ke daftar tanpa wilayah. */
+  @Delete('admin/villages/polsek-tanpa-wilayah/:id/wilayah/:kode')
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
+  removePolsekRegion(@CurrentUser() me: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Param('kode') kode: string) {
+    return this.villages.removePolsekRegion(me, id, kode);
+  }
+
+  /** Polsek yang wilayahnya ditetapkan manual, beserta kecamatannya. */
+  @Get('admin/villages/polsek-manual')
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
+  polsekManual(@CurrentUser() me: AuthUser) {
+    return this.villages.polsekManual(me);
   }
 
   /** Desa dalam satu kecamatan Kemendagri untuk ditetapkan ke Polsek. */

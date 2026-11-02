@@ -1,6 +1,7 @@
 'use client';
 
 import { EChart } from '@/components/charts/echart';
+import { CATEGORY_COLOR } from '@/features/map/categories';
 import { CATEGORY_LABEL } from '@/lib/format';
 import type { Overview } from '@/lib/types';
 
@@ -18,6 +19,8 @@ export function DailyByCategoryChart({ rows, height }: { rows: Overview['daily']
         yAxis: { type: 'value', minInterval: 1 },
         series: cats.map((c) => ({
           name: CATEGORY_LABEL[c],
+          // Warna melekat ke kategori, bukan urutan: kategori kosong tidak menggeser warna lain.
+          itemStyle: { color: CATEGORY_COLOR[c] },
           type: 'bar',
           stack: 'total',
           barMaxWidth: 18,

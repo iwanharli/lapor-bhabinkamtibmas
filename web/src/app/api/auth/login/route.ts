@@ -11,6 +11,9 @@ export async function POST(req: NextRequest) {
   const body = await res.json();
   if (!res.ok) return NextResponse.json(body, { status: res.status });
 
+  // Wajah terdaftar: sesi baru dibuat setelah langkah verifikasi wajah.
+  if (body.faceRequired) return NextResponse.json({ faceRequired: true, faceToken: body.faceToken });
+
   await saveSession(body, body.user);
   return NextResponse.json({ user: body.user });
 }

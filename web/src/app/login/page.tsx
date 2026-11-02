@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { Alert, Button, Checkbox, cn, ErrorText, Field, Input, Modal, ModalBody } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
+import { FaceLoginStep } from '@/features/auth/onboarding-steps';
 import { ROLE_INFO, type DemoRole, type DevAccount } from '@/lib/dev-accounts';
 
 const ROLE_STYLE: Record<DemoRole, { icon: LucideIcon; tone: string }> = {
@@ -115,6 +116,8 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const [faceToken, setFaceToken] = useState<string>();
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
@@ -131,6 +134,8 @@ function LoginForm() {
         setError(body?.error?.message ?? 'Nomor NRP atau sandi belum benar.');
         return;
       }
+      const body = await res.json();
+      if (body.faceRequired) return setFaceToken(body.faceToken);
       router.replace('/');
       router.refresh();
     } catch {
@@ -175,6 +180,13 @@ function LoginForm() {
             <span><strong className="block text-sm font-bold tracking-wide">BINMAS</strong><span className="text-xs text-muted">Lapor Bhabinkamtibmas</span></span>
           </div>
 
+          {faceToken ? (
+            <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
+              <h2 className="mb-3 font-semibold">Verifikasi wajah</h2>
+              <FaceLoginStep faceToken={faceToken} onDone={() => { router.replace('/'); router.refresh(); }} onExpired={(m) => { setFaceToken(undefined); setError(m); }} />
+              <button type="button" onClick={() => setFaceToken(undefined)} className="mt-3 w-full text-center text-sm text-muted hover:text-ink">Batal</button>
+            </div>
+          ) : (
           <form onSubmit={onSubmit} className="space-y-5 rounded-2xl border border-line bg-surface p-6 shadow-[0_24px_70px_-36px_rgba(16,43,88,.38)] sm:p-9">
             <div className="mb-1">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Portal petugas</p>
@@ -196,6 +208,7 @@ function LoginForm() {
             <Button type="submit" size="lg" className="h-12 w-full rounded-xl shadow-md shadow-primary/20" loading={loading} loadingText="Memeriksa akun…" icon={!loading ? <ArrowRight size={17} /> : undefined}>Masuk ke dashboard</Button>
             <DemoLogin onError={setError} />
           </form>
+          )}
           <p className="mt-5 flex items-center justify-center gap-2 text-xs text-muted"><LockKeyhole size={13} /> Akses untuk petugas yang berwenang</p>
         </div>
       </section>

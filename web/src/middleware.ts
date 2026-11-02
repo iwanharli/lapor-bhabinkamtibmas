@@ -14,6 +14,15 @@ function urlFor(req: NextRequest, path: string) {
   return new URL(path, `${proto}://${host}`);
 }
 
+/** Klaim `onb` di access token (hanya untuk mengarahkan halaman; API tetap memeriksa sendiri). */
+function onboardingPending(token?: string) {
+  try {
+    return !!token && JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).onb === true;
+  } catch {
+    return false;
+  }
+}
+
 function sessionUser(req: NextRequest): { role?: string; mustChangePassword?: boolean } {
   try {
     return JSON.parse(req.cookies.get(COOKIE.user)?.value ?? '{}');
@@ -25,7 +34,7 @@ function sessionUser(req: NextRequest): { role?: string; mustChangePassword?: bo
 /** Bhabin memakai tampilan lapangan (/bhabin); peran lain memakai dashboard. */
 function roleRedirect(req: NextRequest, role?: string) {
   const path = req.nextUrl.pathname;
-  if (isApi(req) || path.startsWith('/ganti-sandi') || path.startsWith('/akses-ditolak')) return null;
+  if (isApi(req) || path.startsWith('/ganti-sandi') || path.startsWith('/akses-ditolak') || path.startsWith('/orientasi')) return null;
   const inField = path === '/bhabin' || path.startsWith('/bhabin/');
   if (role === 'BHABIN' && !inField) return NextResponse.redirect(urlFor(req, '/bhabin'));
   if (role && role !== 'BHABIN' && inField) return NextResponse.redirect(urlFor(req, '/'));
@@ -56,18 +65,19 @@ export async function middleware(req: NextRequest) {
   }
   const redirect = roleRedirect(req, user.role);
   if (redirect) return redirect;
-  if (req.cookies.has(COOKIE.access)) return NextResponse.next();
+  const toOnboarding = (token?: string) => (onboardingPending(token) && !isApi(req) && !user.mustChangePassword && !req.nextUrl.pathname.startsWith('/orientasi') ? NextResponse.redirect(urlFor(req, '/orientasi')) : null);
+  if (req.cookies.has(COOKIE.access)) return toOnboarding(req.cookies.get(COOKIE.access)?.value) ?? NextResponse.next();
 
   const tokens = await refreshTokens(rt);
   if (!tokens) return toLogin(req, true);
 
   const cookies = tokenCookies(tokens);
   for (const c of cookies) req.cookies.set(c.name, c.value);
-  const res = NextResponse.next({ request: { headers: req.headers } });
+  const res = toOnboarding(tokens.accessToken) ?? NextResponse.next({ request: { headers: req.headers } });
   for (const c of cookies) res.cookies.set(c);
   return res;
 }
 
 export const config = {
-  matcher: ['/((?!login|api/auth|_next|unduh/|favicon.ico|icon.png|apple-icon.png|logo.png).*)'],
+  matcher: ['/((?!login|api/auth|_next|unduh/|mediapipe/|favicon.ico|icon.png|apple-icon.png|logo.png).*)'],
 };

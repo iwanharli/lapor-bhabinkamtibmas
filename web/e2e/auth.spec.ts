@@ -27,8 +27,17 @@ test('pengguna baru wajib mengganti sandi sementara', async ({ page }) => {
     await page.getByLabel('Sandi baru', { exact: true }).fill('SandiE2E2026');
     await page.getByLabel('Ulangi sandi baru').fill('SandiE2E2026');
     await page.getByRole('button', { name: 'Simpan sandi baru' }).click();
-    await page.waitForURL((url) => url.pathname === '/');
-    await expect(page.getByRole('heading', { name: 'Ringkasan' })).toBeVisible();
+    // Pengguna baru lanjut ke orientasi, dan halaman lain tetap diarahkan ke sana.
+    await page.waitForURL(/\/orientasi/);
+    await expect(page.getByRole('heading', { name: 'Lengkapi profil' })).toBeVisible();
+    await page.goto('/laporan');
+    await expect(page).toHaveURL(/\/orientasi/);
+
+    await page.getByLabel(/Pangkat/).fill('Bripka');
+    await page.getByLabel(/Jabatan/).fill('Staf');
+    await page.getByLabel(/No\. HP/).fill('081234567890');
+    await page.getByRole('button', { name: 'Simpan & lanjut' }).click();
+    await expect(page.getByRole('heading', { name: 'Daftarkan wajah' })).toBeVisible();
   } finally {
     await deactivateUser(u.id, u.adminToken);
   }

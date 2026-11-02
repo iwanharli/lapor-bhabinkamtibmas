@@ -77,6 +77,29 @@ async function mergeIntoUnits(prisma: PrismaClient, units: Record<string, string
   }
   await prisma.unit.createMany({ data: rows, skipDuplicates: true });
   console.log(`Units: ${claimed.size} unit lama dicocokkan, ${rows.length} unit baru ditambahkan.`);
+  return resolved;
+}
+
+/**
+ * Isi Polsek desa dari kecamatannya, hanya untuk desa yang belum punya Polsek. Kecamatan berisi beberapa Polsek ditentukan oleh
+ * Polsek yang titiknya tepat di dalam kecamatan itu; bila tetap tidak tunggal, desanya dibiarkan kosong untuk dipilih manual.
+ */
+async function assignVillages(prisma: PrismaClient, resolved: Map<string, { id: string }>) {
+  const rows = await prisma.$queryRaw<{ kode: string; semua: string[]; dalam: string[] }[]>`
+    SELECT m.kode, array_agg(u.id::text) AS semua,
+           coalesce(array_agg(u.id::text) FILTER (WHERE u.lat IS NOT NULL AND ST_Intersects(r.geom, ST_SetSRID(ST_MakePoint(u.lng, u.lat), 4326))), '{}') AS dalam
+    FROM polri_wilayah m JOIN polri_units u ON u.id = m.unit_id AND u.kind = 'POLSEK' JOIN regions r ON r.kode = m.kode
+    GROUP BY m.kode`;
+  const picks = rows.flatMap((r) => {
+    const only = r.semua.length === 1 ? r.semua[0] : r.dalam.length === 1 ? r.dalam[0] : null;
+    const unit = only && resolved.get(only);
+    return unit ? [{ kode: r.kode, unit: unit.id }] : [];
+  });
+  const updated = await prisma.$executeRaw`
+    UPDATE villages v SET polsek_id = x.unit::uuid
+    FROM unnest(${picks.map((p) => p.kode)}::text[], ${picks.map((p) => p.unit)}::text[]) AS x(kode, unit)
+    WHERE v.kecamatan_kode = x.kode AND v.polsek_id IS NULL`;
+  console.log(`Desa: ${updated} desa ditetapkan ke Polsek dari ${picks.length} kecamatan (${rows.length - picks.length} kecamatan perlu dipilih manual).`);
 }
 
 async function main() {
@@ -108,11 +131,22 @@ async function main() {
     }
     const kept = manual.filter((m) => known.has(m.unitId));
     await tx.polriWilayah.createMany({ data: kept, skipDuplicates: true });
+    // Titik koordinat Polsek mengisi yang masih kosong: Polsek tanpa wilayah, atau kecamatan tanpa Polsek. Titik harus di kab/kota cakupan Polres-nya.
+    await tx.$executeRaw`
+      INSERT INTO polri_wilayah (unit_id, kode, method)
+      SELECT s.id, r.kode, 'koordinat'
+      FROM polri_units s
+      JOIN regions r ON r.level = 3 AND ST_Intersects(r.geom, ST_SetSRID(ST_MakePoint(s.lng, s.lat), 4326))
+      WHERE s.kind = 'POLSEK' AND s.lat IS NOT NULL
+        AND EXISTS (SELECT 1 FROM polri_wilayah p WHERE p.unit_id = s.parent_id AND p.kode = left(r.kode, 5))
+        AND (NOT EXISTS (SELECT 1 FROM polri_wilayah m WHERE m.unit_id = s.id)
+             OR NOT EXISTS (SELECT 1 FROM polri_wilayah m WHERE m.kode = r.kode))
+      ON CONFLICT DO NOTHING`;
     const parentOf = new Map(units.map((u) => [u.id, u.parentId]));
     await tx.polriWilayah.createMany({ data: kept.map((m) => ({ unitId: parentOf.get(m.unitId)!, kode: m.kode.slice(0, 5), method: 'via_polsek' })), skipDuplicates: true });
   }, { timeout: 300_000 });
   console.log(`${units.length} satuan, ${links.length} cakupan wilayah dimuat.`);
-  await mergeIntoUnits(prisma, units, links);
+  await assignVillages(prisma, await mergeIntoUnits(prisma, units, links));
   await prisma.$disconnect();
 }
 

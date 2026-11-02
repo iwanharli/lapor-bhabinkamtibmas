@@ -241,3 +241,6 @@ export interface PriceMarketDetail {
   komoditas: { commodity_id: number; nama: string; satuan: string; riwayat: { t: string; h: number; s: string; kios: string | null; pemilik: string | null }[] }[];
   riwayat: { id: string; nomor: string; waktu: string; bhabin: string; nrp: string; kios: string | null; komoditas: number; mock: boolean; inside: boolean | null }[];
 }
+
+/** Titik pasar referensi dalam satu wilayah. */
+export interface MarketPoint { id: string; nama: string; kategori: string; alamat: string | null; lat: number; lng: number; desa: string; laporan: number; village_id: string | null }

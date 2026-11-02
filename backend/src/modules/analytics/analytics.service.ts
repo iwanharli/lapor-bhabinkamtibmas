@@ -309,7 +309,7 @@ export class AnalyticsService {
   /** Daftar pasar dalam satu wilayah sesuai isian Bhabin; satu pasar = desa + nama pasar (tanpa membedakan huruf besar-kecil). */
   async priceMarkets(me: AuthUser, kode: string) {
     const where = await this.priceWhere(me, kode.length === 13 ? kode : `${kode}.`);
-    const [[wilayah], markets] = await Promise.all([
+    const [[wilayah], markets, titik] = await Promise.all([
       this.prisma.$queryRaw<{ nama: string; chain: string; satuan: string[] }[]>`
         SELECT x.nama, x.chain,
                ARRAY(SELECT u.name FROM polri_wilayah m JOIN polri_units u ON u.id = m.unit_id
@@ -328,8 +328,19 @@ export class AnalyticsService {
         WHERE ${where} AND r.occurred_at >= now() - interval '30 days' AND coalesce(trim(r.data->>'nama_pasar'), '') <> ''
         GROUP BY v.id, lower(trim(r.data->>'nama_pasar'))
         ORDER BY terakhir DESC`,
+      // Titik referensi; "laporan" dicocokkan dengan nama isian Bhabin dalam kecamatan yang sama.
+      this.prisma.$queryRaw<{ id: string; nama: string; kategori: string; alamat: string | null; lat: number; lng: number; desa: string; laporan: number; village_id: string | null }[]>`
+        SELECT m.id, m.nama, m.kategori, m.alamat, m.lat, m.lng, mv.nama AS desa, coalesce(l.laporan, 0)::int AS laporan, l.village_id
+        FROM markets m JOIN villages mv ON mv.kode_wilayah = m.village_kode
+        LEFT JOIN LATERAL (
+          SELECT count(*) AS laporan, (array_agg(r.village_id::text ORDER BY r.occurred_at DESC))[1] AS village_id
+          FROM reports r JOIN villages v ON v.id = r.village_id
+          WHERE ${where} AND r.occurred_at >= now() - interval '30 days' AND v.kecamatan_kode = left(m.village_kode, 8) AND lower(trim(r.data->>'nama_pasar')) = lower(m.nama)
+        ) l ON true
+        WHERE m.village_kode LIKE ${kode.length === 13 ? kode : `${kode}.%`}
+        ORDER BY laporan DESC, m.nama LIMIT 2000`,
     ]);
-    return { wilayah: wilayah ?? null, markets };
+    return { wilayah: wilayah ?? null, markets, titik };
   }
 
   /** Komoditas di satu pasar: harga terakhir, perubahan dari laporan sebelumnya, rentang, stok, dan riwayat 90 hari. */

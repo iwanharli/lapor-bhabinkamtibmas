@@ -633,3 +633,16 @@ model PolriWilayah {
   @@index([kode])
   @@map("polri_wilayah")
 }
+
+/// Referensi pasar dari berkas titik pasar (npm run seed:pasar); desa dihitung dari koordinat.
+model Market {
+  id          String  @id @db.VarChar(64)
+  kategori    String  @db.VarChar(24)
+  nama        String  @db.VarChar(200)
+  alamat      String? @db.VarChar(300)
+  lat         Float
+  lng         Float
+  villageKode String  @map("village_kode") @db.VarChar(13)
+
+  @@map("markets")
+}

@@ -25,3 +25,6 @@ infra/loadtest/lt-created.txt
 
 # Satuan Polri dari Posko PBM (perlu login) — tidak dipublikasikan di repo publik; salin ke server terpisah
 backend/prisma/polri/*.csv
+
+# Titik pasar (sumber pihak ketiga) — tidak dipublikasikan di repo publik; salin ke server terpisah
+docs/pasar_lokasi*.csv

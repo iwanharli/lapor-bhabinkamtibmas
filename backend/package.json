@@ -21,6 +21,7 @@
     "seed:semua": "ts-node prisma/seed-semua.ts",
     "notifications:isi": "ts-node prisma/backfill-notifications.ts",
     "laporan:buka-enkripsi": "ts-node prisma/decrypt-reports.ts",
+    "seed:pasar": "ts-node prisma/seed-pasar.ts",
     "seed:polri": "ts-node prisma/seed-polri.ts",
     "akun:tandai-demo": "ts-node prisma/mark-demo-accounts.ts",
     "face:models": "node scripts/face-models.mjs",

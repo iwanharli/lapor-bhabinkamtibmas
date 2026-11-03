@@ -77,6 +77,12 @@ async function mergeIntoUnits(prisma: PrismaClient, units: Record<string, string
   }
   await prisma.unit.createMany({ data: rows, skipDuplicates: true });
   console.log(`Units: ${claimed.size} unit lama dicocokkan, ${rows.length} unit baru ditambahkan.`);
+  // Simpan padanan: cakupan admin & penugasan desa memerlukan unit yang sebenarnya.
+  const pairs = [...resolved].map(([polri, unit]) => ({ polri, unit: unit.id }));
+  await prisma.$executeRaw`
+    UPDATE polri_units p SET unit_id = x.unit::uuid
+    FROM jsonb_to_recordset(${JSON.stringify(pairs)}::jsonb) AS x(polri text, unit text)
+    WHERE p.id = x.polri::uuid AND EXISTS (SELECT 1 FROM units u WHERE u.id = x.unit::uuid)`;
   return resolved;
 }
 

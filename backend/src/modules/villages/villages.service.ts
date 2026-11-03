@@ -95,7 +95,7 @@ export class VillagesService {
   async polsekWithoutRegion(me: AuthUser, q: { q?: string; jenis?: string; page: number; limit: number }) {
     const kawasan = Prisma.sql`s.name ~* ${KAWASAN}`;
     const base = Prisma.sql`s.kind = 'POLSEK' AND NOT EXISTS (SELECT 1 FROM polri_wilayah m WHERE m.unit_id = s.id)
-      ${me.role === UserRole.SUPERADMIN ? Prisma.empty : Prisma.sql`AND s.id IN (SELECT unit_subtree(${me.unitId}::uuid))`}`;
+      ${me.role === UserRole.SUPERADMIN ? Prisma.empty : Prisma.sql`AND coalesce(s.unit_id, s.id) IN (SELECT unit_subtree(${me.unitId}::uuid))`}`;
     const search = Prisma.sql`${q.q ? Prisma.sql`AND (s.name ILIKE ${'%' + q.q + '%'} OR res.name ILIKE ${'%' + q.q + '%'} OR da.name ILIKE ${'%' + q.q + '%'})` : Prisma.empty}`;
     const from = Prisma.sql`FROM polri_units s JOIN polri_units res ON res.id = s.parent_id JOIN polri_units da ON da.id = res.parent_id`;
     const where = Prisma.sql`${base} ${search}
@@ -114,7 +114,7 @@ export class VillagesService {
 
   async polsekList(me: AuthUser, q: { q?: string; koordinat?: string; page: number; limit: number }) {
     const where = Prisma.sql`s.kind = 'POLSEK'
-      ${me.role === UserRole.SUPERADMIN ? Prisma.empty : Prisma.sql`AND s.id IN (SELECT unit_subtree(${me.unitId}::uuid))`}
+      ${me.role === UserRole.SUPERADMIN ? Prisma.empty : Prisma.sql`AND coalesce(s.unit_id, s.id) IN (SELECT unit_subtree(${me.unitId}::uuid))`}
       ${q.q ? Prisma.sql`AND (s.name ILIKE ${'%' + q.q + '%'} OR res.name ILIKE ${'%' + q.q + '%'} OR da.name ILIKE ${'%' + q.q + '%'})` : Prisma.empty}
       ${q.koordinat === 'ada' ? Prisma.sql`AND s.lat IS NOT NULL` : q.koordinat === 'belum' ? Prisma.sql`AND s.lat IS NULL` : Prisma.empty}`;
     const from = Prisma.sql`FROM polri_units s JOIN polri_units res ON res.id = s.parent_id JOIN polri_units da ON da.id = res.parent_id`;
@@ -133,12 +133,10 @@ export class VillagesService {
     return this.prisma.polriUnit.findMany({ where: parent ? { parentId: parent, kind: 'POLRES' } : { kind: 'POLDA' }, select: { id: true, name: true }, orderBy: { name: 'asc' } });
   }
 
-  /** Unit di tabel units untuk satuan nasional: id yang sama, atau unit lama berkode wilayah yang sama (RES-3171). */
-  private async unitOfPolres(polresId: string) {
-    const direct = await this.prisma.unit.findUnique({ where: { id: polresId } });
-    if (direct) return direct;
-    const areas = await this.prisma.polriWilayah.findMany({ where: { unitId: polresId, method: { notIn: ['via_polsek', 'kawasan'] } }, select: { kode: true } });
-    return this.prisma.unit.findFirst({ where: { level: 'POLRES', kode: { in: areas.map((a) => `RES-${a.kode.replace(/\./g, '')}`) } } });
+  /** Unit padanan satuan nasional. */
+  private async unitOfPolri(polriId: string) {
+    const p = await this.prisma.polriUnit.findUnique({ where: { id: polriId }, select: { unitId: true } });
+    return p?.unitId ? this.prisma.unit.findUnique({ where: { id: p.unitId } }) : null;
   }
 
   /** Kecamatan tempat titik berada, dalam cakupan kab/kota Polres-nya. */
@@ -162,9 +160,8 @@ export class VillagesService {
     ]);
     if (mineCount === 0 || occupied === 0) {
       await this.prisma.polriWilayah.create({ data: { unitId: polsekId, kode: kec.kode, method: 'koordinat' } });
-      if (occupied === 0 && await this.prisma.unit.count({ where: { id: polsekId } })) {
-        await this.prisma.village.updateMany({ where: { kecamatanKode: kec.kode, polsekId: null }, data: { polsekId } });
-      }
+      const unit = occupied === 0 ? await this.unitOfPolri(polsekId) : null;
+      if (unit) await this.prisma.village.updateMany({ where: { kecamatanKode: kec.kode, polsekId: null }, data: { polsekId: unit.id } });
     }
     return kec.nama;
   }
@@ -180,7 +177,7 @@ export class VillagesService {
   async createPolsek(me: AuthUser, dto: { polresId: string; nama: string; lat?: number; lng?: number }) {
     if ((dto.lat == null) !== (dto.lng == null)) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Isi lintang dan bujur sekaligus.' });
     const polres = await this.prisma.polriUnit.findFirst({ where: { id: dto.polresId, kind: 'POLRES' } });
-    const parent = polres && await this.unitOfPolres(polres.id);
+    const parent = polres && await this.unitOfPolri(polres.id);
     if (!polres || !parent) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Polres tidak ditemukan.' });
     await this.units.assertInScope(me.unitId, parent.id);
     const nama = dto.nama.trim();
@@ -191,6 +188,7 @@ export class VillagesService {
     await this.prisma.$transaction([
       this.prisma.polriUnit.create({ data: { id, parentId: polres.id, kind: 'POLSEK', code: kode, name: nama, lat: dto.lat, lng: dto.lng, manual: true } }),
       this.prisma.unit.create({ data: { id, parentId: parent.id, level: 'POLSEK', kode, nama, timezone: parent.timezone } }),
+      this.prisma.polriUnit.update({ where: { id }, data: { unitId: id } }),
     ]);
     this.units.invalidate();
     const kecamatan = dto.lat != null ? await this.linkByPoint(id, polres.id, dto.lat, dto.lng!) : null;
@@ -205,7 +203,7 @@ export class VillagesService {
              EXISTS (SELECT 1 FROM polri_wilayah m WHERE m.unit_id = s.id AND m.method <> 'admin') AS source
       FROM polri_units s JOIN polri_units res ON res.id = s.parent_id
       WHERE s.id = ${polsekId}::uuid AND s.kind = 'POLSEK'
-        ${me.role === UserRole.SUPERADMIN ? Prisma.empty : Prisma.sql`AND s.id IN (SELECT unit_subtree(${me.unitId}::uuid))`}`;
+        ${me.role === UserRole.SUPERADMIN ? Prisma.empty : Prisma.sql`AND coalesce(s.unit_id, s.id) IN (SELECT unit_subtree(${me.unitId}::uuid))`}`;
     if (!polsek) throw new NotFoundException({ code: 'NOT_FOUND' });
     return polsek;
   }
@@ -249,7 +247,7 @@ export class VillagesService {
       FROM polri_wilayah m
       JOIN polri_units s ON s.id = m.unit_id JOIN polri_units res ON res.id = s.parent_id JOIN polri_units da ON da.id = res.parent_id
       JOIN regions r ON r.kode = m.kode
-      WHERE m.method = 'admin' ${me.role === UserRole.SUPERADMIN ? Prisma.empty : Prisma.sql`AND s.id IN (SELECT unit_subtree(${me.unitId}::uuid))`}
+      WHERE m.method = 'admin' ${me.role === UserRole.SUPERADMIN ? Prisma.empty : Prisma.sql`AND coalesce(s.unit_id, s.id) IN (SELECT unit_subtree(${me.unitId}::uuid))`}
       GROUP BY s.id, s.name, res.name, da.name
       ORDER BY da.name, res.name, s.name`;
   }

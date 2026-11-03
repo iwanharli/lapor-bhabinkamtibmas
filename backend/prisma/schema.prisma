@@ -611,6 +611,8 @@ model PolriUnit {
   active   Boolean @default(true)
   /// Dibuat atau koordinatnya diubah admin; dipertahankan saat seed:polri.
   manual   Boolean @default(false)
+  /// Unit padanannya (akun & laporan); bisa ber-ID berbeda untuk unit lama.
+  unitId   String? @map("unit_id") @db.Uuid
 
   parent   PolriUnit?     @relation("PolriTree", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   children PolriUnit[]    @relation("PolriTree")

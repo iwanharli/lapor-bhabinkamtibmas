@@ -9,6 +9,7 @@ import '../../core/api/api_client.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/ui/responsive.dart';
 import '../../core/ui/theme.dart';
+import 'live_face_capture.dart';
 
 /// Verifikasi wajah: [faceToken] terisi = langkah 2 login; kosong = pendaftaran wajah (orientasi pengguna baru).
 /// Dua foto kamera depan: menghadap lurus, lalu menoleh sedikit — uji kehidupan diperiksa server.
@@ -25,6 +26,8 @@ class _FaceCapturePageState extends ConsumerState<FaceCapturePage> {
   XFile? _turned;
   bool _busy = false;
   String? _error;
+  /// Null = kamera langsung; terisi = alasan beralih ke dua foto manual.
+  String? _manualReason;
 
   bool get _login => widget.faceToken != null;
 
@@ -39,6 +42,16 @@ class _FaceCapturePageState extends ConsumerState<FaceCapturePage> {
       }
       _error = null;
     });
+  }
+
+  /// Dari kamera langsung: galat dilempar balik agar perekaman diulang.
+  Future<void> _submitLive(XFile frontal, XFile turned) async {
+    setState(() {
+      _frontal = frontal;
+      _turned = turned;
+    });
+    await _submit();
+    if (_error != null) throw StateError(_error!);
   }
 
   Future<void> _submit() async {
@@ -66,6 +79,7 @@ class _FaceCapturePageState extends ConsumerState<FaceCapturePage> {
   @override
   Widget build(BuildContext context) {
     final ready = _frontal != null && _turned != null;
+    final live = _manualReason == null;
     return Scaffold(
       appBar: AppBar(
         title: Text(_login ? 'Verifikasi wajah' : 'Daftarkan wajah'),
@@ -86,7 +100,7 @@ class _FaceCapturePageState extends ConsumerState<FaceCapturePage> {
             Expanded(
               child: Text(
                 _login
-                    ? 'Untuk keamanan, cocokkan wajah Anda dengan yang terdaftar. Ambil dua foto dengan kamera depan.'
+                    ? 'Untuk keamanan, cocokkan wajah Anda dengan yang terdaftar. Ikuti petunjuk pada kamera: lurus, kedip, lalu toleh.'
                     : 'Langkah terakhir: daftarkan wajah Anda. Wajah akan dicocokkan setiap kali masuk. Yang disimpan hanya sidik wajah terenkripsi, bukan fotonya.',
                 style: const TextStyle(fontSize: 13),
               ),
@@ -94,10 +108,18 @@ class _FaceCapturePageState extends ConsumerState<FaceCapturePage> {
           ]),
         ),
         const SizedBox(height: 16),
+        if (live)
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: LiveFaceCapture(onCaptured: _submitLive, onUnavailable: (reason) => setState(() => _manualReason = reason)),
+          )
+        else ...[
+          Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(_manualReason!, style: const TextStyle(fontSize: 13, color: muted))),
         CardColumns(minItemWidth: 260, spacing: 12, children: [
           _Shot(step: 1, title: 'Hadap lurus ke kamera', hint: 'Wajah di tengah, cahaya cukup, tanpa masker/kacamata hitam.', file: _frontal, onTap: _busy ? null : () => _take(true)),
           _Shot(step: 2, title: 'Toleh sedikit ke kiri atau kanan', hint: 'Putar kepala ±30°, wajah tetap terlihat.', file: _turned, onTap: _busy ? null : () => _take(false)),
         ]),
+        ],
         if (_error != null)
           Container(
             margin: const EdgeInsets.only(top: 14),
@@ -110,6 +132,9 @@ class _FaceCapturePageState extends ConsumerState<FaceCapturePage> {
             ]),
           ),
         const SizedBox(height: 18),
+        if (live)
+          TextButton(onPressed: _busy ? null : () => setState(() => _manualReason = 'Ambil dua foto dengan kamera depan.'), child: const Text('Kesulitan? Ambil foto manual'))
+        else
         FilledButton.icon(
           onPressed: ready && !_busy ? _submit : null,
           icon: _busy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.verified_user_outlined),

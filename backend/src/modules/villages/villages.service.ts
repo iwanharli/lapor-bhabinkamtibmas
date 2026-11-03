@@ -9,9 +9,6 @@ import { UnitsService } from '../units/units.service';
 /** Batas jumlah poligon desa per permintaan peta. */
 const GEOJSON_MAX = 2000;
 
-/** Radius pencarian pasar terdekat (derajat, ±5,5 km). */
-const NEARBY_DEG = 0.05;
-
 /** Nama satuan kawasan, bukan wilayah kecamatan. */
 const KAWASAN = 'kawasan|pelabuhan|bandara|kp3|kspn';
 
@@ -28,14 +25,14 @@ export class VillagesService {
     return this.prisma.village.findMany({ where, orderBy: [{ kabupaten: 'asc' }, { kecamatan: 'asc' }, { nama: 'asc' }], take: 500 });
   }
 
-  async nearbyMarkets(lat: number, lng: number) {
-    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) throw new BadRequestException('Koordinat tidak valid');
-    return this.prisma.$queryRaw<{ id: string; nama: string; kategori: string; alamat: string | null; jarak_m: number }[]>`
-      SELECT id, nama, kategori, alamat, round(ST_Distance(p, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography))::int AS jarak_m
-      FROM (SELECT *, ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography AS p FROM markets
-            WHERE lat BETWEEN ${lat - NEARBY_DEG} AND ${lat + NEARBY_DEG} AND lng BETWEEN ${lng - NEARBY_DEG} AND ${lng + NEARBY_DEG}) m
-      -- Pasar tradisional lebih dulu: sasaran utama pemantauan harga.
-      ORDER BY kategori = 'pasar_modern', jarak_m LIMIT 8`;
+  async nearbyMarkets(me: AuthUser, point?: { lat: number; lng: number }) {
+    if (point && (!Number.isFinite(point.lat) || !Number.isFinite(point.lng) || Math.abs(point.lat) > 90 || Math.abs(point.lng) > 180)) throw new BadRequestException('Koordinat tidak valid');
+    const distance = point ? Prisma.sql`round(ST_Distance(ST_SetSRID(ST_MakePoint(m.lng, m.lat), 4326)::geography, ST_SetSRID(ST_MakePoint(${point.lng}, ${point.lat}), 4326)::geography))::int` : Prisma.sql`NULL::int`;
+    return this.prisma.$queryRaw<{ id: string; nama: string; kategori: string; alamat: string | null; jarak_m: number | null }[]>`
+      SELECT m.id, m.nama, m.kategori, m.alamat, ${distance} AS jarak_m
+      FROM markets m JOIN villages v ON v.kode_wilayah = m.village_kode
+      JOIN user_villages uv ON uv.village_id = v.id AND uv.user_id = ${me.id}::uuid AND uv.until IS NULL
+      ORDER BY jarak_m NULLS LAST, m.nama`;
   }
 
   async distance(me: AuthUser, id: string, lat: number, lng: number) {

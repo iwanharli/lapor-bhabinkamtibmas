@@ -518,27 +518,34 @@ function Labeled({ label, required, hint, children }: { label: string; required?
   );
 }
 
-/** Pasar terdekat dari GPS sebagai pilihan cepat; pasar yang tidak ada di daftar tetap bisa diketik. */
-function NearbyMarkets({ point, value, onPick }: { point: { lat: number; lng: number } | null; value: string; onPick: (nama: string) => void }) {
-  const [rows, setRows] = useState<{ id: string; nama: string; jarak_m: number }[]>([]);
+const MANUAL = '__manual__';
+
+/** Dropdown pasar di desa binaan, terdekat lebih dulu; tanpa daftar atau pilihan "Lainnya" = isi manual. */
+function MarketInput({ point, value, maxLength, onChange }: { point: { lat: number; lng: number } | null; value: string; maxLength?: number; onChange: (nama: string) => void }) {
+  const [rows, setRows] = useState<{ id: string; nama: string; jarak_m: number | null }[] | null>(null);
+  const [manual, setManual] = useState(false);
   useEffect(() => {
-    if (!point) return setRows([]);
     let live = true;
-    callApi<{ id: string; nama: string; jarak_m: number }[]>(`/villages/markets/nearby?lat=${point.lat}&lng=${point.lng}`).then((r) => { if (live) setRows(r); }).catch(() => undefined);
+    callApi<{ id: string; nama: string; jarak_m: number | null }[]>(`/villages/markets/nearby${point ? `?lat=${point.lat}&lng=${point.lng}` : ''}`).then((r) => { if (live) setRows(r); }).catch(() => { if (live) setRows([]); });
     return () => { live = false; };
   }, [point?.lat, point?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (!rows.length) return null;
+  const known = !!rows?.some((m) => m.nama === value);
+  const typing = !rows?.length || manual || (!!value && !known);
+  const distance = (m: number) => (m >= 1000 ? `${(m / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} km` : `${m} m`);
   return (
-    <div className="mb-2">
-      <p className="mb-1.5 text-xs text-muted">Pasar terdekat, pilih atau ketik sendiri bila tidak ada:</p>
-      <div className="flex flex-wrap gap-1.5">
-        {rows.map((m) => (
-          <button key={m.id} type="button" aria-pressed={value === m.nama} onClick={() => onPick(m.nama)}
-            className={cn('rounded-full border px-3 py-1.5 text-xs transition', value === m.nama ? 'border-primary bg-primary-soft font-semibold text-primary' : 'border-line hover:border-primary/40')}>
-            {m.nama} · {m.jarak_m >= 1000 ? `${(m.jarak_m / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} km` : `${m.jarak_m} m`}
-          </button>
-        ))}
-      </div>
+    <div className="space-y-2">
+      {!!rows?.length && (
+        <Select aria-label="Pilih pasar" value={typing ? MANUAL : value} className="h-11" onChange={(e) => {
+          const isManual = e.target.value === MANUAL;
+          setManual(isManual);
+          onChange(isManual ? '' : e.target.value);
+        }}>
+          <option value="">— Pilih pasar —</option>
+          {rows.map((m) => <option key={m.id} value={m.nama}>{m.nama}{m.jarak_m != null ? ` · ${distance(m.jarak_m)}` : ''}</option>)}
+          <option value={MANUAL}>Lainnya (isi manual)</option>
+        </Select>
+      )}
+      {typing && <Input aria-label="Nama pasar manual" value={value} maxLength={maxLength} placeholder="Ketik nama pasar / lokasi" onChange={(e) => onChange(e.target.value)} className="h-11" />}
     </div>
   );
 }
@@ -636,10 +643,13 @@ function FieldInput({
     );
   }
 
+  if (f.key === 'nama_pasar') {
+    return <Labeled label={f.label} required={req}><MarketInput point={point} value={str} maxLength={f.maxLength} onChange={(v) => set(f.key, v)} /></Labeled>;
+  }
+
   const placeholder = f.placeholders && f.requiredIf ? f.placeholders[String(values[f.requiredIf.field])] : undefined;
   return (
     <Labeled label={f.label} required={req}>
-      {f.key === 'nama_pasar' && <NearbyMarkets point={point} value={str} onPick={(v) => set(f.key, v)} />}
       <Input value={str} maxLength={f.maxLength} placeholder={placeholder} onChange={(e) => set(f.key, e.target.value)} className="h-11" />
     </Labeled>
   );

@@ -50,11 +50,17 @@ test('Bhabin tidak bisa membuka dashboard, peran lain tidak bisa membuka tampila
   await expect(page).not.toHaveURL(/\/bhabin/);
 });
 
-test('formulir harga menawarkan pasar terdekat dari GPS', async ({ page }) => {
+test('formulir harga: dropdown pasar desa binaan, terdekat dulu, dan bisa isi manual', async ({ page }) => {
   await login(page, ACCOUNTS.bhabin);
   await page.goto('/bhabin/lapor/HARGA_PANGAN');
-  const chip = page.getByRole('button', { name: /^Pasar .* · / }).first();
-  await chip.click({ timeout: 15_000 });
-  const nama = (await chip.innerText()).split(' · ')[0];
-  await expect(page.getByText('Nama pasar').locator('xpath=ancestor::*[.//input][1]//input').first()).toHaveValue(nama);
+  const manual = page.getByLabel('Nama pasar manual');
+  const picker = page.getByLabel('Pilih pasar');
+  await expect(picker.or(manual).first()).toBeVisible({ timeout: 15_000 });
+  if (await picker.count()) {
+    const labels = await picker.locator('option').allInnerTexts();
+    expect(labels.at(-1)).toBe('Lainnya (isi manual)');
+    await picker.selectOption({ label: 'Lainnya (isi manual)' });
+  }
+  await manual.fill('Pasar Buatan Uji');
+  await expect(manual).toHaveValue('Pasar Buatan Uji');
 });

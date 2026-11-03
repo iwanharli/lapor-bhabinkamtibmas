@@ -65,11 +65,11 @@ export class VillagesController {
     return this.villages.list(me, q);
   }
 
-  /** Pasar terdaftar terdekat dari titik GPS, untuk pilihan di formulir harga. */
+  /** Pasar terdaftar di desa binaan Bhabin, terdekat lebih dulu bila titik GPS dikirim. */
   @Get('villages/markets/nearby')
   @Roles(...ALL_ROLES)
-  nearbyMarkets(@Query('lat') lat: string, @Query('lng') lng: string) {
-    return this.villages.nearbyMarkets(Number(lat), Number(lng));
+  nearbyMarkets(@CurrentUser() me: AuthUser, @Query('lat') lat?: string, @Query('lng') lng?: string) {
+    return this.villages.nearbyMarkets(me, lat && lng ? { lat: Number(lat), lng: Number(lng) } : undefined);
   }
 
   /** Jarak (m) sebuah titik ke batas desa; dipakai formulir untuk peringatan sebelum kirim. */

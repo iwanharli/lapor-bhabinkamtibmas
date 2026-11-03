@@ -57,9 +57,10 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
   String? _locError;
   /// Jarak (m) titik GPS ke batas desa binaan bila di luar toleransi 200 m — laporan tidak bisa dikirim (server juga menolak).
   num? _outsideM;
-  /// Pasar terdekat dari GPS sebagai pilihan cepat di formulir harga.
+  /// Pasar di desa binaan, terdekat lebih dulu, untuk dropdown di formulir harga.
   List<Map<String, dynamic>> _nearby = const [];
   int _marketPicks = 0;
+  bool _marketManual = false;
   /// Desa terpilih untuk laporan baru (Bhabin bisa membina beberapa desa).
   String? _pickedVillageId;
 
@@ -456,22 +457,30 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
           onChanged: (v) => setState(() => _values[f.key] = v),
         );
         if (f.key != 'nama_pasar' || _nearby.isEmpty) return input;
-        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Pasar terdekat, pilih atau ketik sendiri bila tidak ada:', style: TextStyle(fontSize: 12, color: muted)),
-          const SizedBox(height: 6),
-          Wrap(spacing: 6, runSpacing: 2, children: [
-            for (final m in _nearby)
-              ChoiceChip(
-                label: Text('${m['nama']} · ${jarak(m['jarak_m'] as num)}', style: const TextStyle(fontSize: 12)),
-                selected: _values[f.key] == m['nama'],
-                onSelected: (_) => setState(() {
-                  _values[f.key] = m['nama'];
-                  _marketPicks++;
-                }),
-              ),
-          ]),
-          const SizedBox(height: 8),
-          input,
+        final current = _values[f.key]?.toString() ?? '';
+        final known = _nearby.any((m) => m['nama'] == current);
+        final typing = _marketManual || (current.isNotEmpty && !known);
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          DropdownButtonFormField<String>(
+            key: ValueKey('pasar-pilih-$_marketPicks-${_nearby.length}'),
+            initialValue: typing ? _manualMarket : (known ? current : null),
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Pilih pasar'),
+            items: [
+              for (final m in _nearby)
+                DropdownMenuItem(
+                  value: m['nama'] as String,
+                  child: Text(m['jarak_m'] == null ? m['nama'] as String : '${m['nama']} · ${jarak(m['jarak_m'] as num)}', overflow: TextOverflow.ellipsis),
+                ),
+              const DropdownMenuItem(value: _manualMarket, child: Text('Lainnya (isi manual)')),
+            ],
+            onChanged: (v) => setState(() {
+              _marketManual = v == _manualMarket;
+              _values[f.key] = _marketManual ? '' : v;
+              _marketPicks++;
+            }),
+          ),
+          if (typing) ...[const SizedBox(height: 10), input],
         ]);
     }
   }
@@ -532,6 +541,8 @@ class _Stepper extends StatelessWidget {
 }
 
 /// Satu isian non-repeater: teks, angka, rupiah, tanggal, pilihan, pilihan ganda, NIK, nomor HP.
+const _manualMarket = '__manual__';
+
 class _ScalarInput extends StatelessWidget {
   const _ScalarInput({super.key, required this.field, required this.value, required this.label, required this.onChanged, this.commodities = const []});
   final SchemaField field;

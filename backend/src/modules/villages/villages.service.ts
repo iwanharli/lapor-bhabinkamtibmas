@@ -9,6 +9,9 @@ import { UnitsService } from '../units/units.service';
 /** Batas jumlah poligon desa per permintaan peta. */
 const GEOJSON_MAX = 2000;
 
+/** Radius pencarian pasar terdekat (derajat, ±5,5 km). */
+const NEARBY_DEG = 0.05;
+
 /** Nama satuan kawasan, bukan wilayah kecamatan. */
 const KAWASAN = 'kawasan|pelabuhan|bandara|kp3|kspn';
 
@@ -23,6 +26,15 @@ export class VillagesService {
         : { polsekId: { in: await this.units.descendantIds(me.unitId) } };
     if (q) where.nama = { contains: q, mode: 'insensitive' };
     return this.prisma.village.findMany({ where, orderBy: [{ kabupaten: 'asc' }, { kecamatan: 'asc' }, { nama: 'asc' }], take: 500 });
+  }
+
+  async nearbyMarkets(lat: number, lng: number) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) throw new BadRequestException('Koordinat tidak valid');
+    return this.prisma.$queryRaw<{ id: string; nama: string; kategori: string; alamat: string | null; jarak_m: number }[]>`
+      SELECT id, nama, kategori, alamat, round(ST_Distance(p, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography))::int AS jarak_m
+      FROM (SELECT *, ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography AS p FROM markets
+            WHERE lat BETWEEN ${lat - NEARBY_DEG} AND ${lat + NEARBY_DEG} AND lng BETWEEN ${lng - NEARBY_DEG} AND ${lng + NEARBY_DEG}) m
+      ORDER BY jarak_m LIMIT 8`;
   }
 
   async distance(me: AuthUser, id: string, lat: number, lng: number) {

@@ -49,3 +49,12 @@ test('Bhabin tidak bisa membuka dashboard, peran lain tidak bisa membuka tampila
   await page.goto('/bhabin/laporan');
   await expect(page).not.toHaveURL(/\/bhabin/);
 });
+
+test('formulir harga menawarkan pasar terdekat dari GPS', async ({ page }) => {
+  await login(page, ACCOUNTS.bhabin);
+  await page.goto('/bhabin/lapor/HARGA_PANGAN');
+  const chip = page.getByRole('button', { name: /^Pasar .* · / }).first();
+  await chip.click({ timeout: 15_000 });
+  const nama = (await chip.innerText()).split(' · ')[0];
+  await expect(page.getByText('Nama pasar').locator('xpath=ancestor::*[.//input][1]//input').first()).toHaveValue(nama);
+});

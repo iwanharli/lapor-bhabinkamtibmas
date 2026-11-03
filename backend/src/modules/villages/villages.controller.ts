@@ -65,6 +65,13 @@ export class VillagesController {
     return this.villages.list(me, q);
   }
 
+  /** Pasar terdaftar terdekat dari titik GPS, untuk pilihan di formulir harga. */
+  @Get('villages/markets/nearby')
+  @Roles(...ALL_ROLES)
+  nearbyMarkets(@Query('lat') lat: string, @Query('lng') lng: string) {
+    return this.villages.nearbyMarkets(Number(lat), Number(lng));
+  }
+
   /** Jarak (m) sebuah titik ke batas desa; dipakai formulir untuk peringatan sebelum kirim. */
   @Get('villages/:id/distance')
   @Roles(...ALL_ROLES)

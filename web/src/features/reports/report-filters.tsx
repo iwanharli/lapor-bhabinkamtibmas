@@ -31,6 +31,8 @@ export function ReportFilters({ value, tz }: { value: ReportSearch; tz?: string 
       skipSearch.current = false;
       return;
     }
+    // Kata kunci tidak berubah (mis. efek dijalankan ulang): jangan menulis URL, karena `value` di sini bisa sudah usang.
+    if (q.trim() === (value.q ?? '')) return;
     const t = setTimeout(() => apply({ q: q.trim() || undefined }), 350);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -383,7 +383,7 @@ export function ReportForm({
 
       <Section title={steps ? steps[step].title : schema.title} description={steps?.[step].description}>
         {schema.fields.filter((f) => !steps || steps[step].fields.includes(f.key)).map((f) => (
-          <FieldInput key={f.key} f={f} value={values[f.key]} values={values} set={set} commodities={commodities}
+          <FieldInput key={f.key} f={f} value={values[f.key]} values={values} set={set} commodities={commodities} point={point}
             files={files[f.key] ?? []} existing={existingCount[f.key] ?? 0}
             setFiles={(list) => setFiles((p) => ({ ...p, [f.key]: list }))} />
         ))}
@@ -518,10 +518,36 @@ function Labeled({ label, required, hint, children }: { label: string; required?
   );
 }
 
+/** Pasar terdekat dari GPS sebagai pilihan cepat; pasar yang tidak ada di daftar tetap bisa diketik. */
+function NearbyMarkets({ point, value, onPick }: { point: { lat: number; lng: number } | null; value: string; onPick: (nama: string) => void }) {
+  const [rows, setRows] = useState<{ id: string; nama: string; jarak_m: number }[]>([]);
+  useEffect(() => {
+    if (!point) return setRows([]);
+    let live = true;
+    callApi<{ id: string; nama: string; jarak_m: number }[]>(`/villages/markets/nearby?lat=${point.lat}&lng=${point.lng}`).then((r) => { if (live) setRows(r); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [point?.lat, point?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!rows.length) return null;
+  return (
+    <div className="mb-2">
+      <p className="mb-1.5 text-xs text-muted">Pasar terdekat, pilih atau ketik sendiri bila tidak ada:</p>
+      <div className="flex flex-wrap gap-1.5">
+        {rows.map((m) => (
+          <button key={m.id} type="button" aria-pressed={value === m.nama} onClick={() => onPick(m.nama)}
+            className={cn('rounded-full border px-3 py-1.5 text-xs transition', value === m.nama ? 'border-primary bg-primary-soft font-semibold text-primary' : 'border-line hover:border-primary/40')}>
+            {m.nama} · {m.jarak_m >= 1000 ? `${(m.jarak_m / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} km` : `${m.jarak_m} m`}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function FieldInput({
-  f, value, values, set, commodities, files, setFiles, existing,
+  f, value, values, set, commodities, files, setFiles, existing, point,
 }: {
   f: FormField; value: unknown; values: Values; set: (k: string, v: unknown) => void; commodities: Commodity[];
+  point: { lat: number; lng: number } | null;
   files: File[]; setFiles: (l: File[]) => void; existing: number;
 }) {
   if (!active(f, values)) return null;
@@ -613,6 +639,7 @@ function FieldInput({
   const placeholder = f.placeholders && f.requiredIf ? f.placeholders[String(values[f.requiredIf.field])] : undefined;
   return (
     <Labeled label={f.label} required={req}>
+      {f.key === 'nama_pasar' && <NearbyMarkets point={point} value={str} onPick={(v) => set(f.key, v)} />}
       <Input value={str} maxLength={f.maxLength} placeholder={placeholder} onChange={(e) => set(f.key, e.target.value)} className="h-11" />
     </Labeled>
   );

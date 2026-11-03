@@ -57,6 +57,9 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
   String? _locError;
   /// Jarak (m) titik GPS ke batas desa binaan bila di luar toleransi 200 m — laporan tidak bisa dikirim (server juga menolak).
   num? _outsideM;
+  /// Pasar terdekat dari GPS sebagai pilihan cepat di formulir harga.
+  List<Map<String, dynamic>> _nearby = const [];
+  int _marketPicks = 0;
   /// Desa terpilih untuk laporan baru (Bhabin bisa membina beberapa desa).
   String? _pickedVillageId;
 
@@ -123,10 +126,21 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
       final f = await getFix();
       if (mounted) setState(() => _fix = f);
       await _checkDistance(f);
+      await _loadNearby(f);
     } catch (e) {
       if (mounted) setState(() => _locError = e.toString());
     } finally {
       if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  Future<void> _loadNearby(Fix f) async {
+    if (_schema?.category != 'HARGA_PANGAN') return;
+    try {
+      final res = await ref.read(dioProvider).get('/villages/markets/nearby', queryParameters: {'lat': f.lat, 'lng': f.lng});
+      if (mounted) setState(() => _nearby = (res.data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList());
+    } catch (_) {
+      // Tanpa sinyal: pasar tetap bisa diketik manual.
     }
   }
 
@@ -436,10 +450,29 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
           onChanged: (rows) => setState(() => _values[f.key] = rows),
         );
       default:
-        return _ScalarInput(
+        final input = _ScalarInput(
+          key: f.key == 'nama_pasar' ? ValueKey('pasar-$_marketPicks') : null,
           field: f, value: _values[f.key], label: _label(f, req), commodities: _commodities,
           onChanged: (v) => setState(() => _values[f.key] = v),
         );
+        if (f.key != 'nama_pasar' || _nearby.isEmpty) return input;
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Pasar terdekat, pilih atau ketik sendiri bila tidak ada:', style: TextStyle(fontSize: 12, color: muted)),
+          const SizedBox(height: 6),
+          Wrap(spacing: 6, runSpacing: 2, children: [
+            for (final m in _nearby)
+              ChoiceChip(
+                label: Text('${m['nama']} · ${jarak(m['jarak_m'] as num)}', style: const TextStyle(fontSize: 12)),
+                selected: _values[f.key] == m['nama'],
+                onSelected: (_) => setState(() {
+                  _values[f.key] = m['nama'];
+                  _marketPicks++;
+                }),
+              ),
+          ]),
+          const SizedBox(height: 8),
+          input,
+        ]);
     }
   }
 }

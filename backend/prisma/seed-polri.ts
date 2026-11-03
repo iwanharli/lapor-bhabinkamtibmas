@@ -83,6 +83,8 @@ async function mergeIntoUnits(prisma: PrismaClient, units: Record<string, string
     UPDATE polri_units p SET unit_id = x.unit::uuid
     FROM jsonb_to_recordset(${JSON.stringify(pairs)}::jsonb) AS x(polri text, unit text)
     WHERE p.id = x.polri::uuid AND EXISTS (SELECT 1 FROM units u WHERE u.id = x.unit::uuid)`;
+  // Satu nama di seluruh aplikasi: nama unit yang dipakai akun & laporan.
+  await prisma.$executeRaw`UPDATE polri_units p SET name = u.nama FROM units u WHERE u.id = p.unit_id AND p.name <> u.nama`;
   return resolved;
 }
 

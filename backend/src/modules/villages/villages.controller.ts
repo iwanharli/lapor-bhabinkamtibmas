@@ -99,8 +99,8 @@ export class VillagesController {
   /** Daftar Polda, atau Polres di bawah `parent`, untuk formulir tambah Polsek. */
   @Get('admin/villages/polri-units')
   @Roles(UserRole.SUPERADMIN, UserRole.ADMIN_UNIT)
-  polriUnits(@Query('parent', new ParseUUIDPipe({ optional: true })) parent?: string) {
-    return this.villages.polriUnits(parent);
+  polriUnits(@CurrentUser() me: AuthUser, @Query('parent', new ParseUUIDPipe({ optional: true })) parent?: string) {
+    return this.villages.polriUnits(me, parent);
   }
 
   @Post('admin/villages/polsek')

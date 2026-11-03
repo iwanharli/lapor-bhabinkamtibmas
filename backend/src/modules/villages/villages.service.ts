@@ -129,8 +129,13 @@ export class VillagesService {
     return { data, meta: { page: q.page, limit: q.limit, total } };
   }
 
-  polriUnits(parent?: string) {
-    return this.prisma.polriUnit.findMany({ where: parent ? { parentId: parent, kind: 'POLRES' } : { kind: 'POLDA' }, select: { id: true, name: true }, orderBy: { name: 'asc' } });
+  /** Pilihan formulir tambah Polsek: Polres dalam cakupan admin, atau Polda yang memuatnya. */
+  polriUnits(me: AuthUser, parent?: string) {
+    const scope = me.role === UserRole.SUPERADMIN ? Prisma.sql`TRUE` : Prisma.sql`coalesce(r.unit_id, r.id) IN (SELECT unit_subtree(${me.unitId}::uuid))`;
+    return parent
+      ? this.prisma.$queryRaw<{ id: string; name: string }[]>`SELECT r.id, r.name FROM polri_units r WHERE r.kind = 'POLRES' AND r.parent_id = ${parent}::uuid AND ${scope} ORDER BY r.name`
+      : this.prisma.$queryRaw<{ id: string; name: string }[]>`
+          SELECT d.id, d.name FROM polri_units d WHERE d.kind = 'POLDA' AND EXISTS (SELECT 1 FROM polri_units r WHERE r.kind = 'POLRES' AND r.parent_id = d.id AND ${scope}) ORDER BY d.name`;
   }
 
   /** Unit padanan satuan nasional. */

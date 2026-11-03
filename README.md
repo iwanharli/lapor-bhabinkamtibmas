@@ -23,7 +23,7 @@ backend/                 NestJS API (Prisma, PostgreSQL + PostGIS), port 3000
   prisma/                skema, migrasi, seeder
   storage/               berkas lampiran, ekspor, cache data wilayah (tidak masuk git)
 web/                     Dashboard Next.js 15 (App Router, Tailwind v4), port 3001
-mobile/                  Aplikasi Flutter (Android & iOS) — masih kerangka
+mobile/                  Aplikasi Flutter (Android & iOS)
 packages/form-schemas/   Skema form kategori laporan + master komoditas (JSON)
 infra/                   Unit systemd, konfigurasi Nginx, skrip server
 docs/teknis/             Dokumentasi teknis (arsitektur, API, database, keamanan, skala nasional)
@@ -73,6 +73,10 @@ docs/teknis/             Dokumentasi teknis (arsitektur, API, database, keamanan
 - **Ekspor CSV** lewat antrean (`export_jobs`): diunduh otomatis saat selesai, berkas disimpan 24 jam.
 
 **Aturan desa binaan:** untuk sementara 1 Bhabin boleh membina beberapa desa, sedangkan 1 desa tetap dibina 1 Bhabin (dijaga indeks unik di database). Laporan tidak bisa dikirim bila titik GPS lebih dari 200 m dari batas desa yang dipilih; waktu kegiatan di formulir Bhabin terkunci.
+
+**Login & orientasi:** setelah sandi, akun non-demo yang wajahnya terdaftar memverifikasi wajah (kamera langsung; web memakai MediaPipe yang disimpan di `web/public/mediapipe`, mobile memakai ML Kit). Pengguna baru: ganti sandi → lengkapi profil → daftar wajah (`/orientasi`).
+
+**Data nasional (berkas sumber tidak ada di repo):** `npm run seed:polri` memuat Polda/Polres/Polsek dari `backend/prisma/polri/*.csv`, menghubungkannya ke unit, dan mengisi Polsek desa. `npm run seed:pasar -- <berkas.csv>` memuat titik pasar. Halaman `/harga-pangan` menelusur wilayah → pasar → komoditas, toko, dan riwayat pencatatan.
 
 **Peran:** Bhabinkamtibmas (web `/bhabin` & mobile), Pimpinan, Admin Unit, Superadmin, Auditor. Peran Verifikator **tidak dipakai lagi**. Akses dibatasi cakupan unit (Polda → Polres → Polsek). Rincian: [docs/teknis/02-peran-hak-akses.md](docs/teknis/02-peran-hak-akses.md).
 
@@ -274,7 +278,6 @@ Deployment server (systemd + Nginx, tanpa Docker): [docs/teknis/09-deployment.md
 - Data contoh nasional dan test E2E.
 
 **Belum dikerjakan**
-- Aplikasi mobile Flutter (baru kerangka; sementara Bhabin memakai tampilan web `/bhabin`).
 - Notifikasi push ke HP (notifikasi dalam aplikasi web sudah ada).
 - API Command Center & tampilan korelasi.
 - Rekap absensi per Bhabin/bulanan & ekspor absensi.

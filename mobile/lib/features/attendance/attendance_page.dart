@@ -82,7 +82,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
           final days = byDay.keys.where((d) => d != today).toList()..sort((a, b) => b.compareTo(a));
           return RefreshIndicator(
             onRefresh: () => ref.refresh(myAttendanceProvider.future),
-            child: ListView(padding: const EdgeInsets.all(16), children: [
+            child: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 56), children: [
               Text(tanggalPanjang(DateTime.now()), style: const TextStyle(color: muted)),
               const SizedBox(height: 10),
               Card(

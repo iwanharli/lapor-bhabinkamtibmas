@@ -352,7 +352,7 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
       },
       child: Scaffold(
         appBar: AppBar(title: Text(_ralat ? 'Ralat · ${cat.label}' : cat.label)),
-        body: ListView(padding: contentPadding(context, top: 12, bottom: 120), children: [
+        body: ListView(padding: contentPadding(context, top: 12, bottom: 24), children: [
           if (steps.length > 1) _Stepper(steps: steps, current: _step, onTap: (i) => setState(() => _step = i)),
           if (_step == 0) ...[
             Card(
@@ -404,9 +404,10 @@ class _ReportFormPageState extends ConsumerState<ReportFormPage> {
           if (steps[_step].description != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(steps[_step].description!, style: const TextStyle(color: muted, fontSize: 12))),
           for (final f in _stepFields(_step).where((f) => f.active(_values))) Padding(padding: const EdgeInsets.only(bottom: 14), child: _field(f)),
         ]),
-        bottomSheet: Container(
+        // Selebar layar (bottomSheet dibatasi 640 di tablet); naik mengikuti keyboard.
+        bottomNavigationBar: Container(
           color: context.pal.surface,
-          padding: EdgeInsets.fromLTRB(16, 10, 16, 10 + MediaQuery.of(context).padding.bottom),
+          padding: EdgeInsets.fromLTRB(16, 10, 16, 10 + MediaQuery.of(context).padding.bottom + MediaQuery.of(context).viewInsets.bottom),
           child: Row(children: [
             if (_step > 0) ...[
               Expanded(child: OutlinedButton(onPressed: _busy ? null : () => setState(() => _step--), child: const Text('Kembali'))),

@@ -63,7 +63,7 @@ class ProfilePage extends ConsumerWidget {
           final desaBinaan = ((p['villages'] as List?) ?? []).cast<Map>().where((v) => v['until'] == null).map((v) => v['village'] as Map);
           final missing = [if ((p['pangkat'] ?? '') == '') 'pangkat', if ((p['jabatan'] ?? '') == '') 'jabatan', if ((p['phone'] ?? '') == '') 'No. HP'];
           String initials(String n) => n.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).take(2).map((w) => w[0]).join().toUpperCase();
-          return ListView(padding: contentPadding(context), children: [
+          return ListView(padding: contentPadding(context, bottom: 56), children: [
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(18),

@@ -38,7 +38,7 @@ class HomePage extends ConsumerWidget {
         ref.invalidate(formSchemasProvider);
         await ref.read(myAttendanceProvider.future);
       },
-      child: ListView(padding: EdgeInsets.zero, children: [
+      child: ListView(padding: const EdgeInsets.only(bottom: 56), children: [
         Container(
           padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 18, 20, 24),
           decoration: const BoxDecoration(gradient: LinearGradient(colors: [brandDeep, brand], begin: Alignment.topLeft, end: Alignment.bottomRight)),
@@ -78,7 +78,7 @@ class HomePage extends ConsumerWidget {
             Card(
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
-                onTap: () => context.go('/absensi'),
+                onTap: () => context.push('/absensi'),
                 child: Padding(
                   padding: const EdgeInsets.all(14),
                   child: Row(children: [

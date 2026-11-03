@@ -34,7 +34,8 @@ export class VillagesService {
       SELECT id, nama, kategori, alamat, round(ST_Distance(p, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography))::int AS jarak_m
       FROM (SELECT *, ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography AS p FROM markets
             WHERE lat BETWEEN ${lat - NEARBY_DEG} AND ${lat + NEARBY_DEG} AND lng BETWEEN ${lng - NEARBY_DEG} AND ${lng + NEARBY_DEG}) m
-      ORDER BY jarak_m LIMIT 8`;
+      -- Pasar tradisional lebih dulu: sasaran utama pemantauan harga.
+      ORDER BY kategori = 'pasar_modern', jarak_m LIMIT 8`;
   }
 
   async distance(me: AuthUser, id: string, lat: number, lng: number) {
